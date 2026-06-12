@@ -6,16 +6,23 @@ export interface PaymentEvent {
   payload: CallbackPayload;
 }
 
-export interface TransactionEvent {
+export interface TransactionCancelledEvent {
   transaction: TransactionRecord;
+  reason: string;
+}
+
+export interface TransactionRefundedEvent {
+  transaction: TransactionRecord;
+  amount: number;
+  reason: string;
 }
 
 export interface SispEventMap {
   'payment:completed': PaymentEvent;
   'payment:failed': PaymentEvent;
   'payment:pending': PaymentEvent;
-  'transaction:cancelled': TransactionEvent;
-  'transaction:refunded': TransactionEvent;
+  'transaction:cancelled': TransactionCancelledEvent;
+  'transaction:refunded': TransactionRefundedEvent;
 }
 
 export type SispEventName = keyof SispEventMap;

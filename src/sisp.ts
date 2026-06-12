@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 import type { BuildRequestPayloadAction } from './actions/build-request-payload';
+import type { CancelTransactionAction } from './actions/cancel-transaction';
 import type { ResolvedSispConfig } from './config';
 import type { CredentialsResolver } from './contracts/credentials-resolver';
 import type { SispDriver } from './contracts/sisp-driver';
@@ -18,6 +19,7 @@ import { CallbackContext } from './pipelines/callback/callback-context';
 import type { HandleCallbackPipeline } from './pipelines/callback/handle-callback-pipeline';
 import type { BuildSandboxPayloadAction, SandboxStatus } from './sandbox';
 import { PaymentBuilder } from './builders/payment-builder';
+import type { UrlSigner } from './support/signed-url';
 import type { CallbackPayload } from './value-objects/callback-payload';
 import type { PaymentRequest } from './value-objects/payment-request';
 import type { PaymentRequestData } from './value-objects/payment-request-data';
@@ -42,7 +44,25 @@ export class Sisp {
     private readonly buildRequestPayloadAction: BuildRequestPayloadAction,
     private readonly buildSandboxPayloadAction: BuildSandboxPayloadAction,
     private readonly callbackPipeline: HandleCallbackPipeline,
+    private readonly cancelTransaction: CancelTransactionAction,
+    private readonly urlSigner: UrlSigner,
   ) {}
+
+  async cancel(
+    transaction: TransactionRecord,
+    reason = 'user_cancelled',
+  ): Promise<TransactionRecord> {
+    return this.cancelTransaction.handle(transaction, reason);
+  }
+
+  signedCancelUrl(merchantRef: string, reason = 'user_cancelled'): string {
+    const signedPath = this.urlSigner.sign(`${this.config.basePath}/cancel`, {
+      merchantRef,
+      reason,
+    });
+
+    return `${this.config.baseUrl}${signedPath}`;
+  }
 
   payment(): PaymentBuilder {
     return new PaymentBuilder(this.buildRequestPayloadAction);

@@ -1,4 +1,5 @@
 import { BuildRequestPayloadAction } from './actions/build-request-payload';
+import { CancelTransactionAction } from './actions/cancel-transaction';
 import { FailTransactionAction } from './actions/fail-transaction';
 import { StoreRequestMetadataAction } from './actions/store-request-metadata';
 import { UpdateInvoiceStatusAction } from './actions/update-invoice-status';
@@ -32,6 +33,7 @@ import { EnsureIpIsNotBlacklisted } from './pipelines/payment/pipes/ensure-ip-is
 import { PersistTransaction } from './pipelines/payment/pipes/persist-transaction';
 import { BuildSandboxPayloadAction } from './sandbox';
 import { Sisp, type SispModels } from './sisp';
+import { UrlSigner } from './support/signed-url';
 
 export async function createSisp(config: SispConfig): Promise<Sisp> {
   const resolved = resolveConfig(config);
@@ -71,6 +73,8 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   );
 
   const failTransaction = new FailTransactionAction(models.transactions);
+  const urlSigner = new UrlSigner(resolved.appKey);
+  const cancelTransaction = new CancelTransactionAction(models.transactions, events);
 
   const callbackPipeline = new HandleCallbackPipeline(
     customizePipes(resolved.pipelines.callback, [
@@ -82,17 +86,19 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     ]),
   );
 
-  const handlers = new SispHttpHandlers(
-    resolved,
+  const handlers = new SispHttpHandlers({
+    config: resolved,
     manager,
     paymentPipeline,
     callbackPipeline,
-    models.transactions,
-    models.invoices,
+    transactions: models.transactions,
+    invoices: models.invoices,
     storeMetadata,
-    new UpdateInvoiceStatusAction(models.invoices),
+    updateInvoiceStatus: new UpdateInvoiceStatusAction(models.invoices),
     buildSandboxPayload,
-  );
+    cancelTransaction,
+    urlSigner,
+  });
 
   return new Sisp(
     resolved,
@@ -105,6 +111,8 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     buildRequestPayload,
     buildSandboxPayload,
     callbackPipeline,
+    cancelTransaction,
+    urlSigner,
   );
 }
 

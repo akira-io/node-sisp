@@ -12,6 +12,7 @@ export function sispRoutes(sisp: Sisp): Router {
   router.post('/payment', handle((request) => sisp.handlers.handlePayment(request)));
   router.get('/callback', handle((request) => sisp.handlers.handleCallback(request)));
   router.post('/callback', handle((request) => sisp.handlers.handleCallback(request)));
+  router.get('/cancel', handle((request) => sisp.handlers.handleCancel(request)));
   router.get('/sandbox', handle((request) => sisp.handlers.handleSandbox(request)));
   router.post('/sandbox', handle((request) => sisp.handlers.handleSandbox(request)));
   router.get('/countries', handle(() => Promise.resolve(sisp.handlers.handleCountries())));

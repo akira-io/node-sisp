@@ -35,7 +35,8 @@ export {
   SispEventEmitter,
   type SispEventMap,
   type SispEventName,
-  type TransactionEvent,
+  type TransactionCancelledEvent,
+  type TransactionRefundedEvent,
 } from './events';
 export {
   BlacklistedIdentifierError,

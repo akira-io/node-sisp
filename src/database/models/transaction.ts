@@ -96,6 +96,12 @@ export class Transaction {
     return row ? this.map(row) : null;
   }
 
+  async findByGatewayTransactionId(transactionId: string): Promise<TransactionRecord | null> {
+    const row = await this.table().where('transaction_id', transactionId).first();
+
+    return row ? this.map(row) : null;
+  }
+
   async update(id: number, changes: TransactionChanges): Promise<TransactionRecord> {
     const current = await this.findOrFail(id);
     const normalizedChanges = this.normalizeChanges(changes);

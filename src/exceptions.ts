@@ -6,6 +6,8 @@ export class RateLimitExceededError extends SispError {}
 
 export class TransactionNotFoundError extends SispError {}
 
+export class TransactionStateError extends SispError {}
+
 export class MissingThreeDSecureDataError extends SispError {
   constructor(readonly missingFields: readonly string[]) {
     super(
