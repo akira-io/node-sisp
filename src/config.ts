@@ -46,6 +46,16 @@ export interface SecuritySettings {
   collectMetadata: boolean;
 }
 
+export interface TransactionStatusConfig {
+  url: string;
+  portalId: string;
+  portalPassword: string;
+  timeoutSeconds: number;
+  reconciliationEnabled: boolean;
+  reconcileAfterMinutes: number;
+  reconcileLimit: number;
+}
+
 export interface SispDatabaseConfig {
   client: 'better-sqlite3' | 'pg' | 'mysql2';
   connection: Knex.Config['connection'];
@@ -77,6 +87,7 @@ export interface SispConfig {
   generators?: Partial<SispGenerators>;
   pipelines?: SispPipelineCustomizers;
   onEventListenerError?: EventErrorHandler;
+  transactionStatus?: Partial<TransactionStatusConfig>;
 }
 
 export interface ResolvedSispConfig {
@@ -104,6 +115,7 @@ export interface ResolvedSispConfig {
   generators: SispGenerators;
   pipelines: SispPipelineCustomizers;
   onEventListenerError: EventErrorHandler | null;
+  transactionStatus: TransactionStatusConfig;
 }
 
 type DeepPartial<T> = {
@@ -118,6 +130,16 @@ export const DEFAULT_TABLES: SispTables = {
   rateLimits: 'sisp_rate_limits',
   blacklist: 'sisp_blacklist',
   transactionLogs: 'sisp_transaction_logs',
+};
+
+const DEFAULT_TRANSACTION_STATUS: TransactionStatusConfig = {
+  url: 'https://comerciante.vinti4.cv/pos/transaction-status',
+  portalId: '',
+  portalPassword: '',
+  timeoutSeconds: 10,
+  reconciliationEnabled: false,
+  reconcileAfterMinutes: 5,
+  reconcileLimit: 50,
 };
 
 const DEFAULT_RATE_LIMITING: RateLimiting = {
@@ -161,6 +183,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     },
     pipelines: config.pipelines ?? {},
     onEventListenerError: config.onEventListenerError ?? null,
+    transactionStatus: { ...DEFAULT_TRANSACTION_STATUS, ...config.transactionStatus },
   };
 }
 

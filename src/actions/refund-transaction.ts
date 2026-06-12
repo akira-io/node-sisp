@@ -1,6 +1,10 @@
 import { runWithLogSource } from '../database/log-context';
 import type { Transaction } from '../database/models/transaction';
-import { nowIso, type TransactionRecord } from '../database/records';
+import {
+  nowIso,
+  type TransactionRecord,
+  transactionPayloadRecord,
+} from '../database/records';
 import { TransactionStatus } from '../enums/transaction-status';
 import type { SispEventEmitter } from '../events';
 import { SispError, TransactionStateError } from '../exceptions';
@@ -88,7 +92,7 @@ export class RefundTransactionAction {
     request: Record<string, string | number>,
     reason: string,
   ): Record<string, unknown> {
-    const payload = payloadRecord(transaction);
+    const payload = transactionPayloadRecord(transaction);
     const refunds = refundEntries(transaction);
 
     return {
@@ -98,18 +102,8 @@ export class RefundTransactionAction {
   }
 }
 
-function payloadRecord(transaction: TransactionRecord): Record<string, unknown> {
-  const payload = transaction.payload;
-
-  if (typeof payload === 'object' && payload !== null && !Array.isArray(payload)) {
-    return payload as Record<string, unknown>;
-  }
-
-  return {};
-}
-
 function refundEntries(transaction: TransactionRecord): Record<string, unknown>[] {
-  const refunds = payloadRecord(transaction).refunds;
+  const refunds = transactionPayloadRecord(transaction).refunds;
 
   if (!Array.isArray(refunds)) {
     return [];

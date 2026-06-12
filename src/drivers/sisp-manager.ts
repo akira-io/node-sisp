@@ -3,6 +3,7 @@ import type { CredentialsResolver } from '../contracts/credentials-resolver';
 import type { SispDriver } from '../contracts/sisp-driver';
 import { ProductionDriver } from './production-driver';
 import { SandboxDriver } from './sandbox-driver';
+import { TransactionStatusClient } from './transaction-status-client';
 
 export type DriverFactory = () => SispDriver;
 
@@ -44,11 +45,12 @@ export class SispManager {
 export function createSispManager(
   config: ResolvedSispConfig,
   credentialsResolver: CredentialsResolver,
+  statusClient: TransactionStatusClient = new TransactionStatusClient(config, credentialsResolver),
 ): SispManager {
   const manager = new SispManager(() => defaultDriverName(config, credentialsResolver));
 
-  manager.extend('production', () => new ProductionDriver(credentialsResolver));
-  manager.extend('sandbox', () => new SandboxDriver(config));
+  manager.extend('production', () => new ProductionDriver(credentialsResolver, statusClient));
+  manager.extend('sandbox', () => new SandboxDriver(config, statusClient));
 
   return manager;
 }

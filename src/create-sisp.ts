@@ -3,6 +3,7 @@ import { BuildRequestPayloadAction } from './actions/build-request-payload';
 import { CancelTransactionAction } from './actions/cancel-transaction';
 import { CanRetryPaymentAction } from './actions/can-retry-payment';
 import { FailTransactionAction } from './actions/fail-transaction';
+import { ReconcileTransactionStatusAction } from './actions/reconcile-transaction-status';
 import { RefundTransactionAction } from './actions/refund-transaction';
 import { RetryPaymentAction } from './actions/retry-payment';
 import { StoreRequestMetadataAction } from './actions/store-request-metadata';
@@ -86,6 +87,12 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     new BuildRefundRequestAction(resolved, credentialsResolver),
     events,
   );
+  const updateInvoiceStatus = new UpdateInvoiceStatusAction(models.invoices);
+  const reconcileTransaction = new ReconcileTransactionStatusAction(
+    manager,
+    models.transactions,
+    updateInvoiceStatus,
+  );
 
   const callbackPipeline = new HandleCallbackPipeline(
     customizePipes(resolved.pipelines.callback, [
@@ -105,7 +112,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     transactions: models.transactions,
     invoices: models.invoices,
     storeMetadata,
-    updateInvoiceStatus: new UpdateInvoiceStatusAction(models.invoices),
+    updateInvoiceStatus,
     buildSandboxPayload,
     cancelTransaction,
     retryPayment,
@@ -127,6 +134,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     callbackPipeline,
     cancelTransaction,
     refundTransaction,
+    reconcileTransaction,
     urlSigner,
   );
 }

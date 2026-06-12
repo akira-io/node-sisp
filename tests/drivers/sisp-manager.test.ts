@@ -44,6 +44,7 @@ describe('SispManager', () => {
     const custom: SispDriver = {
       name: () => 'custom',
       paymentEndpoint: () => 'https://custom.test',
+      queryTransactionStatus: () => Promise.reject(new Error('not supported')),
     };
 
     const manager = managerFor().extend('custom', () => custom);

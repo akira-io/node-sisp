@@ -119,3 +119,13 @@ export interface BlacklistRecord {
 export function nowIso(): string {
   return new Date().toISOString();
 }
+
+export function transactionPayloadRecord(transaction: TransactionRecord): Record<string, unknown> {
+  const payload = transaction.payload;
+
+  if (typeof payload === 'object' && payload !== null && !Array.isArray(payload)) {
+    return payload as Record<string, unknown>;
+  }
+
+  return {};
+}

@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import type { BuildRequestPayloadAction } from './actions/build-request-payload';
 import type { CancelTransactionAction } from './actions/cancel-transaction';
+import type { ReconcileTransactionStatusAction } from './actions/reconcile-transaction-status';
 import type { RefundTransactionAction } from './actions/refund-transaction';
 import { RefundBuilder } from './builders/refund-builder';
 import type { ResolvedSispConfig } from './config';
@@ -25,6 +26,7 @@ import type { UrlSigner } from './support/signed-url';
 import type { CallbackPayload } from './value-objects/callback-payload';
 import type { PaymentRequest } from './value-objects/payment-request';
 import type { PaymentRequestData } from './value-objects/payment-request-data';
+import type { TransactionStatusResponse } from './value-objects/transaction-status-response';
 
 export interface SispModels {
   transactions: Transaction;
@@ -32,6 +34,18 @@ export interface SispModels {
   invoices: Invoice;
   transactionLogs: TransactionLog;
   blacklist: Blacklist;
+}
+
+export interface ReconcilePendingOptions {
+  olderThanMinutes?: number;
+  limit?: number;
+  force?: boolean;
+}
+
+export interface ReconcilePendingResult {
+  skipped: boolean;
+  checked: number;
+  reconciled: number;
 }
 
 export class Sisp {
@@ -48,8 +62,46 @@ export class Sisp {
     private readonly callbackPipeline: HandleCallbackPipeline,
     private readonly cancelTransaction: CancelTransactionAction,
     private readonly refundTransaction: RefundTransactionAction,
+    private readonly reconcileTransaction: ReconcileTransactionStatusAction,
     private readonly urlSigner: UrlSigner,
   ) {}
+
+  async queryTransactionStatus(
+    transaction: TransactionRecord | string,
+  ): Promise<TransactionStatusResponse> {
+    const merchantRef = typeof transaction === 'string' ? transaction : transaction.merchant_ref;
+
+    return this.manager.driver().queryTransactionStatus(merchantRef);
+  }
+
+  async reconcileTransactionStatus(transaction: TransactionRecord): Promise<TransactionRecord> {
+    return this.reconcileTransaction.handle(transaction);
+  }
+
+  async reconcilePending(options: ReconcilePendingOptions = {}): Promise<ReconcilePendingResult> {
+    const settings = this.config.transactionStatus;
+
+    if (!settings.reconciliationEnabled && !options.force) {
+      return { skipped: true, checked: 0, reconciled: 0 };
+    }
+
+    const olderThanMinutes = options.olderThanMinutes ?? settings.reconcileAfterMinutes;
+    const limit = options.limit ?? settings.reconcileLimit;
+    const cutoff = new Date(Date.now() - olderThanMinutes * 60_000).toISOString();
+
+    const pending = await this.models.transactions.listPendingForReconciliation(cutoff, limit);
+    let reconciled = 0;
+
+    for (const transaction of pending) {
+      const updated = await this.reconcileTransaction.handle(transaction);
+
+      if (updated.status !== transaction.status) {
+        reconciled += 1;
+      }
+    }
+
+    return { skipped: false, checked: pending.length, reconciled };
+  }
 
   refund(transaction: TransactionRecord): RefundBuilder {
     return new RefundBuilder(this.refundTransaction, transaction);
