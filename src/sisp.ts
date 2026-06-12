@@ -64,6 +64,10 @@ export class Sisp {
     return `${this.config.baseUrl}${signedPath}`;
   }
 
+  signedRetryUrl(transactionId: number): string {
+    return this.handlers.signedRetryUrl(transactionId);
+  }
+
   payment(): PaymentBuilder {
     return new PaymentBuilder(this.buildRequestPayloadAction);
   }

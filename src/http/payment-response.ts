@@ -1,4 +1,3 @@
-import type { ResolvedSispConfig } from '../config';
 import type { InvoiceRecord, TransactionRecord } from '../database/records';
 import {
   errorActionLabel,
@@ -6,7 +5,6 @@ import {
   errorMessageTypeFromValue,
   errorMessageTypeLabel,
 } from '../enums/error-message-type';
-import { TransactionStatus } from '../enums/transaction-status';
 
 export interface PaymentResponseData {
   transaction: {
@@ -21,6 +19,7 @@ export interface PaymentResponseData {
   };
   error: PaymentErrorData | null;
   allowRetry: boolean;
+  retryUrl: string | null;
   invoice: {
     invoice_number: string;
     invoice_date: string;
@@ -38,10 +37,15 @@ export interface PaymentErrorData {
   actionLabel: string;
 }
 
+export interface RetryAvailability {
+  allowed: boolean;
+  url: string | null;
+}
+
 export function paymentResponseData(
-  config: ResolvedSispConfig,
   transaction: TransactionRecord,
   invoice: InvoiceRecord | null,
+  retry: RetryAvailability = { allowed: false, url: null },
 ): PaymentResponseData {
   return {
     transaction: {
@@ -55,7 +59,8 @@ export function paymentResponseData(
       message_type: transaction.message_type,
     },
     error: structuredError(transaction),
-    allowRetry: config.allowRetry && transaction.status === TransactionStatus.Failed,
+    allowRetry: retry.allowed,
+    retryUrl: retry.url,
     invoice: invoice
       ? {
           invoice_number: invoice.invoice_number,

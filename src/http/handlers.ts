@@ -1,4 +1,6 @@
 import type { CancelTransactionAction } from '../actions/cancel-transaction';
+import type { CanRetryPaymentAction } from '../actions/can-retry-payment';
+import type { RetryPaymentAction } from '../actions/retry-payment';
 import type { StoreRequestMetadataAction } from '../actions/store-request-metadata';
 import type { UpdateInvoiceStatusAction } from '../actions/update-invoice-status';
 import { type ResolvedSispConfig, routeUrl } from '../config';
@@ -9,7 +11,6 @@ import {
   BlacklistedIdentifierError,
   RateLimitExceededError,
   TransactionNotFoundError,
-  TransactionStateError,
 } from '../exceptions';
 import { CallbackContext } from '../pipelines/callback/callback-context';
 import type { HandleCallbackPipeline } from '../pipelines/callback/handle-callback-pipeline';
@@ -25,6 +26,8 @@ import {
 import { paymentRequestToFormFields } from '../value-objects/payment-request';
 import { paymentRequestDataFrom } from '../value-objects/payment-request-data';
 import { renderAutoSubmitForm } from './auto-submit-form';
+import { buildGatewayFormAction } from './gateway-form-action';
+import { LifecycleHandlers } from './lifecycle-handlers';
 import { paymentResponseData } from './payment-response';
 import type { HttpRequestInfo } from './request-info';
 import { html, type HttpResult, json, redirect } from './results';
@@ -41,6 +44,8 @@ export interface SispHandlersDeps {
   updateInvoiceStatus: UpdateInvoiceStatusAction;
   buildSandboxPayload: BuildSandboxPayloadAction;
   cancelTransaction: CancelTransactionAction;
+  retryPayment: RetryPaymentAction;
+  canRetryPayment: CanRetryPaymentAction;
   urlSigner: UrlSigner;
 }
 
@@ -54,8 +59,7 @@ export class SispHttpHandlers {
   private readonly storeMetadata: StoreRequestMetadataAction;
   private readonly updateInvoiceStatus: UpdateInvoiceStatusAction;
   private readonly buildSandboxPayload: BuildSandboxPayloadAction;
-  private readonly cancelTransaction: CancelTransactionAction;
-  private readonly urlSigner: UrlSigner;
+  private readonly lifecycle: LifecycleHandlers;
 
   constructor(deps: SispHandlersDeps) {
     this.config = deps.config;
@@ -67,36 +71,27 @@ export class SispHttpHandlers {
     this.storeMetadata = deps.storeMetadata;
     this.updateInvoiceStatus = deps.updateInvoiceStatus;
     this.buildSandboxPayload = deps.buildSandboxPayload;
-    this.cancelTransaction = deps.cancelTransaction;
-    this.urlSigner = deps.urlSigner;
+    this.lifecycle = new LifecycleHandlers({
+      config: deps.config,
+      manager: deps.manager,
+      transactions: deps.transactions,
+      cancelTransaction: deps.cancelTransaction,
+      retryPayment: deps.retryPayment,
+      canRetryPayment: deps.canRetryPayment,
+      urlSigner: deps.urlSigner,
+    });
+  }
+
+  async handleRetryPayment(request: HttpRequestInfo): Promise<HttpResult> {
+    return this.lifecycle.handleRetryPayment(request);
   }
 
   async handleCancel(request: HttpRequestInfo): Promise<HttpResult> {
-    if (!this.urlSigner.validate(`${this.config.basePath}/cancel`, request.query)) {
-      return json({ message: 'Invalid signature.' }, 403);
-    }
+    return this.lifecycle.handleCancel(request);
+  }
 
-    const transaction = await this.resolveCancellable(request.query);
-
-    if (transaction === null) {
-      return json({ message: 'Transaction not found.' }, 404);
-    }
-
-    const reason = typeof request.query.reason === 'string' ? request.query.reason : 'user_cancelled';
-
-    try {
-      const cancelled = await this.cancelTransaction.handle(transaction, reason);
-
-      return redirect(
-        `${routeUrl(this.config, 'callback')}?ref=${encodeURIComponent(cancelled.merchant_ref)}`,
-      );
-    } catch (error) {
-      if (error instanceof TransactionStateError) {
-        return json({ message: error.message }, 400);
-      }
-
-      throw error;
-    }
+  signedRetryUrl(transactionId: number): string {
+    return this.lifecycle.signedRetryUrl(transactionId);
   }
 
   async handlePayment(request: HttpRequestInfo): Promise<HttpResult> {
@@ -118,7 +113,11 @@ export class SispHttpHandlers {
       const fields = paymentRequestToFormFields(context.requirePaymentRequest());
 
       return html(
-        renderAutoSubmitForm(this.formAction(fields), fields, 'SISP - Redirecting to payment'),
+        renderAutoSubmitForm(
+          buildGatewayFormAction(this.manager, fields),
+          fields,
+          'SISP - Redirecting to payment',
+        ),
       );
     } catch (error) {
       return this.guardErrorResult(error);
@@ -178,7 +177,9 @@ export class SispHttpHandlers {
 
     const invoice = await this.invoices.findByTransaction(transaction.id);
 
-    return json(paymentResponseData(this.config, transaction, invoice));
+    return json(
+      paymentResponseData(transaction, invoice, this.lifecycle.retryAvailability(transaction)),
+    );
   }
 
   private async handleCallbackNotification(request: HttpRequestInfo): Promise<HttpResult> {
@@ -214,22 +215,6 @@ export class SispHttpHandlers {
     );
   }
 
-  private async resolveCancellable(query: Record<string, unknown>) {
-    const merchantRef = query.merchantRef;
-
-    if (typeof merchantRef === 'string' && merchantRef !== '') {
-      return this.transactions.findByRef(merchantRef);
-    }
-
-    const transactionId = query.transaction_id;
-
-    if (typeof transactionId === 'string' && transactionId !== '') {
-      return this.transactions.findByGatewayTransactionId(transactionId);
-    }
-
-    return null;
-  }
-
   private async isDuplicateSubmission(body: Record<string, unknown>): Promise<boolean> {
     const merchantRef = body.merchantRef;
     const merchantSession = body.merchantSession;
@@ -247,17 +232,6 @@ export class SispHttpHandlers {
     const transaction = await this.transactions.findByRefAndSession(merchantRef, merchantSession);
 
     return transaction !== null && transaction.transaction_id !== null;
-  }
-
-  private formAction(fields: Record<string, string | number>): string {
-    const endpoint = this.manager.driver().paymentEndpoint();
-    const extras = new URLSearchParams({
-      FingerPrint: String(fields.fingerprint ?? ''),
-      TimeStamp: String(fields.timeStamp ?? ''),
-      FingerPrintVersion: String(fields.fingerprintversion ?? ''),
-    });
-
-    return `${endpoint}${endpoint.includes('?') ? '&' : '?'}${extras.toString()}`;
   }
 
   private guardErrorResult(error: unknown): HttpResult {

@@ -1,6 +1,8 @@
 import { BuildRequestPayloadAction } from './actions/build-request-payload';
 import { CancelTransactionAction } from './actions/cancel-transaction';
+import { CanRetryPaymentAction } from './actions/can-retry-payment';
 import { FailTransactionAction } from './actions/fail-transaction';
+import { RetryPaymentAction } from './actions/retry-payment';
 import { StoreRequestMetadataAction } from './actions/store-request-metadata';
 import { UpdateInvoiceStatusAction } from './actions/update-invoice-status';
 import { credentialsFromConfig, type ResolvedSispConfig, resolveConfig, type SispConfig } from './config';
@@ -75,6 +77,8 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   const failTransaction = new FailTransactionAction(models.transactions);
   const urlSigner = new UrlSigner(resolved.appKey);
   const cancelTransaction = new CancelTransactionAction(models.transactions, events);
+  const retryPayment = new RetryPaymentAction(buildRequestPayload);
+  const canRetryPayment = new CanRetryPaymentAction(resolved);
 
   const callbackPipeline = new HandleCallbackPipeline(
     customizePipes(resolved.pipelines.callback, [
@@ -97,6 +101,8 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     updateInvoiceStatus: new UpdateInvoiceStatusAction(models.invoices),
     buildSandboxPayload,
     cancelTransaction,
+    retryPayment,
+    canRetryPayment,
     urlSigner,
   });
 
