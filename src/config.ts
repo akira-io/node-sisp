@@ -1,10 +1,17 @@
 import type { Knex } from 'knex';
+import type { CallbackPipe, PaymentPipe } from './contracts/pipes';
+import type { EventErrorHandler } from './events';
 import {
   generateMerchantReference,
   generateMerchantSession,
   generateTimeStamp,
 } from './support/generators';
 import { type SispCredentials, sispCredentials } from './value-objects/sisp-credentials';
+
+export interface SispPipelineCustomizers {
+  payment?: (defaults: PaymentPipe[]) => PaymentPipe[];
+  callback?: (defaults: CallbackPipe[]) => CallbackPipe[];
+}
 
 export interface SispTables {
   transactions: string;
@@ -68,6 +75,8 @@ export interface SispConfig {
   rateLimiting?: DeepPartial<RateLimiting>;
   security?: Partial<SecuritySettings>;
   generators?: Partial<SispGenerators>;
+  pipelines?: SispPipelineCustomizers;
+  onEventListenerError?: EventErrorHandler;
 }
 
 export interface ResolvedSispConfig {
@@ -93,6 +102,8 @@ export interface ResolvedSispConfig {
   rateLimiting: RateLimiting;
   security: SecuritySettings;
   generators: SispGenerators;
+  pipelines: SispPipelineCustomizers;
+  onEventListenerError: EventErrorHandler | null;
 }
 
 type DeepPartial<T> = {
@@ -148,6 +159,8 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
       merchantSession: config.generators?.merchantSession ?? (() => generateMerchantSession()),
       timeStamp: config.generators?.timeStamp ?? (() => generateTimeStamp()),
     },
+    pipelines: config.pipelines ?? {},
+    onEventListenerError: config.onEventListenerError ?? null,
   };
 }
 
