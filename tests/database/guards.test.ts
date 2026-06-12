@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_TABLES } from '../../src/config';
 import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
-import { BlacklistRepository } from '../../src/database/repositories/blacklist-repository';
-import { RateLimitRepository } from '../../src/database/repositories/rate-limit-repository';
+import { BlacklistRepository } from '../../src/database/models/blacklist-repository';
+import { RateLimitRepository } from '../../src/database/models/rate-limit-repository';
 
 let db: Knex;
 let blacklist: BlacklistRepository;

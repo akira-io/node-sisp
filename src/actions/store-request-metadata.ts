@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type {
   NewRequestMetadata,
   RequestMetadataRepository,
-} from '../database/repositories/request-metadata-repository';
+} from '../database/models/request-metadata-repository';
 import { headerValue, type HttpRequestInfo } from '../http/request-info';
 import {
   detectBrowser,

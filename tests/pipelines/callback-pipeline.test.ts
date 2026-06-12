@@ -10,8 +10,8 @@ import { StaticCredentialsResolver } from '../../src/contracts/credentials-resol
 import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
 import { PayloadCipher } from '../../src/database/encryption';
-import { TransactionLogRepository } from '../../src/database/repositories/transaction-log-repository';
-import { TransactionRepository } from '../../src/database/repositories/transaction-repository';
+import { TransactionLogRepository } from '../../src/database/models/transaction-log-repository';
+import { TransactionRepository } from '../../src/database/models/transaction-repository';
 import { SispEventEmitter } from '../../src/events';
 import { TransactionNotFoundError } from '../../src/exceptions';
 import { generateCallbackFingerprint } from '../../src/fingerprints/callback-fingerprint';

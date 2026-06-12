@@ -1,7 +1,7 @@
 import { mapTransactionStatus } from '../../../actions/map-transaction-status';
 import type { CallbackPipe } from '../../../contracts/pipes';
 import { runWithLogSource } from '../../../database/log-context';
-import type { TransactionRepository } from '../../../database/repositories/transaction-repository';
+import type { TransactionRepository } from '../../../database/models/transaction-repository';
 import type { CallbackContext } from '../callback-context';
 
 export class ApplyTransactionStatus implements CallbackPipe {

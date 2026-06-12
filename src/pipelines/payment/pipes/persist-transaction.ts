@@ -1,9 +1,9 @@
 import type { Knex } from 'knex';
 import type { PaymentPipe } from '../../../contracts/pipes';
 import { runWithLogSource } from '../../../database/log-context';
-import type { InvoiceRepository } from '../../../database/repositories/invoice-repository';
-import type { TransactionItemRepository } from '../../../database/repositories/transaction-item-repository';
-import type { TransactionRepository } from '../../../database/repositories/transaction-repository';
+import type { InvoiceRepository } from '../../../database/models/invoice-repository';
+import type { TransactionItemRepository } from '../../../database/models/transaction-item-repository';
+import type { TransactionRepository } from '../../../database/models/transaction-repository';
 import { paymentRequestToFormFields } from '../../../value-objects/payment-request';
 import { customerDataFrom, customerDataToRecord } from '../../../value-objects/customer-data';
 import { transactionItemCollection } from '../../../value-objects/transaction-item-data';

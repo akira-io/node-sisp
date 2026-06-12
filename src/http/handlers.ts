@@ -1,8 +1,8 @@
 import type { StoreRequestMetadataAction } from '../actions/store-request-metadata';
 import type { UpdateInvoiceStatusAction } from '../actions/update-invoice-status';
 import { type ResolvedSispConfig, routeUrl } from '../config';
-import type { InvoiceRepository } from '../database/repositories/invoice-repository';
-import type { TransactionRepository } from '../database/repositories/transaction-repository';
+import type { InvoiceRepository } from '../database/models/invoice-repository';
+import type { TransactionRepository } from '../database/models/transaction-repository';
 import type { SispManager } from '../drivers/sisp-manager';
 import {
   BlacklistedIdentifierError,

@@ -1,4 +1,4 @@
-import type { InvoiceRepository } from '../database/repositories/invoice-repository';
+import type { InvoiceRepository } from '../database/models/invoice-repository';
 import type { TransactionRecord } from '../database/records';
 import { InvoiceStatus } from '../enums/invoice-status';
 import { TransactionStatus } from '../enums/transaction-status';

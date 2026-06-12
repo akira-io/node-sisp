@@ -1,6 +1,6 @@
 import type { RateLimiting } from '../../../config';
 import type { PaymentPipe } from '../../../contracts/pipes';
-import type { RateLimitRepository } from '../../../database/repositories/rate-limit-repository';
+import type { RateLimitRepository } from '../../../database/models/rate-limit-repository';
 import { RateLimitExceededError } from '../../../exceptions';
 import type { PaymentContext } from '../payment-context';
 

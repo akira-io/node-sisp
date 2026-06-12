@@ -1,5 +1,5 @@
 import type { PaymentPipe } from '../../../contracts/pipes';
-import type { BlacklistRepository } from '../../../database/repositories/blacklist-repository';
+import type { BlacklistRepository } from '../../../database/models/blacklist-repository';
 import { BlacklistedIdentifierError } from '../../../exceptions';
 import type { PaymentContext } from '../payment-context';
 

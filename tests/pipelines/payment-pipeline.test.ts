@@ -11,12 +11,12 @@ import { StaticCredentialsResolver } from '../../src/contracts/credentials-resol
 import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
 import { PayloadCipher } from '../../src/database/encryption';
-import { BlacklistRepository } from '../../src/database/repositories/blacklist-repository';
-import { InvoiceRepository } from '../../src/database/repositories/invoice-repository';
-import { RateLimitRepository } from '../../src/database/repositories/rate-limit-repository';
-import { RequestMetadataRepository } from '../../src/database/repositories/request-metadata-repository';
-import { TransactionItemRepository } from '../../src/database/repositories/transaction-item-repository';
-import { TransactionRepository } from '../../src/database/repositories/transaction-repository';
+import { BlacklistRepository } from '../../src/database/models/blacklist-repository';
+import { InvoiceRepository } from '../../src/database/models/invoice-repository';
+import { RateLimitRepository } from '../../src/database/models/rate-limit-repository';
+import { RequestMetadataRepository } from '../../src/database/models/request-metadata-repository';
+import { TransactionItemRepository } from '../../src/database/models/transaction-item-repository';
+import { TransactionRepository } from '../../src/database/models/transaction-repository';
 import { BlacklistedIdentifierError, RateLimitExceededError } from '../../src/exceptions';
 import type { HttpRequestInfo } from '../../src/http/request-info';
 import { PaymentContext } from '../../src/pipelines/payment/payment-context';

@@ -1,5 +1,5 @@
 import type { CallbackPipe } from '../../../contracts/pipes';
-import type { TransactionRepository } from '../../../database/repositories/transaction-repository';
+import type { TransactionRepository } from '../../../database/models/transaction-repository';
 import { TransactionNotFoundError } from '../../../exceptions';
 import type { CallbackContext } from '../callback-context';
 
