@@ -45,6 +45,10 @@ export class TransactionRepository {
     private readonly cipher: PayloadCipher,
   ) {}
 
+  withConnection(connection: Knex): TransactionRepository {
+    return new TransactionRepository(connection, this.tables, this.cipher);
+  }
+
   async create(data: NewTransaction): Promise<TransactionRecord> {
     const timestamp = nowIso();
 

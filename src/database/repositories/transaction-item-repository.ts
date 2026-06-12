@@ -9,6 +9,10 @@ export class TransactionItemRepository {
     private readonly tables: SispTables,
   ) {}
 
+  withConnection(connection: Knex): TransactionItemRepository {
+    return new TransactionItemRepository(connection, this.tables);
+  }
+
   async createMany(transactionId: number, items: readonly TransactionItemData[]): Promise<void> {
     if (items.length === 0) {
       return;
