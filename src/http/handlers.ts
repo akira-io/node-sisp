@@ -1,5 +1,6 @@
 import type { CancelTransactionAction } from '../actions/cancel-transaction';
 import type { CanRetryPaymentAction } from '../actions/can-retry-payment';
+import type { RefundTransactionAction } from '../actions/refund-transaction';
 import type { RetryPaymentAction } from '../actions/retry-payment';
 import type { StoreRequestMetadataAction } from '../actions/store-request-metadata';
 import type { UpdateInvoiceStatusAction } from '../actions/update-invoice-status';
@@ -46,6 +47,7 @@ export interface SispHandlersDeps {
   cancelTransaction: CancelTransactionAction;
   retryPayment: RetryPaymentAction;
   canRetryPayment: CanRetryPaymentAction;
+  refundTransaction: RefundTransactionAction;
   urlSigner: UrlSigner;
 }
 
@@ -78,8 +80,13 @@ export class SispHttpHandlers {
       cancelTransaction: deps.cancelTransaction,
       retryPayment: deps.retryPayment,
       canRetryPayment: deps.canRetryPayment,
+      refundTransaction: deps.refundTransaction,
       urlSigner: deps.urlSigner,
     });
+  }
+
+  async handleRefund(request: HttpRequestInfo, transactionId: number): Promise<HttpResult> {
+    return this.lifecycle.handleRefund(request, transactionId);
   }
 
   async handleRetryPayment(request: HttpRequestInfo): Promise<HttpResult> {

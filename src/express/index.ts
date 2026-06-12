@@ -3,8 +3,13 @@ import type { HttpRequestInfo } from '../http/request-info';
 import type { HttpResult } from '../http/results';
 import type { Sisp } from '../sisp';
 
-export function sispRoutes(sisp: Sisp): Router {
+export interface SispRoutesOptions {
+  authorizeRefund?: (req: Request) => boolean | Promise<boolean>;
+}
+
+export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router {
   const router = Router();
+  const authorizeRefund = options.authorizeRefund ?? (() => false);
 
   router.use(urlencoded({ extended: true }));
   router.use(json());
@@ -18,6 +23,25 @@ export function sispRoutes(sisp: Sisp): Router {
   router.get('/sandbox', handle((request) => sisp.handlers.handleSandbox(request)));
   router.post('/sandbox', handle((request) => sisp.handlers.handleSandbox(request)));
   router.get('/countries', handle(() => Promise.resolve(sisp.handlers.handleCountries())));
+
+  router.post('/refund/:transaction', (req, res, next) => {
+    Promise.resolve(authorizeRefund(req))
+      .then((authorized) => {
+        if (!authorized) {
+          res.status(403).json({
+            success: false,
+            message: 'Unauthorized to refund this transaction.',
+          });
+
+          return;
+        }
+
+        return sisp.handlers
+          .handleRefund(toRequestInfo(req), Number(req.params.transaction))
+          .then((result) => send(res, result));
+      })
+      .catch(next);
+  });
 
   return router;
 }

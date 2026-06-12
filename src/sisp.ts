@@ -1,6 +1,8 @@
 import type { Knex } from 'knex';
 import type { BuildRequestPayloadAction } from './actions/build-request-payload';
 import type { CancelTransactionAction } from './actions/cancel-transaction';
+import type { RefundTransactionAction } from './actions/refund-transaction';
+import { RefundBuilder } from './builders/refund-builder';
 import type { ResolvedSispConfig } from './config';
 import type { CredentialsResolver } from './contracts/credentials-resolver';
 import type { SispDriver } from './contracts/sisp-driver';
@@ -45,8 +47,13 @@ export class Sisp {
     private readonly buildSandboxPayloadAction: BuildSandboxPayloadAction,
     private readonly callbackPipeline: HandleCallbackPipeline,
     private readonly cancelTransaction: CancelTransactionAction,
+    private readonly refundTransaction: RefundTransactionAction,
     private readonly urlSigner: UrlSigner,
   ) {}
+
+  refund(transaction: TransactionRecord): RefundBuilder {
+    return new RefundBuilder(this.refundTransaction, transaction);
+  }
 
   async cancel(
     transaction: TransactionRecord,

@@ -1,12 +1,13 @@
 import type { CancelTransactionAction } from '../actions/cancel-transaction';
 import type { CanRetryPaymentAction } from '../actions/can-retry-payment';
+import type { RefundTransactionAction } from '../actions/refund-transaction';
 import type { RetryPaymentAction } from '../actions/retry-payment';
 import { type ResolvedSispConfig, routeUrl } from '../config';
 import { runWithLogSource } from '../database/log-context';
 import type { Transaction } from '../database/models/transaction';
 import type { TransactionRecord } from '../database/records';
 import type { SispManager } from '../drivers/sisp-manager';
-import { TransactionStateError } from '../exceptions';
+import { SispError, TransactionStateError } from '../exceptions';
 import { TransactionStatus } from '../enums/transaction-status';
 import type { UrlSigner } from '../support/signed-url';
 import { type PaymentRequest, paymentRequestToFormFields } from '../value-objects/payment-request';
@@ -23,6 +24,7 @@ export interface LifecycleHandlersDeps {
   cancelTransaction: CancelTransactionAction;
   retryPayment: RetryPaymentAction;
   canRetryPayment: CanRetryPaymentAction;
+  refundTransaction: RefundTransactionAction;
   urlSigner: UrlSigner;
 }
 
@@ -100,6 +102,42 @@ export class LifecycleHandlers {
     } catch (error) {
       if (error instanceof TransactionStateError) {
         return json({ message: error.message }, 400);
+      }
+
+      throw error;
+    }
+  }
+
+  async handleRefund(request: HttpRequestInfo, transactionId: number): Promise<HttpResult> {
+    const { transactions, refundTransaction } = this.deps;
+
+    const transaction = Number.isInteger(transactionId)
+      ? await transactions.findById(transactionId)
+      : null;
+
+    if (transaction === null) {
+      return json({ success: false, message: 'Transaction not found.' }, 404);
+    }
+
+    const amount = Number(request.body.amount ?? 0);
+
+    if (!Number.isFinite(amount)) {
+      return json({ success: false, message: 'Refund amount must be greater than 0.' }, 400);
+    }
+
+    const reason = typeof request.body.reason === 'string' ? request.body.reason : 'user_refund';
+
+    try {
+      const refunded = await refundTransaction.handle(transaction, amount, reason);
+
+      return json({
+        success: true,
+        message: 'Transaction refunded successfully.',
+        transaction: refunded,
+      });
+    } catch (error) {
+      if (error instanceof SispError) {
+        return json({ success: false, message: error.message }, 400);
       }
 
       throw error;
