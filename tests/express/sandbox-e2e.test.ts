@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSisp } from '../../src/create-sisp';
 import { sispRoutes } from '../../src/express';
 import type { Sisp } from '../../src/sisp';
+import { extractForm } from '../helpers/auto-submit-form';
 
 let sisp: Sisp;
 let app: express.Express;
@@ -24,26 +25,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await sisp.destroy();
 });
-
-function extractForm(html: string): { action: string; fields: Record<string, string> } {
-  const actionMatch = html.match(/form action='([^']+)'/);
-  const fields: Record<string, string> = {};
-
-  for (const input of html.matchAll(/name='([^']+)' value='([^']*)'/g)) {
-    fields[unescapeHtml(input[1] as string)] = unescapeHtml(input[2] as string);
-  }
-
-  return { action: unescapeHtml(actionMatch?.[1] ?? ''), fields };
-}
-
-function unescapeHtml(value: string): string {
-  return value
-    .replaceAll('&lt;', '<')
-    .replaceAll('&gt;', '>')
-    .replaceAll('&quot;', '"')
-    .replaceAll('&#039;', "'")
-    .replaceAll('&amp;', '&');
-}
 
 async function runSandboxPayment(status?: string) {
   const paymentResponse = await request(app)
