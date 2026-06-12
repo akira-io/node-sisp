@@ -1,0 +1,347 @@
+{
+    "source": "akira-io/laravel-sisp@2.x",
+    "tokens": [
+        {
+            "posAutCode": "TEST_POS_AUT_CODE",
+            "token": "YWA0ctSRArxk5T86DOJbbHjSitPq8fM4Uh8AmZuNMBIQlIk5iB2yP+d+KpDsJoqZ/z7kcNFNa6pNS0T511FvxQ=="
+        },
+        {
+            "posAutCode": "secret",
+            "token": "vSsar3708Jvp9Szi2NWZZ02Bqp1qRCFpbcTZPdBhnWgs5WtNZKnvCXdhztmeD2cmW192CF5bDufKRpayrW/isg=="
+        },
+        {
+            "posAutCode": "aB3!@#$%^&*()_+-=[]{}|;:,.<>?",
+            "token": "RVJroeKK/FKgYlEu7Om0pvIBtLF7EbYcxzkCZ8Wg09y3146mqJxTAE2b76ssu3qwnxa27XTId8+QStfgKG+CIg=="
+        },
+        {
+            "posAutCode": "çãéü€ unicode",
+            "token": "HpMhH6wlB9qed0C2tr7KKlDNQ5dJvcIZ4NNzIlWHFo2aI8YUSgYh/GnFIzJhlFiDm18vcnDtdXFJ2PAfbqSfBQ=="
+        },
+        {
+            "posAutCode": "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+            "token": "7II90BbUUpQWhUTkKs+EUbYo5yt0xgKRBW+vkNPqZdoJd8Nuv3j7ym3T0fpaUPYgmpCRoc9DLYcwSEynJWeZ9g=="
+        },
+        {
+            "posAutCode": "0123456789",
+            "token": "u5bC/EDS1UYX1vJ2/r5XH2I6ja3wtzSFUpmw4Qf9oyz2tp8toys2RF1zaQuTy9D3v8IOD38oVT0qRCjyO3FukA=="
+        }
+    ],
+    "amounts": [
+        {
+            "kind": "string",
+            "value": "8.03",
+            "thousandths": 8030,
+            "cents": 803
+        },
+        {
+            "kind": "float",
+            "value": 8.03,
+            "thousandths": 8030,
+            "cents": 803
+        },
+        {
+            "kind": "int",
+            "value": 1000,
+            "thousandths": 1000000,
+            "cents": 100000
+        },
+        {
+            "kind": "string",
+            "value": "100.50",
+            "thousandths": 100500,
+            "cents": 10050
+        },
+        {
+            "kind": "string",
+            "value": "0.001",
+            "thousandths": 1,
+            "cents": 0
+        },
+        {
+            "kind": "string",
+            "value": "8.0295",
+            "thousandths": 8030,
+            "cents": 803
+        },
+        {
+            "kind": "string",
+            "value": "8.0294",
+            "thousandths": 8029,
+            "cents": 803
+        },
+        {
+            "kind": "string",
+            "value": "8.03001",
+            "thousandths": 8030,
+            "cents": 803
+        },
+        {
+            "kind": "string",
+            "value": ".5",
+            "thousandths": 500,
+            "cents": 50
+        },
+        {
+            "kind": "string",
+            "value": "+3.2",
+            "thousandths": 3200,
+            "cents": 320
+        },
+        {
+            "kind": "string",
+            "value": "-7.0005",
+            "thousandths": -7001,
+            "cents": -700
+        },
+        {
+            "kind": "float",
+            "value": -7.0005,
+            "thousandths": -7001,
+            "cents": -700
+        },
+        {
+            "kind": "string",
+            "value": "0012",
+            "thousandths": 12000,
+            "cents": 1200
+        },
+        {
+            "kind": "string",
+            "value": " 25 ",
+            "thousandths": 25000,
+            "cents": 2500
+        },
+        {
+            "kind": "string",
+            "value": "",
+            "thousandths": 0,
+            "cents": 0
+        },
+        {
+            "kind": "string",
+            "value": "abc",
+            "thousandths": 0,
+            "cents": 0
+        },
+        {
+            "kind": "string",
+            "value": "12abc",
+            "thousandths": 12000,
+            "cents": 1200
+        },
+        {
+            "kind": "string",
+            "value": "1e3",
+            "thousandths": 1000000,
+            "cents": 100000
+        },
+        {
+            "kind": "int",
+            "value": 0,
+            "thousandths": 0,
+            "cents": 0
+        },
+        {
+            "kind": "float",
+            "value": 0.1,
+            "thousandths": 100,
+            "cents": 10
+        },
+        {
+            "kind": "float",
+            "value": 1234.5678,
+            "thousandths": 1234568,
+            "cents": 123457
+        },
+        {
+            "kind": "float",
+            "value": 999999.9999,
+            "thousandths": 1000000000,
+            "cents": 100000000
+        },
+        {
+            "kind": "string",
+            "value": "999999.99995",
+            "thousandths": 1000000000,
+            "cents": 100000000
+        }
+    ],
+    "payment": [
+        {
+            "posAutCode": "TEST_POS_AUT_CODE",
+            "data": {
+                "timeStamp": "2024-01-15 14:30:00",
+                "amount": 100.5,
+                "merchantRef": "test-ref-123",
+                "merchantSession": "test-session-456",
+                "posID": "POS-001",
+                "currency": "AOA",
+                "transactionCode": "PURCHASE"
+            },
+            "fingerprint": "xoYJjgMu1BZN/pZHxIj2GL9gyulZjByJ/moOMc6iDd/N962z6GYHGqZfnIQKoxfxpUiM79NvA6WrasgecGAqJg=="
+        },
+        {
+            "posAutCode": "TEST_POS_AUT_CODE",
+            "data": {
+                "timeStamp": "2024-01-15 14:30:00",
+                "amount": 8.03,
+                "merchantRef": "test-ref-803",
+                "merchantSession": "test-session-803",
+                "posID": "POS-001",
+                "currency": "AOA",
+                "transactionCode": "PURCHASE"
+            },
+            "fingerprint": "Yr0dM+VllFj8HUK9HdwOkS5Cwd2iPdJ5FSweuVnYttxnuYXP88c0ijnxy5iKQp3eF32NKCVJF7lovl4Xug3YnA=="
+        },
+        {
+            "posAutCode": "secret",
+            "data": {
+                "timeStamp": "2026-06-12 10:00:00",
+                "amount": "1500",
+                "merchantRef": "R20260612100000",
+                "merchantSession": "S20260612100000",
+                "posID": "90051",
+                "currency": "132",
+                "transactionCode": "1"
+            },
+            "fingerprint": "36ydllpRTMPAD5DPmS7ykc5DI5EmmB0Xc6t8THDgmXQMb0VL/L5cJ/gFAvpGVlXGl/Xzn+1BpCdZ6uklAyLXNw=="
+        },
+        {
+            "posAutCode": "secret",
+            "data": {
+                "amount": "0.001"
+            },
+            "fingerprint": "WtrwnU5EpS12mcgoZ2Pk/o3J+N9qV7+K8iWs4xZXxBQyxgLoV+eMWueIrygaxlKQDSDSi11p+AnfY8wCB7vTPA=="
+        },
+        {
+            "posAutCode": "çãéü€ unicode",
+            "data": {
+                "timeStamp": "2026-01-01 00:00:00",
+                "amount": 8.0295,
+                "merchantRef": "R-çã",
+                "merchantSession": "S-éü",
+                "posID": "90051",
+                "currency": "132",
+                "transactionCode": "3"
+            },
+            "fingerprint": "SnQO/d3Ol9seI6iSrNeF9Lx6DSBvmWGfZW7u1HbKlIpMyMEkVJjtsX1krXPqchlj2BS0yJ2Rty+E4e9V23Bdag=="
+        }
+    ],
+    "callback": [
+        {
+            "posAutCode": "TEST_POS_AUT_CODE",
+            "post": {
+                "messageType": "8",
+                "merchantRespCP": "01",
+                "merchantRespTid": "FAKE12345678",
+                "merchantRespMerchantRef": "R20260612100000",
+                "merchantRespMerchantSession": "S20260612100000",
+                "merchantRespPurchaseAmount": "1500",
+                "merchantRespMessageID": "MSG-ABCDEFGH",
+                "merchantRespPan": "****-****-****-1234",
+                "merchantResp": "00",
+                "merchantRespTimeStamp": "2026-06-12 10:00:05",
+                "merchantRespReferenceNumber": "REF123456789",
+                "merchantRespEntityCode": "10010",
+                "merchantRespClientReceipt": "RECEIPT-XYZ",
+                "merchantRespAdditionalErrorMessage": "",
+                "reloadCode": "",
+                "posID": "90051",
+                "currency": "132",
+                "transactionCode": "1"
+            },
+            "fingerprint": "66kXBYKYoeerFDCXaKJso0Ck1UQmt6hSce75FjScUxwFTD1TGbsqx57Zr+9QeFNJUKyHYmfPupneiCEXZVoBCg=="
+        },
+        {
+            "posAutCode": "TEST_POS_AUT_CODE",
+            "post": {
+                "messageType": "6",
+                "merchantRespMerchantRef": "R1",
+                "merchantRespMerchantSession": "S1",
+                "merchantRespPurchaseAmount": "8.03",
+                "merchantRespTid": "T1",
+                "merchantResp": "",
+                "merchantRespTimeStamp": "2026-06-12 10:00:05",
+                "merchantRespAdditionalErrorMessage": "Sandbox transaction failed"
+            },
+            "fingerprint": "VSZlf0a+gBYS4Jq1Fl43jVruFpRlcofORnI2cpO5xGVI/I/QHXpVBDwoO/bCGweW2m/3fNZ3sNlupSEKr3x5kw=="
+        },
+        {
+            "posAutCode": "secret",
+            "post": {
+                "messageType": "P",
+                "merchantRespCP": "0042",
+                "merchantRespTid": "00001234",
+                "merchantRespMerchantRef": "R-çã",
+                "merchantRespMerchantSession": "S-éü",
+                "merchantRespPurchaseAmount": 100.5,
+                "merchantRespMessageID": "M1",
+                "merchantRespPan": "1234",
+                "merchantResp": "C",
+                "merchantRespTimeStamp": "2026-01-01 00:00:00",
+                "merchantRespReferenceNumber": "42",
+                "merchantRespEntityCode": "7",
+                "merchantRespClientReceipt": "receipt çãéü€",
+                "merchantRespAdditionalErrorMessage": "erro",
+                "reloadCode": "RC"
+            },
+            "fingerprint": "x6ODpyxCvP7SDrzRNp4HQrjwbLCFCI/CxwD3tQwAltbIxOT88zEOyu1Bw/oRWSoIywKPntqFYmzBMpLIcHX/Sg=="
+        },
+        {
+            "posAutCode": "secret",
+            "post": {
+                "messageType": ""
+            },
+            "fingerprint": "MHEOl8b07FGYLgfZ/wup2KKi/WhlxOjYoR3OrJ2Vs72feYJJQ09h9jMNptnfo59603r52SrcaAn+0P7NUPuOLQ=="
+        }
+    ],
+    "refund": [
+        {
+            "posAutCode": "TEST_POS_AUT_CODE",
+            "data": {
+                "timeStamp": "2026-06-12 10:00:00",
+                "amount": "1500",
+                "merchantRef": "R20260612100000",
+                "merchantSession": "S20260612100000",
+                "posID": "90051",
+                "currency": "132",
+                "transactionCode": "4",
+                "clearingPeriod": "42",
+                "transactionID": "123"
+            },
+            "fingerprint": "okZCRnIqdfyM3EsIsrzTmCNsNLoY9tzGM7/bIpIpkL+tW2fsy+hDHtz8lGHrU9qbJ3iw5aC6zwxDn7KW+bvzZg=="
+        },
+        {
+            "posAutCode": "TEST_POS_AUT_CODE",
+            "data": {
+                "timeStamp": " 2026-06-12 10:00:00 ",
+                "amount": 8.03,
+                "merchantRef": " R1 ",
+                "merchantSession": " S1 ",
+                "posID": " 90051 ",
+                "currency": " 132 ",
+                "transactionCode": "8",
+                "clearingPeriod": " 7 ",
+                "transactionID": " 99 "
+            },
+            "fingerprint": "ibWGsPnaBjHePUT3YNaPtVozZ0BmbqLiBe34LPl+6Z2lFTKIOtKruI3OyVX+wz+HwLesAd0ryfPzChD5+ICC2g=="
+        },
+        {
+            "posAutCode": "secret",
+            "data": {
+                "amount": "0.5",
+                "transactionCode": "9",
+                "clearingPeriod": "12345",
+                "transactionID": "123456789"
+            },
+            "fingerprint": "pgjzzObNo3D+onnOnC9FZ7NdyojFC1+fItqcQgOgqnJqFMxOZLjtsXaePZzctFYmW7Wf+N8D6TwNKpnSF0tvgQ=="
+        },
+        {
+            "posAutCode": "secret",
+            "data": {
+                "amount": 0
+            },
+            "fingerprint": "kKdFYLxOYZ+BmvfmWfUDTi3sICDa+4Ys95dGtYIVVD+MxG/nTk5xS4Y6v14WJs04Bt4tqxYMvyIJRFficOE1bA=="
+        }
+    ]
+}
