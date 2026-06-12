@@ -1,10 +1,10 @@
 import type { CallbackPipe } from '../../../contracts/pipes';
-import type { TransactionRepository } from '../../../database/models/transaction-repository';
+import type { Transaction } from '../../../database/models/transaction';
 import { TransactionNotFoundError } from '../../../exceptions';
 import type { CallbackContext } from '../callback-context';
 
 export class ResolveTransaction implements CallbackPipe {
-  constructor(private readonly transactions: TransactionRepository) {}
+  constructor(private readonly transactions: Transaction) {}
 
   async handle(context: CallbackContext, next: () => Promise<void>): Promise<void> {
     const transaction = await this.transactions.findByRefAndSession(

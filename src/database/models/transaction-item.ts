@@ -3,14 +3,14 @@ import type { SispTables } from '../../config';
 import type { TransactionItemData } from '../../value-objects/transaction-item-data';
 import { nowIso, type TransactionItemRecord } from '../records';
 
-export class TransactionItemRepository {
+export class TransactionItem {
   constructor(
     private readonly db: Knex,
     private readonly tables: SispTables,
   ) {}
 
-  withConnection(connection: Knex): TransactionItemRepository {
-    return new TransactionItemRepository(connection, this.tables);
+  withConnection(connection: Knex): TransactionItem {
+    return new TransactionItem(connection, this.tables);
   }
 
   async createMany(transactionId: number, items: readonly TransactionItemData[]): Promise<void> {

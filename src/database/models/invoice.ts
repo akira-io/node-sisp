@@ -5,7 +5,7 @@ import { type InvoiceRecord, nowIso, type TransactionRecord } from '../records';
 
 const DUE_DAYS = 7;
 
-export class InvoiceRepository {
+export class Invoice {
   constructor(
     private readonly db: Knex,
     private readonly tables: SispTables,

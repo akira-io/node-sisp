@@ -104,8 +104,8 @@ describe('sandbox end-to-end payment flow', () => {
     expect(completed).toHaveBeenCalledTimes(1);
 
     const transaction = completed.mock.calls[0]?.[0]?.transaction;
-    const items = await sisp.repositories.transactionItems.listByTransaction(transaction.id);
-    const logs = await sisp.repositories.transactionLogs.listByTransaction(transaction.id);
+    const items = await sisp.models.transactionItems.listByTransaction(transaction.id);
+    const logs = await sisp.models.transactionLogs.listByTransaction(transaction.id);
 
     expect(items).toHaveLength(1);
     expect(logs.some((entry) => entry.source === 'callback')).toBe(true);

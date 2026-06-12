@@ -4,11 +4,11 @@ import type { ResolvedSispConfig } from './config';
 import type { CredentialsResolver } from './contracts/credentials-resolver';
 import type { SispDriver } from './contracts/sisp-driver';
 import type { TransactionRecord } from './database/records';
-import type { BlacklistRepository } from './database/models/blacklist-repository';
-import type { InvoiceRepository } from './database/models/invoice-repository';
-import type { TransactionItemRepository } from './database/models/transaction-item-repository';
-import type { TransactionLogRepository } from './database/models/transaction-log-repository';
-import type { TransactionRepository } from './database/models/transaction-repository';
+import type { Blacklist } from './database/models/blacklist';
+import type { Invoice } from './database/models/invoice';
+import type { TransactionItem } from './database/models/transaction-item';
+import type { TransactionLog } from './database/models/transaction-log';
+import type { Transaction } from './database/models/transaction';
 import type { SispManager } from './drivers/sisp-manager';
 import type { SispEventEmitter, SispEventMap, SispEventName } from './events';
 import { validateCallbackFingerprint } from './fingerprints/callback-fingerprint';
@@ -22,12 +22,12 @@ import type { CallbackPayload } from './value-objects/callback-payload';
 import type { PaymentRequest } from './value-objects/payment-request';
 import type { PaymentRequestData } from './value-objects/payment-request-data';
 
-export interface SispRepositories {
-  transactions: TransactionRepository;
-  transactionItems: TransactionItemRepository;
-  invoices: InvoiceRepository;
-  transactionLogs: TransactionLogRepository;
-  blacklist: BlacklistRepository;
+export interface SispModels {
+  transactions: Transaction;
+  transactionItems: TransactionItem;
+  invoices: Invoice;
+  transactionLogs: TransactionLog;
+  blacklist: Blacklist;
 }
 
 export class Sisp {
@@ -36,7 +36,7 @@ export class Sisp {
     readonly db: Knex,
     readonly events: SispEventEmitter,
     readonly manager: SispManager,
-    readonly repositories: SispRepositories,
+    readonly models: SispModels,
     readonly handlers: SispHttpHandlers,
     private readonly credentialsResolver: CredentialsResolver,
     private readonly buildRequestPayloadAction: BuildRequestPayloadAction,

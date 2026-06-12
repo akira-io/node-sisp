@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 import type { SispTables } from '../../config';
 import type { TransactionLogRecord } from '../records';
 
-export class TransactionLogRepository {
+export class TransactionLog {
   constructor(
     private readonly db: Knex,
     private readonly tables: SispTables,

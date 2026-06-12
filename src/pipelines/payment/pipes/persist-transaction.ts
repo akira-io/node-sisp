@@ -1,9 +1,9 @@
 import type { Knex } from 'knex';
 import type { PaymentPipe } from '../../../contracts/pipes';
 import { runWithLogSource } from '../../../database/log-context';
-import type { InvoiceRepository } from '../../../database/models/invoice-repository';
-import type { TransactionItemRepository } from '../../../database/models/transaction-item-repository';
-import type { TransactionRepository } from '../../../database/models/transaction-repository';
+import type { Invoice } from '../../../database/models/invoice';
+import type { TransactionItem } from '../../../database/models/transaction-item';
+import type { Transaction } from '../../../database/models/transaction';
 import { paymentRequestToFormFields } from '../../../value-objects/payment-request';
 import { customerDataFrom, customerDataToRecord } from '../../../value-objects/customer-data';
 import { transactionItemCollection } from '../../../value-objects/transaction-item-data';
@@ -12,9 +12,9 @@ import type { PaymentContext } from '../payment-context';
 export class PersistTransaction implements PaymentPipe {
   constructor(
     private readonly db: Knex,
-    private readonly transactions: TransactionRepository,
-    private readonly items: TransactionItemRepository,
-    private readonly invoices: InvoiceRepository,
+    private readonly transactions: Transaction,
+    private readonly items: TransactionItem,
+    private readonly invoices: Invoice,
   ) {}
 
   async handle(context: PaymentContext, next: () => Promise<void>): Promise<void> {

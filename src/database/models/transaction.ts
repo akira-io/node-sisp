@@ -38,15 +38,15 @@ export interface TransactionChanges {
   refunded_at?: string | null;
 }
 
-export class TransactionRepository {
+export class Transaction {
   constructor(
     private readonly db: Knex,
     private readonly tables: SispTables,
     private readonly cipher: PayloadCipher,
   ) {}
 
-  withConnection(connection: Knex): TransactionRepository {
-    return new TransactionRepository(connection, this.tables, this.cipher);
+  withConnection(connection: Knex): Transaction {
+    return new Transaction(connection, this.tables, this.cipher);
   }
 
   async create(data: NewTransaction): Promise<TransactionRecord> {

@@ -8,13 +8,13 @@ import type { CallbackPipe, PaymentPipe } from './contracts/pipes';
 import { runMigrations } from './database/auto-migrate';
 import { createKnexInstance } from './database/create-knex';
 import { PayloadCipher } from './database/encryption';
-import { BlacklistRepository } from './database/models/blacklist-repository';
-import { InvoiceRepository } from './database/models/invoice-repository';
-import { RateLimitRepository } from './database/models/rate-limit-repository';
-import { RequestMetadataRepository } from './database/models/request-metadata-repository';
-import { TransactionItemRepository } from './database/models/transaction-item-repository';
-import { TransactionLogRepository } from './database/models/transaction-log-repository';
-import { TransactionRepository } from './database/models/transaction-repository';
+import { Blacklist } from './database/models/blacklist';
+import { Invoice } from './database/models/invoice';
+import { RateLimit } from './database/models/rate-limit';
+import { RequestMetadata } from './database/models/request-metadata';
+import { TransactionItem } from './database/models/transaction-item';
+import { TransactionLog } from './database/models/transaction-log';
+import { Transaction } from './database/models/transaction';
 import { createSispManager } from './drivers/sisp-manager';
 import { SispEventEmitter } from './events';
 import { SispHttpHandlers } from './http/handlers';
@@ -31,7 +31,7 @@ import { EnforceRateLimits } from './pipelines/payment/pipes/enforce-rate-limits
 import { EnsureIpIsNotBlacklisted } from './pipelines/payment/pipes/ensure-ip-is-not-blacklisted';
 import { PersistTransaction } from './pipelines/payment/pipes/persist-transaction';
 import { BuildSandboxPayloadAction } from './sandbox';
-import { Sisp, type SispRepositories } from './sisp';
+import { Sisp, type SispModels } from './sisp';
 
 export async function createSisp(config: SispConfig): Promise<Sisp> {
   const resolved = resolveConfig(config);
@@ -46,38 +46,38 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   const events = new SispEventEmitter(resolved.onEventListenerError ?? undefined);
   const manager = createSispManager(resolved, credentialsResolver);
 
-  const repositories: SispRepositories = {
-    transactions: new TransactionRepository(db, resolved.tables, cipher),
-    transactionItems: new TransactionItemRepository(db, resolved.tables),
-    invoices: new InvoiceRepository(db, resolved.tables),
-    transactionLogs: new TransactionLogRepository(db, resolved.tables),
-    blacklist: new BlacklistRepository(db, resolved.tables),
+  const models: SispModels = {
+    transactions: new Transaction(db, resolved.tables, cipher),
+    transactionItems: new TransactionItem(db, resolved.tables),
+    invoices: new Invoice(db, resolved.tables),
+    transactionLogs: new TransactionLog(db, resolved.tables),
+    blacklist: new Blacklist(db, resolved.tables),
   };
 
   const buildRequestPayload = new BuildRequestPayloadAction(resolved, credentialsResolver);
   const storeMetadata = new StoreRequestMetadataAction(
-    new RequestMetadataRepository(db, resolved.tables),
+    new RequestMetadata(db, resolved.tables),
   );
   const buildSandboxPayload = new BuildSandboxPayloadAction(resolved, credentialsResolver);
 
   const paymentPipeline = new ProcessPaymentPipeline(
     customizePipes(resolved.pipelines.payment, [
-      new EnsureIpIsNotBlacklisted(repositories.blacklist),
-      new EnforceRateLimits(new RateLimitRepository(db, resolved.tables), resolved.rateLimiting),
+      new EnsureIpIsNotBlacklisted(models.blacklist),
+      new EnforceRateLimits(new RateLimit(db, resolved.tables), resolved.rateLimiting),
       new BuildPaymentRequest(buildRequestPayload),
-      new PersistTransaction(db, repositories.transactions, repositories.transactionItems, repositories.invoices),
+      new PersistTransaction(db, models.transactions, models.transactionItems, models.invoices),
       new CaptureRequestMetadata(storeMetadata),
     ]),
   );
 
-  const failTransaction = new FailTransactionAction(repositories.transactions);
+  const failTransaction = new FailTransactionAction(models.transactions);
 
   const callbackPipeline = new HandleCallbackPipeline(
     customizePipes(resolved.pipelines.callback, [
-      new ResolveTransaction(repositories.transactions),
+      new ResolveTransaction(models.transactions),
       new ValidateFingerprint(credentialsResolver, failTransaction, events),
       new EnsureCallbackMatchesTransaction(resolved, credentialsResolver, failTransaction, events),
-      new ApplyTransactionStatus(repositories.transactions),
+      new ApplyTransactionStatus(models.transactions),
       new DispatchPaymentEvents(events),
     ]),
   );
@@ -87,10 +87,10 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     manager,
     paymentPipeline,
     callbackPipeline,
-    repositories.transactions,
-    repositories.invoices,
+    models.transactions,
+    models.invoices,
     storeMetadata,
-    new UpdateInvoiceStatusAction(repositories.invoices),
+    new UpdateInvoiceStatusAction(models.invoices),
     buildSandboxPayload,
   );
 
@@ -99,7 +99,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     db,
     events,
     manager,
-    repositories,
+    models,
     handlers,
     credentialsResolver,
     buildRequestPayload,

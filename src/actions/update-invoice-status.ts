@@ -1,4 +1,4 @@
-import type { InvoiceRepository } from '../database/models/invoice-repository';
+import type { Invoice } from '../database/models/invoice';
 import type { TransactionRecord } from '../database/records';
 import { InvoiceStatus } from '../enums/invoice-status';
 import { TransactionStatus } from '../enums/transaction-status';
@@ -10,7 +10,7 @@ const STATUS_MAP: Partial<Record<TransactionStatus, InvoiceStatus>> = {
 };
 
 export class UpdateInvoiceStatusAction {
-  constructor(private readonly invoices: InvoiceRepository) {}
+  constructor(private readonly invoices: Invoice) {}
 
   async handle(transaction: TransactionRecord): Promise<void> {
     const invoiceStatus = STATUS_MAP[transaction.status];

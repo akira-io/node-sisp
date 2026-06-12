@@ -11,12 +11,12 @@ import { StaticCredentialsResolver } from '../../src/contracts/credentials-resol
 import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
 import { PayloadCipher } from '../../src/database/encryption';
-import { BlacklistRepository } from '../../src/database/models/blacklist-repository';
-import { InvoiceRepository } from '../../src/database/models/invoice-repository';
-import { RateLimitRepository } from '../../src/database/models/rate-limit-repository';
-import { RequestMetadataRepository } from '../../src/database/models/request-metadata-repository';
-import { TransactionItemRepository } from '../../src/database/models/transaction-item-repository';
-import { TransactionRepository } from '../../src/database/models/transaction-repository';
+import { Blacklist } from '../../src/database/models/blacklist';
+import { Invoice } from '../../src/database/models/invoice';
+import { RateLimit } from '../../src/database/models/rate-limit';
+import { RequestMetadata } from '../../src/database/models/request-metadata';
+import { TransactionItem } from '../../src/database/models/transaction-item';
+import { Transaction } from '../../src/database/models/transaction';
 import { BlacklistedIdentifierError, RateLimitExceededError } from '../../src/exceptions';
 import type { HttpRequestInfo } from '../../src/http/request-info';
 import { PaymentContext } from '../../src/pipelines/payment/payment-context';
@@ -30,11 +30,11 @@ import { ProcessPaymentPipeline } from '../../src/pipelines/payment/process-paym
 let db: Knex;
 let config: ResolvedSispConfig;
 let pipeline: ProcessPaymentPipeline;
-let transactions: TransactionRepository;
-let items: TransactionItemRepository;
-let invoices: InvoiceRepository;
-let metadata: RequestMetadataRepository;
-let blacklist: BlacklistRepository;
+let transactions: Transaction;
+let items: TransactionItem;
+let invoices: Invoice;
+let metadata: RequestMetadata;
+let blacklist: Blacklist;
 
 beforeEach(async () => {
   db = createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
@@ -51,11 +51,11 @@ beforeEach(async () => {
 
   const cipher = new PayloadCipher(config.appKey);
 
-  transactions = new TransactionRepository(db, config.tables, cipher);
-  items = new TransactionItemRepository(db, config.tables);
-  invoices = new InvoiceRepository(db, config.tables);
-  metadata = new RequestMetadataRepository(db, config.tables);
-  blacklist = new BlacklistRepository(db, config.tables);
+  transactions = new Transaction(db, config.tables, cipher);
+  items = new TransactionItem(db, config.tables);
+  invoices = new Invoice(db, config.tables);
+  metadata = new RequestMetadata(db, config.tables);
+  blacklist = new Blacklist(db, config.tables);
 
   const buildRequestPayload = new BuildRequestPayloadAction(
     config,
@@ -64,7 +64,7 @@ beforeEach(async () => {
 
   pipeline = new ProcessPaymentPipeline([
     new EnsureIpIsNotBlacklisted(blacklist),
-    new EnforceRateLimits(new RateLimitRepository(db, config.tables), config.rateLimiting),
+    new EnforceRateLimits(new RateLimit(db, config.tables), config.rateLimiting),
     new BuildPaymentRequest(buildRequestPayload),
     new PersistTransaction(db, transactions, items, invoices),
     new CaptureRequestMetadata(new StoreRequestMetadataAction(metadata)),

@@ -8,7 +8,7 @@ export type NewRequestMetadata = Omit<
 > &
   Pick<RequestMetadataRecord, 'ip_address'>;
 
-export class RequestMetadataRepository {
+export class RequestMetadata {
   constructor(
     private readonly db: Knex,
     private readonly tables: SispTables,

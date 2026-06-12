@@ -1,12 +1,12 @@
 import type { RateLimiting } from '../../../config';
 import type { PaymentPipe } from '../../../contracts/pipes';
-import type { RateLimitRepository } from '../../../database/models/rate-limit-repository';
+import type { RateLimit } from '../../../database/models/rate-limit';
 import { RateLimitExceededError } from '../../../exceptions';
 import type { PaymentContext } from '../payment-context';
 
 export class EnforceRateLimits implements PaymentPipe {
   constructor(
-    private readonly rateLimits: RateLimitRepository,
+    private readonly rateLimits: RateLimit,
     private readonly rateLimiting: RateLimiting,
   ) {}
 

@@ -20,7 +20,7 @@ interface RateLimitRow {
   blocked_until: string | null;
 }
 
-export class RateLimitRepository {
+export class RateLimit {
   constructor(
     private readonly db: Knex,
     private readonly tables: SispTables,

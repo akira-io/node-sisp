@@ -1,5 +1,5 @@
 export { createSisp } from './create-sisp';
-export { Sisp, type SispRepositories } from './sisp';
+export { Sisp, type SispModels } from './sisp';
 export type {
   RateLimiting,
   RateLimitRule,

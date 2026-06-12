@@ -3,25 +3,25 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_TABLES } from '../../src/config';
 import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
-import { BlacklistRepository } from '../../src/database/models/blacklist-repository';
-import { RateLimitRepository } from '../../src/database/models/rate-limit-repository';
+import { Blacklist } from '../../src/database/models/blacklist';
+import { RateLimit } from '../../src/database/models/rate-limit';
 
 let db: Knex;
-let blacklist: BlacklistRepository;
-let rateLimits: RateLimitRepository;
+let blacklist: Blacklist;
+let rateLimits: RateLimit;
 
 beforeEach(async () => {
   db = createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
   await runMigrations(db, DEFAULT_TABLES);
-  blacklist = new BlacklistRepository(db, DEFAULT_TABLES);
-  rateLimits = new RateLimitRepository(db, DEFAULT_TABLES);
+  blacklist = new Blacklist(db, DEFAULT_TABLES);
+  rateLimits = new RateLimit(db, DEFAULT_TABLES);
 });
 
 afterEach(async () => {
   await db.destroy();
 });
 
-describe('BlacklistRepository', () => {
+describe('Blacklist', () => {
   it('reports blacklisted identifiers with their reason', async () => {
     await blacklist.add({ type: 'ip', value: '10.0.0.1', reason: 'fraud', severity: 'high' });
 
@@ -46,7 +46,7 @@ describe('BlacklistRepository', () => {
   });
 });
 
-describe('RateLimitRepository', () => {
+describe('RateLimit', () => {
   const hit = (identifier = '10.0.0.1') =>
     rateLimits.hit({ identifier, limitType: 'ip', limit: 3, windowSeconds: 3600 });
 

@@ -10,8 +10,8 @@ import { StaticCredentialsResolver } from '../../src/contracts/credentials-resol
 import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
 import { PayloadCipher } from '../../src/database/encryption';
-import { TransactionLogRepository } from '../../src/database/models/transaction-log-repository';
-import { TransactionRepository } from '../../src/database/models/transaction-repository';
+import { TransactionLog } from '../../src/database/models/transaction-log';
+import { Transaction } from '../../src/database/models/transaction';
 import { SispEventEmitter } from '../../src/events';
 import { TransactionNotFoundError } from '../../src/exceptions';
 import { generateCallbackFingerprint } from '../../src/fingerprints/callback-fingerprint';
@@ -29,8 +29,8 @@ const token = computeToken('TEST_POS_AUT_CODE');
 
 let db: Knex;
 let config: ResolvedSispConfig;
-let transactions: TransactionRepository;
-let logs: TransactionLogRepository;
+let transactions: Transaction;
+let logs: TransactionLog;
 let events: SispEventEmitter;
 let pipeline: HandleCallbackPipeline;
 
@@ -44,8 +44,8 @@ beforeEach(async () => {
   });
   await runMigrations(db, config.tables);
 
-  transactions = new TransactionRepository(db, config.tables, new PayloadCipher(config.appKey));
-  logs = new TransactionLogRepository(db, config.tables);
+  transactions = new Transaction(db, config.tables, new PayloadCipher(config.appKey));
+  logs = new TransactionLog(db, config.tables);
   events = new SispEventEmitter();
 
   const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(config));

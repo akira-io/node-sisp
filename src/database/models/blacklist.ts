@@ -12,7 +12,7 @@ export interface BlacklistEntry {
   expiresInMinutes?: number | null;
 }
 
-export class BlacklistRepository {
+export class Blacklist {
   constructor(
     private readonly db: Knex,
     private readonly tables: SispTables,

@@ -5,18 +5,18 @@ import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
 import { isEncrypted, PayloadCipher } from '../../src/database/encryption';
 import { runWithLogSource } from '../../src/database/log-context';
-import { TransactionLogRepository } from '../../src/database/models/transaction-log-repository';
-import { TransactionRepository } from '../../src/database/models/transaction-repository';
+import { TransactionLog } from '../../src/database/models/transaction-log';
+import { Transaction } from '../../src/database/models/transaction';
 
 let db: Knex;
-let repository: TransactionRepository;
-let logs: TransactionLogRepository;
+let transactions: Transaction;
+let logs: TransactionLog;
 
 beforeEach(async () => {
   db = createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
   await runMigrations(db, DEFAULT_TABLES);
-  repository = new TransactionRepository(db, DEFAULT_TABLES, new PayloadCipher('app-key'));
-  logs = new TransactionLogRepository(db, DEFAULT_TABLES);
+  transactions = new Transaction(db, DEFAULT_TABLES, new PayloadCipher('app-key'));
+  logs = new TransactionLog(db, DEFAULT_TABLES);
 });
 
 afterEach(async () => {
@@ -24,7 +24,7 @@ afterEach(async () => {
 });
 
 async function createTransaction() {
-  return repository.create({
+  return transactions.create({
     merchantRef: 'R20260612100000',
     merchantSession: 'S20260612100000',
     amount: '1500.50',
@@ -35,7 +35,7 @@ async function createTransaction() {
   });
 }
 
-describe('TransactionRepository', () => {
+describe('Transaction', () => {
   it('creates pending transactions with canonical cents and encrypted payload', async () => {
     const transaction = await createTransaction();
 
@@ -52,18 +52,18 @@ describe('TransactionRepository', () => {
   it('finds transactions by ref and session', async () => {
     const transaction = await createTransaction();
 
-    const found = await repository.findByRefAndSession('R20260612100000', 'S20260612100000');
+    const found = await transactions.findByRefAndSession('R20260612100000', 'S20260612100000');
 
     expect(found?.id).toBe(transaction.id);
-    expect(await repository.findByRefAndSession('R20260612100000', 'other')).toBeNull();
-    expect((await repository.findByRef('R20260612100000'))?.id).toBe(transaction.id);
+    expect(await transactions.findByRefAndSession('R20260612100000', 'other')).toBeNull();
+    expect((await transactions.findByRef('R20260612100000'))?.id).toBe(transaction.id);
   });
 
   it('appends a transaction log for every change with old and new values', async () => {
     const transaction = await createTransaction();
 
     await runWithLogSource('callback', () =>
-      repository.update(transaction.id, {
+      transactions.update(transaction.id, {
         status: 'completed',
         transaction_id: 'TID-1',
         message_type: '8',
@@ -84,7 +84,7 @@ describe('TransactionRepository', () => {
   it('defaults the log source to model outside a context', async () => {
     const transaction = await createTransaction();
 
-    await repository.update(transaction.id, { status: 'failed' });
+    await transactions.update(transaction.id, { status: 'failed' });
 
     const entries = await logs.listByTransaction(transaction.id);
 
@@ -94,7 +94,7 @@ describe('TransactionRepository', () => {
   it('ignores updates that change nothing', async () => {
     const transaction = await createTransaction();
 
-    const unchanged = await repository.update(transaction.id, {
+    const unchanged = await transactions.update(transaction.id, {
       status: 'pending',
       transaction_id: null,
     });
@@ -106,7 +106,7 @@ describe('TransactionRepository', () => {
   it('recomputes amount_cents when the amount changes', async () => {
     const transaction = await createTransaction();
 
-    const updated = await repository.update(transaction.id, { amount: '8.03' });
+    const updated = await transactions.update(transaction.id, { amount: '8.03' });
 
     expect(updated.amount).toBe(8.03);
     expect(updated.amount_cents).toBe(803);
@@ -121,9 +121,9 @@ describe('TransactionRepository', () => {
   it('re-encrypts payload changes and logs the decrypted values', async () => {
     const transaction = await createTransaction();
 
-    await repository.update(transaction.id, { payload: { posID: '90051', refunds: [1] } });
+    await transactions.update(transaction.id, { payload: { posID: '90051', refunds: [1] } });
 
-    const updated = await repository.findById(transaction.id);
+    const updated = await transactions.findById(transaction.id);
 
     expect(updated?.payload).toEqual({ posID: '90051', refunds: [1] });
 

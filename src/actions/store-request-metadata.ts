@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import type {
   NewRequestMetadata,
-  RequestMetadataRepository,
-} from '../database/models/request-metadata-repository';
+  RequestMetadata,
+} from '../database/models/request-metadata';
 import { headerValue, type HttpRequestInfo } from '../http/request-info';
 import {
   detectBrowser,
@@ -26,10 +26,10 @@ const SENSITIVE_KEY_MARKERS = [
 ];
 
 export class StoreRequestMetadataAction {
-  constructor(private readonly repository: RequestMetadataRepository) {}
+  constructor(private readonly requestMetadata: RequestMetadata) {}
 
   async handle(request: HttpRequestInfo, transactionId: number | null): Promise<void> {
-    await this.repository.create(buildRequestMetadata(request, transactionId));
+    await this.requestMetadata.create(buildRequestMetadata(request, transactionId));
   }
 }
 

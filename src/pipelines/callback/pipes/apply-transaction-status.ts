@@ -1,11 +1,11 @@
 import { mapTransactionStatus } from '../../../actions/map-transaction-status';
 import type { CallbackPipe } from '../../../contracts/pipes';
 import { runWithLogSource } from '../../../database/log-context';
-import type { TransactionRepository } from '../../../database/models/transaction-repository';
+import type { Transaction } from '../../../database/models/transaction';
 import type { CallbackContext } from '../callback-context';
 
 export class ApplyTransactionStatus implements CallbackPipe {
-  constructor(private readonly transactions: TransactionRepository) {}
+  constructor(private readonly transactions: Transaction) {}
 
   async handle(context: CallbackContext, next: () => Promise<void>): Promise<void> {
     const transaction = context.requireTransaction();

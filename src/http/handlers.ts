@@ -1,8 +1,8 @@
 import type { StoreRequestMetadataAction } from '../actions/store-request-metadata';
 import type { UpdateInvoiceStatusAction } from '../actions/update-invoice-status';
 import { type ResolvedSispConfig, routeUrl } from '../config';
-import type { InvoiceRepository } from '../database/models/invoice-repository';
-import type { TransactionRepository } from '../database/models/transaction-repository';
+import type { Invoice } from '../database/models/invoice';
+import type { Transaction } from '../database/models/transaction';
 import type { SispManager } from '../drivers/sisp-manager';
 import {
   BlacklistedIdentifierError,
@@ -33,8 +33,8 @@ export class SispHttpHandlers {
     private readonly manager: SispManager,
     private readonly paymentPipeline: ProcessPaymentPipeline,
     private readonly callbackPipeline: HandleCallbackPipeline,
-    private readonly transactions: TransactionRepository,
-    private readonly invoices: InvoiceRepository,
+    private readonly transactions: Transaction,
+    private readonly invoices: Invoice,
     private readonly storeMetadata: StoreRequestMetadataAction,
     private readonly updateInvoiceStatus: UpdateInvoiceStatusAction,
     private readonly buildSandboxPayload: BuildSandboxPayloadAction,
