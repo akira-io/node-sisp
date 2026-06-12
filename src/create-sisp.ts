@@ -1,16 +1,11 @@
 import { BuildRefundRequestAction } from './actions/build-refund-request';
-import { BuildRequestPayloadAction } from './actions/build-request-payload';
 import { CancelTransactionAction } from './actions/cancel-transaction';
 import { CanRetryPaymentAction } from './actions/can-retry-payment';
-import { FailTransactionAction } from './actions/fail-transaction';
-import { ReconcileTransactionStatusAction } from './actions/reconcile-transaction-status';
 import { RefundTransactionAction } from './actions/refund-transaction';
 import { RetryPaymentAction } from './actions/retry-payment';
 import { StoreRequestMetadataAction } from './actions/store-request-metadata';
-import { UpdateInvoiceStatusAction } from './actions/update-invoice-status';
 import { credentialsFromConfig, type ResolvedSispConfig, resolveConfig, type SispConfig } from './config';
 import { type CredentialsResolver, StaticCredentialsResolver } from './contracts/credentials-resolver';
-import type { CallbackPipe, PaymentPipe } from './contracts/pipes';
 import { runMigrations } from './database/auto-migrate';
 import { createKnexInstance } from './database/create-knex';
 import { PayloadCipher } from './database/encryption';
@@ -21,24 +16,17 @@ import { RequestMetadata } from './database/models/request-metadata';
 import { TransactionItem } from './database/models/transaction-item';
 import { TransactionLog } from './database/models/transaction-log';
 import { Transaction } from './database/models/transaction';
-import { createSispManager } from './drivers/sisp-manager';
 import { SispEventEmitter } from './events';
 import { SispHttpHandlers } from './http/handlers';
-import { HandleCallbackPipeline } from './pipelines/callback/handle-callback-pipeline';
-import { ApplyTransactionStatus } from './pipelines/callback/pipes/apply-transaction-status';
-import { DispatchPaymentEvents } from './pipelines/callback/pipes/dispatch-payment-events';
-import { EnsureCallbackMatchesTransaction } from './pipelines/callback/pipes/ensure-callback-matches-transaction';
-import { ResolveTransaction } from './pipelines/callback/pipes/resolve-transaction';
-import { ValidateFingerprint } from './pipelines/callback/pipes/validate-fingerprint';
 import { ProcessPaymentPipeline } from './pipelines/payment/process-payment-pipeline';
 import { BuildPaymentRequest } from './pipelines/payment/pipes/build-payment-request';
 import { CaptureRequestMetadata } from './pipelines/payment/pipes/capture-request-metadata';
 import { EnforceRateLimits } from './pipelines/payment/pipes/enforce-rate-limits';
 import { EnsureIpIsNotBlacklisted } from './pipelines/payment/pipes/ensure-ip-is-not-blacklisted';
 import { PersistTransaction } from './pipelines/payment/pipes/persist-transaction';
-import { BuildSandboxPayloadAction } from './sandbox';
 import { Sisp, type SispModels } from './sisp';
 import { UrlSigner } from './support/signed-url';
+import { customizePipes, wireCredentialScopedServices } from './wiring';
 
 export async function createSisp(config: SispConfig): Promise<Sisp> {
   const resolved = resolveConfig(config);
@@ -51,7 +39,6 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   const cipher = new PayloadCipher(resolved.appKey);
   const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(resolved));
   const events = new SispEventEmitter(resolved.onEventListenerError ?? undefined);
-  const manager = createSispManager(resolved, credentialsResolver);
 
   const models: SispModels = {
     transactions: new Transaction(db, resolved.tables, cipher),
@@ -61,59 +48,39 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     blacklist: new Blacklist(db, resolved.tables),
   };
 
-  const buildRequestPayload = new BuildRequestPayloadAction(resolved, credentialsResolver);
-  const storeMetadata = new StoreRequestMetadataAction(
-    new RequestMetadata(db, resolved.tables),
-  );
-  const buildSandboxPayload = new BuildSandboxPayloadAction(resolved, credentialsResolver);
+  const services = wireCredentialScopedServices(resolved, events, models, credentialsResolver);
+  const storeMetadata = new StoreRequestMetadataAction(new RequestMetadata(db, resolved.tables));
 
   const paymentPipeline = new ProcessPaymentPipeline(
     customizePipes(resolved.pipelines.payment, [
       new EnsureIpIsNotBlacklisted(models.blacklist),
       new EnforceRateLimits(new RateLimit(db, resolved.tables), resolved.rateLimiting),
-      new BuildPaymentRequest(buildRequestPayload),
+      new BuildPaymentRequest(services.buildRequestPayload),
       new PersistTransaction(db, models.transactions, models.transactionItems, models.invoices),
       new CaptureRequestMetadata(storeMetadata),
     ]),
   );
 
-  const failTransaction = new FailTransactionAction(models.transactions);
   const urlSigner = new UrlSigner(resolved.appKey);
   const cancelTransaction = new CancelTransactionAction(models.transactions, events);
-  const retryPayment = new RetryPaymentAction(buildRequestPayload);
+  const retryPayment = new RetryPaymentAction(services.buildRequestPayload);
   const canRetryPayment = new CanRetryPaymentAction(resolved);
   const refundTransaction = new RefundTransactionAction(
     models.transactions,
     new BuildRefundRequestAction(resolved, credentialsResolver),
     events,
   );
-  const updateInvoiceStatus = new UpdateInvoiceStatusAction(models.invoices);
-  const reconcileTransaction = new ReconcileTransactionStatusAction(
-    manager,
-    models.transactions,
-    updateInvoiceStatus,
-  );
-
-  const callbackPipeline = new HandleCallbackPipeline(
-    customizePipes(resolved.pipelines.callback, [
-      new ResolveTransaction(models.transactions),
-      new ValidateFingerprint(credentialsResolver, failTransaction, events),
-      new EnsureCallbackMatchesTransaction(resolved, credentialsResolver, failTransaction, events),
-      new ApplyTransactionStatus(models.transactions),
-      new DispatchPaymentEvents(events),
-    ]),
-  );
 
   const handlers = new SispHttpHandlers({
     config: resolved,
-    manager,
+    manager: services.manager,
     paymentPipeline,
-    callbackPipeline,
+    callbackPipeline: services.callbackPipeline,
     transactions: models.transactions,
     invoices: models.invoices,
     storeMetadata,
-    updateInvoiceStatus,
-    buildSandboxPayload,
+    updateInvoiceStatus: services.updateInvoiceStatus,
+    buildSandboxPayload: services.buildSandboxPayload,
     cancelTransaction,
     retryPayment,
     canRetryPayment,
@@ -125,25 +92,18 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     resolved,
     db,
     events,
-    manager,
+    services.manager,
     models,
     handlers,
     credentialsResolver,
-    buildRequestPayload,
-    buildSandboxPayload,
-    callbackPipeline,
+    services.buildRequestPayload,
+    services.buildSandboxPayload,
+    services.callbackPipeline,
     cancelTransaction,
     refundTransaction,
-    reconcileTransaction,
+    services.reconcileTransaction,
     urlSigner,
   );
 }
 
 export type { ResolvedSispConfig, SispConfig, CredentialsResolver };
-
-function customizePipes<TPipe extends PaymentPipe | CallbackPipe>(
-  customize: ((defaults: TPipe[]) => TPipe[]) | undefined,
-  defaults: TPipe[],
-): TPipe[] {
-  return customize ? customize(defaults) : defaults;
-}

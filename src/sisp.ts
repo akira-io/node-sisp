@@ -23,9 +23,11 @@ import type { HandleCallbackPipeline } from './pipelines/callback/handle-callbac
 import type { BuildSandboxPayloadAction, SandboxStatus } from './sandbox';
 import { PaymentBuilder } from './builders/payment-builder';
 import type { UrlSigner } from './support/signed-url';
+import { ScopedSisp } from './scoped-sisp';
 import type { CallbackPayload } from './value-objects/callback-payload';
 import type { PaymentRequest } from './value-objects/payment-request';
 import type { PaymentRequestData } from './value-objects/payment-request-data';
+import { type SispCredentials, sispCredentials } from './value-objects/sisp-credentials';
 import type { TransactionStatusResponse } from './value-objects/transaction-status-response';
 
 export interface SispModels {
@@ -65,6 +67,10 @@ export class Sisp {
     private readonly reconcileTransaction: ReconcileTransactionStatusAction,
     private readonly urlSigner: UrlSigner,
   ) {}
+
+  forCredentials(credentials: Partial<SispCredentials>): ScopedSisp {
+    return new ScopedSisp(this.config, this.events, this.models, sispCredentials(credentials));
+  }
 
   async queryTransactionStatus(
     transaction: TransactionRecord | string,
