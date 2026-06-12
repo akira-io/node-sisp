@@ -1,0 +1,100 @@
+import { describe, expect, it } from 'vitest';
+import {
+  credentialsFromConfig,
+  DEFAULT_TABLES,
+  resolveConfig,
+  routeUrl,
+  type SispConfig,
+} from '../src/config';
+
+const minimalConfig: SispConfig = {
+  posId: '90051',
+  posAutCode: 'TEST_POS_AUT_CODE',
+  database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
+};
+
+describe('resolveConfig', () => {
+  it('applies the same defaults as config/sisp.php', () => {
+    const resolved = resolveConfig(minimalConfig);
+
+    expect(resolved.currency).toBe('132');
+    expect(resolved.languageMessages).toBe('EN');
+    expect(resolved.fingerprintVersion).toBe('1');
+    expect(resolved.is3DSec).toBe('0');
+    expect(resolved.transactionCode).toBe('1');
+    expect(resolved.redirectUrl).toBe('/');
+    expect(resolved.sandbox).toBe(false);
+    expect(resolved.driver).toBeNull();
+    expect(resolved.allowRetry).toBe(true);
+    expect(resolved.tables).toEqual(DEFAULT_TABLES);
+    expect(resolved.database.autoMigrate).toBe(true);
+    expect(resolved.rateLimiting.enabled).toBe(true);
+    expect(resolved.rateLimiting.perIp).toEqual({ enabled: true, limit: 100, windowSeconds: 3600 });
+    expect(resolved.rateLimiting.perMerchant.limit).toBe(500);
+    expect(resolved.rateLimiting.perUser.limit).toBe(50);
+    expect(resolved.security.collectMetadata).toBe(true);
+  });
+
+  it('keeps user overrides', () => {
+    const resolved = resolveConfig({
+      ...minimalConfig,
+      sandbox: true,
+      currency: '978',
+      tables: { transactions: 'custom_transactions' },
+      rateLimiting: { perIp: { limit: 5 } },
+      database: { client: 'better-sqlite3', connection: ':memory:', autoMigrate: false },
+    });
+
+    expect(resolved.sandbox).toBe(true);
+    expect(resolved.currency).toBe('978');
+    expect(resolved.tables.transactions).toBe('custom_transactions');
+    expect(resolved.tables.invoices).toBe('sisp_invoices');
+    expect(resolved.rateLimiting.perIp.limit).toBe(5);
+    expect(resolved.rateLimiting.perIp.windowSeconds).toBe(3600);
+    expect(resolved.database.autoMigrate).toBe(false);
+  });
+
+  it('provides default generators matching the SISP formats', () => {
+    const resolved = resolveConfig(minimalConfig);
+
+    expect(resolved.generators.merchantReference()).toMatch(/^R\d{14}$/);
+    expect(resolved.generators.merchantSession()).toMatch(/^S\d{14}$/);
+    expect(resolved.generators.timeStamp()).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  });
+
+  it('allows custom generators', () => {
+    const resolved = resolveConfig({
+      ...minimalConfig,
+      generators: { merchantReference: () => 'R-fixed' },
+    });
+
+    expect(resolved.generators.merchantReference()).toBe('R-fixed');
+    expect(resolved.generators.merchantSession()).toMatch(/^S\d{14}$/);
+  });
+});
+
+describe('credentialsFromConfig', () => {
+  it('maps the resolved config onto credentials', () => {
+    const credentials = credentialsFromConfig(
+      resolveConfig({ ...minimalConfig, url: 'https://gateway.test', sandbox: true }),
+    );
+
+    expect(credentials.posId).toBe('90051');
+    expect(credentials.posAutCode).toBe('TEST_POS_AUT_CODE');
+    expect(credentials.url).toBe('https://gateway.test');
+    expect(credentials.sandbox).toBe(true);
+    expect(credentials.urlMerchantResponse).toBeNull();
+  });
+});
+
+describe('routeUrl', () => {
+  it('joins baseUrl, basePath, and the route name', () => {
+    const resolved = resolveConfig({ ...minimalConfig, baseUrl: 'http://localhost:3000' });
+
+    expect(routeUrl(resolved, 'callback')).toBe('http://localhost:3000/sisp/callback');
+  });
+
+  it('builds relative URLs when baseUrl is empty', () => {
+    expect(routeUrl(resolveConfig(minimalConfig), 'sandbox')).toBe('/sisp/sandbox');
+  });
+});
