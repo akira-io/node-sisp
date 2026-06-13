@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import type { ResolvedSispConfig } from './config';
 import type { CredentialsResolver } from './contracts/credentials-resolver';
 import { generateCallbackFingerprint } from './fingerprints/callback-fingerprint';
@@ -65,11 +65,10 @@ function messageTypeFor(status: SandboxStatus): string {
 const TOKEN_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 function randomToken(length: number): string {
-  const bytes = randomBytes(length);
   let token = '';
 
-  for (const byte of bytes) {
-    token += TOKEN_ALPHABET[byte % TOKEN_ALPHABET.length];
+  for (let index = 0; index < length; index += 1) {
+    token += TOKEN_ALPHABET.charAt(randomInt(TOKEN_ALPHABET.length));
   }
 
   return token;
