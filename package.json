@@ -2,7 +2,8 @@
   "name": "@akira-io/sisp",
   "version": "0.0.0",
   "description": "SISP/Vinti4 (Cabo Verde) payment gateway client for Node.js",
-  "license": "MIT",
+  "license": "(MIT OR Apache-2.0)",
+  "author": "Kidiatoliny <kidiatoliny@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/akira-io/node-sisp.git"
