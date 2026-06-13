@@ -19,7 +19,7 @@ npm install pg               # PostgreSQL
 npm install mysql2           # MySQL
 ```
 
-If you mount the HTTP routes, install the framework adapter peer as well: `express`, `fastify` plus `@fastify/formbody`, or `@nestjs/common`.
+If you mount the HTTP routes, install the framework adapter peer as well. Fastify is the default adapter (`fastify` plus `@fastify/formbody`); `express` and `@nestjs/common` are supported alternatives.
 
 ## Migrations
 

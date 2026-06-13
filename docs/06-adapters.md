@@ -14,21 +14,9 @@ The core exposes pure handlers (`sisp.handlers.*`) that take a normalized reques
 
 Mount the adapter at `basePath` (default `/sisp`) so the signed URLs and the sandbox endpoint resolve correctly.
 
-## Express
+## Fastify (default)
 
-```ts
-import express from 'express';
-import { sispRoutes } from '@akira-io/sisp/express';
-
-const app = express();
-app.use('/sisp', sispRoutes(sisp, {
-  authorizeRefund: (req) => req.user?.can('refund') ?? false,
-}));
-```
-
-## Fastify
-
-Requires `fastify` and `@fastify/formbody` as peers. The plugin registers formbody with a `qs` parser so nested item fields parse like Express:
+The default adapter. Requires `fastify` and `@fastify/formbody` as peers. The plugin registers formbody with a `qs` parser so nested item fields parse correctly:
 
 ```ts
 import Fastify from 'fastify';
@@ -40,6 +28,18 @@ await app.register(sispFastifyPlugin, {
   prefix: '/sisp',
   authorizeRefund: (request) => Boolean(request.headers['x-admin']),
 });
+```
+
+## Express
+
+```ts
+import express from 'express';
+import { sispRoutes } from '@akira-io/sisp/express';
+
+const app = express();
+app.use('/sisp', sispRoutes(sisp, {
+  authorizeRefund: (req) => req.user?.can('refund') ?? false,
+}));
 ```
 
 ## NestJS

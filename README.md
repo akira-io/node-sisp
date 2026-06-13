@@ -28,14 +28,15 @@ yarn add @akira-io/sisp
 bun add @akira-io/sisp
 ```
 
-Add the database driver you use (`better-sqlite3`, `pg`, or `mysql2`) and, when mounting the HTTP routes, the framework peer (`express`, `fastify` plus `@fastify/formbody`, or `@nestjs/common`). All of them are optional peer dependencies.
+Add the database driver you use (`better-sqlite3`, `pg`, or `mysql2`) and the framework peer for the HTTP routes. Fastify is the default adapter; Express and NestJS are supported as well. All of them are optional peer dependencies.
 
 ```json
 {
   "dependencies": {
     "@akira-io/sisp": "^0.1",
+    "@fastify/formbody": "^8",
     "better-sqlite3": "^12",
-    "express": "^5"
+    "fastify": "^5"
   }
 }
 ```
@@ -44,8 +45,8 @@ Add the database driver you use (`better-sqlite3`, `pg`, or `mysql2`) and, when 
 
 ```ts
 import { createSisp } from '@akira-io/sisp';
-import { sispRoutes } from '@akira-io/sisp/express';
-import express from 'express';
+import { sispFastifyPlugin } from '@akira-io/sisp/fastify';
+import Fastify from 'fastify';
 
 const sisp = await createSisp({
   posId: process.env.SISP_POS_ID,
@@ -57,8 +58,8 @@ const sisp = await createSisp({
   database: { client: 'better-sqlite3', connection: { filename: './sisp.db' } },
 });
 
-const app = express();
-app.use('/sisp', sispRoutes(sisp));
+const app = Fastify();
+await app.register(sispFastifyPlugin, { sisp, prefix: '/sisp' });
 
 sisp.on('payment:completed', ({ transaction }) => {
   fulfillOrder(transaction.merchant_ref, transaction.amount_cents);
@@ -66,7 +67,11 @@ sisp.on('payment:completed', ({ transaction }) => {
 
 const request = sisp.payment().amount(1500).customerEmail('a@b.cv').build();
 await sisp.refund(transaction).full().reason('customer_request').process();
+
+await app.listen({ port: 3000 });
 ```
+
+Prefer Express or NestJS? See the [adapters guide](docs/06-adapters.md).
 
 ## Documentation
 

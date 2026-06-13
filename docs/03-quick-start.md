@@ -22,14 +22,18 @@ const sisp = await createSisp({
 
 ## 2. Mount the routes
 
-```ts
-import express from 'express';
-import { sispRoutes } from '@akira-io/sisp/express';
+Fastify is the default adapter:
 
-const app = express();
-app.use('/sisp', sispRoutes(sisp));
-app.listen(3000);
+```ts
+import Fastify from 'fastify';
+import { sispFastifyPlugin } from '@akira-io/sisp/fastify';
+
+const app = Fastify();
+await app.register(sispFastifyPlugin, { sisp, prefix: '/sisp' });
+await app.listen({ port: 3000 });
 ```
+
+Express and NestJS work the same way through their own adapters, see [Adapters](06-adapters.md).
 
 ## 3. Listen for results
 
