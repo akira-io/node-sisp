@@ -6,6 +6,7 @@ import type { StoreRequestMetadataAction } from '../actions/store-request-metada
 import type { UpdateInvoiceStatusAction } from '../actions/update-invoice-status';
 import { type ResolvedSispConfig, routeUrl } from '../config';
 import type { Invoice } from '../database/models/invoice';
+import type { RateLimit } from '../database/models/rate-limit';
 import type { Transaction } from '../database/models/transaction';
 import type { SispManager } from '../drivers/sisp-manager';
 import {
@@ -48,6 +49,7 @@ export interface SispHandlersDeps {
   retryPayment: RetryPaymentAction;
   canRetryPayment: CanRetryPaymentAction;
   refundTransaction: RefundTransactionAction;
+  rateLimits: RateLimit;
   urlSigner: UrlSigner;
 }
 
@@ -81,6 +83,7 @@ export class SispHttpHandlers {
       retryPayment: deps.retryPayment,
       canRetryPayment: deps.canRetryPayment,
       refundTransaction: deps.refundTransaction,
+      rateLimits: deps.rateLimits,
       urlSigner: deps.urlSigner,
     });
   }

@@ -3,7 +3,7 @@ export interface PaymentValidationResult {
   errors: Record<string, string[]>;
 }
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const WHITESPACE_PATTERN = /\s/;
 
 export function validatePaymentInput(body: Record<string, unknown>): PaymentValidationResult {
   const errors: Record<string, string[]> = {};
@@ -91,9 +91,26 @@ function validateCustomerFields(
 ): void {
   const email = body.customer_email;
 
-  if (email !== undefined && (typeof email !== 'string' || !EMAIL_PATTERN.test(email))) {
+  if (email !== undefined && (typeof email !== 'string' || !isValidEmail(email))) {
     addError(errors, 'customer_email', 'The customer email must be a valid email address.');
   }
+}
+
+function isValidEmail(email: string): boolean {
+  if (WHITESPACE_PATTERN.test(email)) {
+    return false;
+  }
+
+  const atIndex = email.indexOf('@');
+
+  if (atIndex <= 0 || atIndex !== email.lastIndexOf('@')) {
+    return false;
+  }
+
+  const domain = email.slice(atIndex + 1);
+  const dotIndex = domain.lastIndexOf('.');
+
+  return dotIndex > 0 && dotIndex < domain.length - 1;
 }
 
 function validateTotals(body: Record<string, unknown>, errors: Record<string, string[]>): void {

@@ -4,6 +4,7 @@ import type { RefundTransactionAction } from '../actions/refund-transaction';
 import type { RetryPaymentAction } from '../actions/retry-payment';
 import { type ResolvedSispConfig, routeUrl } from '../config';
 import { runWithLogSource } from '../database/log-context';
+import type { RateLimit } from '../database/models/rate-limit';
 import type { Transaction } from '../database/models/transaction';
 import type { TransactionRecord } from '../database/records';
 import type { SispManager } from '../drivers/sisp-manager';
@@ -25,6 +26,7 @@ export interface LifecycleHandlersDeps {
   retryPayment: RetryPaymentAction;
   canRetryPayment: CanRetryPaymentAction;
   refundTransaction: RefundTransactionAction;
+  rateLimits: RateLimit;
   urlSigner: UrlSigner;
 }
 
@@ -111,6 +113,10 @@ export class LifecycleHandlers {
   async handleRefund(request: HttpRequestInfo, transactionId: number): Promise<HttpResult> {
     const { transactions, refundTransaction } = this.deps;
 
+    if (await this.refundRateLimitExceeded(request)) {
+      return json({ success: false, message: 'Too many refund requests. Try again later.' }, 429);
+    }
+
     const transaction = Number.isInteger(transactionId)
       ? await transactions.findById(transactionId)
       : null;
@@ -142,6 +148,23 @@ export class LifecycleHandlers {
 
       throw error;
     }
+  }
+
+  private async refundRateLimitExceeded(request: HttpRequestInfo): Promise<boolean> {
+    const { config, rateLimits } = this.deps;
+    const { enabled, perIp } = config.rateLimiting;
+
+    if (!enabled || !perIp.enabled) {
+      return false;
+    }
+
+    return rateLimits.hit({
+      identifier: request.ip,
+      limitType: 'ip',
+      context: 'refund',
+      limit: perIp.limit,
+      windowSeconds: perIp.windowSeconds,
+    });
   }
 
   retryAvailability(transaction: TransactionRecord): RetryAvailability {

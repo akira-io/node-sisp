@@ -58,6 +58,23 @@ describe('validatePaymentInput', () => {
     expect(result.valid).toBe(true);
   });
 
+  it.each([
+    ['kid@akira.cv', true],
+    ['a@b.co', true],
+    ['no-at-sign', false],
+    ['two@@signs.cv', false],
+    ['spaces in@mail.cv', false],
+    ['@missing-local.cv', false],
+    ['missing-domain@', false],
+    ['no-dot@domain', false],
+    ['dot-at-end@domain.', false],
+    ['!@!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!.!', true],
+  ] as const)('validates email %s in linear time', (email, valid) => {
+    const result = validatePaymentInput({ ...validBody, customer_email: email });
+
+    expect(result.errors.customer_email === undefined).toBe(valid);
+  });
+
   it('validates item fields and customer email', () => {
     const result = validatePaymentInput({
       amount: 100,

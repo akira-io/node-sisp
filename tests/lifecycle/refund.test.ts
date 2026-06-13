@@ -188,4 +188,29 @@ describe('refund route', () => {
 
     await request(app).post('/sisp/refund/999').type('form').send({ amount: '10' }).expect(404);
   });
+
+  it('rate limits refund requests per IP', async () => {
+    const limited = await createSisp({
+      posId: '90051',
+      posAutCode: 'TEST_POS_AUT_CODE',
+      sandbox: true,
+      appKey: 'app-key',
+      rateLimiting: { perIp: { limit: 2, windowSeconds: 3600 } },
+      database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
+    });
+    const app = express();
+    app.use('/sisp', sispRoutes(limited, { authorizeRefund: () => true }));
+
+    await request(app).post('/sisp/refund/999').type('form').send({ amount: '10' }).expect(404);
+    await request(app).post('/sisp/refund/999').type('form').send({ amount: '10' }).expect(404);
+
+    const response = await request(app)
+      .post('/sisp/refund/999')
+      .type('form')
+      .send({ amount: '10' })
+      .expect(429);
+
+    expect(response.body.message).toBe('Too many refund requests. Try again later.');
+    await limited.destroy();
+  });
 });

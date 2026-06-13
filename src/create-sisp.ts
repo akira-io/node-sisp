@@ -58,11 +58,12 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
 
   const services = wireCredentialScopedServices(resolved, events, models, credentialsResolver);
   const storeMetadata = new StoreRequestMetadataAction(new RequestMetadata(db, resolved.tables));
+  const rateLimits = new RateLimit(db, resolved.tables);
 
   const paymentPipeline = new ProcessPaymentPipeline(
     customizePipes(resolved.pipelines.payment, [
       new EnsureIpIsNotBlacklisted(models.blacklist),
-      new EnforceRateLimits(new RateLimit(db, resolved.tables), resolved.rateLimiting),
+      new EnforceRateLimits(rateLimits, resolved.rateLimiting),
       new BuildPaymentRequest(services.buildRequestPayload),
       new PersistTransaction(db, models.transactions, models.transactionItems, models.invoices),
       new CaptureRequestMetadata(storeMetadata),
@@ -93,6 +94,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     retryPayment,
     canRetryPayment,
     refundTransaction,
+    rateLimits,
     urlSigner,
   });
 
