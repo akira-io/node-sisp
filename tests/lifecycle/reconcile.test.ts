@@ -47,7 +47,8 @@ async function createPendingTransaction(merchantRef = 'R20260612100000', ageMinu
     amount: 1500,
   });
 
-  await sisp.db(sisp.config.tables.transactions)
+  await sisp
+    .db(sisp.config.tables.transactions)
     .where('id', transaction.id)
     .update({ created_at: new Date(Date.now() - ageMinutes * 60_000).toISOString() });
 
@@ -104,7 +105,11 @@ describe('queryTransactionStatus', () => {
 describe('reconcileTransactionStatus', () => {
   it('completes a pending transaction when the gateway confirms success', async () => {
     const transaction = await createPendingTransaction();
-    gatewayResponds({ result: true, transactionSuccess: true, transactionStatusDescription: 'Paid' });
+    gatewayResponds({
+      result: true,
+      transactionSuccess: true,
+      transactionStatusDescription: 'Paid',
+    });
 
     const reconciled = await sisp.reconcileTransactionStatus(transaction);
 

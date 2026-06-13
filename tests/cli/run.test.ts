@@ -43,7 +43,9 @@ describe('sisp migrate', () => {
 
   it('reports when there is nothing to migrate', async () => {
     const filename = join(await mkdtemp(join(tmpdir(), 'sisp-cli-')), 'sisp.db');
-    const config = memoryConfig({ database: { client: 'better-sqlite3', connection: { filename } } });
+    const config = memoryConfig({
+      database: { client: 'better-sqlite3', connection: { filename } },
+    });
     const { lines, output } = capture();
 
     await runCli(['migrate'], { loadConfig: async () => config, output });

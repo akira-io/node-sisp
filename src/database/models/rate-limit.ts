@@ -113,11 +113,13 @@ export class RateLimit {
   }
 
   private async block(trx: Knex.Transaction, id: number, windowSeconds: number): Promise<void> {
-    await trx(this.tables.rateLimits).where('id', id).update({
-      is_blocked: true,
-      blocked_until: futureIso(windowSeconds),
-      updated_at: nowIso(),
-    });
+    await trx(this.tables.rateLimits)
+      .where('id', id)
+      .update({
+        is_blocked: true,
+        blocked_until: futureIso(windowSeconds),
+        updated_at: nowIso(),
+      });
   }
 }
 

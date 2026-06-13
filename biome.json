@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!dist", "!coverage", "!node_modules"]
+    "includes": ["**", "!dist", "!coverage", "!node_modules", "!assets", "!**/*.svg"]
   },
   "formatter": {
     "enabled": true,
@@ -29,6 +29,9 @@
     }
   },
   "javascript": {
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    },
     "formatter": {
       "quoteStyle": "single"
     }

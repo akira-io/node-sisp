@@ -102,7 +102,10 @@ export class Transaction {
     return row ? this.map(row) : null;
   }
 
-  async listPendingForReconciliation(cutoffIso: string, limit: number): Promise<TransactionRecord[]> {
+  async listPendingForReconciliation(
+    cutoffIso: string,
+    limit: number,
+  ): Promise<TransactionRecord[]> {
     const rows = await this.table()
       .where('status', 'pending')
       .whereNull('message_type')

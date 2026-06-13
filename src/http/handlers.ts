@@ -1,5 +1,5 @@
-import type { CancelTransactionAction } from '../actions/cancel-transaction';
 import type { CanRetryPaymentAction } from '../actions/can-retry-payment';
+import type { CancelTransactionAction } from '../actions/cancel-transaction';
 import type { RefundTransactionAction } from '../actions/refund-transaction';
 import type { RetryPaymentAction } from '../actions/retry-payment';
 import type { StoreRequestMetadataAction } from '../actions/store-request-metadata';
@@ -31,7 +31,7 @@ import { buildGatewayFormAction } from './gateway-form-action';
 import { LifecycleHandlers } from './lifecycle-handlers';
 import { paymentResponseData } from './payment-response';
 import type { HttpRequestInfo } from './request-info';
-import { html, type HttpResult, json, redirect } from './results';
+import { type HttpResult, html, json, redirect } from './results';
 import { validatePaymentInput } from './validate-payment-input';
 
 export interface SispHandlersDeps {

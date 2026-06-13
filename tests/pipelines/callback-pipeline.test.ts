@@ -1,17 +1,13 @@
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FailTransactionAction } from '../../src/actions/fail-transaction';
-import {
-  credentialsFromConfig,
-  type ResolvedSispConfig,
-  resolveConfig,
-} from '../../src/config';
+import { credentialsFromConfig, type ResolvedSispConfig, resolveConfig } from '../../src/config';
 import { StaticCredentialsResolver } from '../../src/contracts/credentials-resolver';
 import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
 import { PayloadCipher } from '../../src/database/encryption';
-import { TransactionLog } from '../../src/database/models/transaction-log';
 import { Transaction } from '../../src/database/models/transaction';
+import { TransactionLog } from '../../src/database/models/transaction-log';
 import { SispEventEmitter } from '../../src/events';
 import { TransactionNotFoundError } from '../../src/exceptions';
 import { generateCallbackFingerprint } from '../../src/fingerprints/callback-fingerprint';

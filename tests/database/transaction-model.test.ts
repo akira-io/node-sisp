@@ -5,8 +5,8 @@ import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
 import { isEncrypted, PayloadCipher } from '../../src/database/encryption';
 import { runWithLogSource } from '../../src/database/log-context';
-import { TransactionLog } from '../../src/database/models/transaction-log';
 import { Transaction } from '../../src/database/models/transaction';
+import { TransactionLog } from '../../src/database/models/transaction-log';
 
 let db: Knex;
 let transactions: Transaction;

@@ -1,12 +1,11 @@
-import { access } from 'node:fs/promises';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { resolveConfig, type SispConfig } from '../config';
+import { createSisp } from '../create-sisp';
 import { runMigrations } from '../database/auto-migrate';
 import { createKnexInstance } from '../database/create-knex';
-import { createSisp } from '../create-sisp';
 
 export interface CliOptions {
   loadConfig?: () => Promise<SispConfig>;

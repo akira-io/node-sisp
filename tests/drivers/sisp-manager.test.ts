@@ -53,6 +53,8 @@ describe('SispManager', () => {
   });
 
   it('throws for unknown drivers', () => {
-    expect(() => managerFor().driver('missing')).toThrow('SISP driver [missing] is not registered.');
+    expect(() => managerFor().driver('missing')).toThrow(
+      'SISP driver [missing] is not registered.',
+    );
   });
 });

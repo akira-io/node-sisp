@@ -3,16 +3,17 @@ import type { BuildRequestPayloadAction } from './actions/build-request-payload'
 import type { CancelTransactionAction } from './actions/cancel-transaction';
 import type { ReconcileTransactionStatusAction } from './actions/reconcile-transaction-status';
 import type { RefundTransactionAction } from './actions/refund-transaction';
+import { PaymentBuilder } from './builders/payment-builder';
 import { RefundBuilder } from './builders/refund-builder';
 import type { ResolvedSispConfig } from './config';
 import type { CredentialsResolver } from './contracts/credentials-resolver';
 import type { SispDriver } from './contracts/sisp-driver';
-import type { TransactionRecord } from './database/records';
 import type { Blacklist } from './database/models/blacklist';
 import type { Invoice } from './database/models/invoice';
+import type { Transaction } from './database/models/transaction';
 import type { TransactionItem } from './database/models/transaction-item';
 import type { TransactionLog } from './database/models/transaction-log';
-import type { Transaction } from './database/models/transaction';
+import type { TransactionRecord } from './database/records';
 import type { SispManager } from './drivers/sisp-manager';
 import type { SispEventEmitter, SispEventMap, SispEventName } from './events';
 import { validateCallbackFingerprint } from './fingerprints/callback-fingerprint';
@@ -21,9 +22,8 @@ import type { SispHttpHandlers } from './http/handlers';
 import { CallbackContext } from './pipelines/callback/callback-context';
 import type { HandleCallbackPipeline } from './pipelines/callback/handle-callback-pipeline';
 import type { BuildSandboxPayloadAction, SandboxStatus } from './sandbox';
-import { PaymentBuilder } from './builders/payment-builder';
-import type { UrlSigner } from './support/signed-url';
 import { ScopedSisp } from './scoped-sisp';
+import type { UrlSigner } from './support/signed-url';
 import type { CallbackPayload } from './value-objects/callback-payload';
 import type { PaymentRequest } from './value-objects/payment-request';
 import type { PaymentRequestData } from './value-objects/payment-request-data';
@@ -169,7 +169,10 @@ export class Sisp {
     return context.requireTransaction();
   }
 
-  generateSandboxPayload(data: PaymentRequestData, status: SandboxStatus = 'success'): CallbackPayload {
+  generateSandboxPayload(
+    data: PaymentRequestData,
+    status: SandboxStatus = 'success',
+  ): CallbackPayload {
     return this.buildSandboxPayloadAction.handle(data, status);
   }
 

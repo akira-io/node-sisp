@@ -15,7 +15,11 @@ describe('UrlSigner', () => {
   });
 
   it('signs with an expiration that still validates while fresh', () => {
-    const url = signer.sign('/sisp/retry-payment', { transaction: 7 }, new Date(Date.now() + 60_000));
+    const url = signer.sign(
+      '/sisp/retry-payment',
+      { transaction: 7 },
+      new Date(Date.now() + 60_000),
+    );
 
     expect(signer.validate('/sisp/retry-payment', queryOf(url))).toBe(true);
   });

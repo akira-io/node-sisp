@@ -177,7 +177,8 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     rateLimiting: resolveRateLimiting(config.rateLimiting),
     security: { collectMetadata: config.security?.collectMetadata ?? true },
     generators: {
-      merchantReference: config.generators?.merchantReference ?? (() => generateMerchantReference()),
+      merchantReference:
+        config.generators?.merchantReference ?? (() => generateMerchantReference()),
       merchantSession: config.generators?.merchantSession ?? (() => generateMerchantSession()),
       timeStamp: config.generators?.timeStamp ?? (() => generateTimeStamp()),
     },

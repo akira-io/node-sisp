@@ -1,10 +1,6 @@
 import { runWithLogSource } from '../database/log-context';
 import type { Transaction } from '../database/models/transaction';
-import {
-  nowIso,
-  type TransactionRecord,
-  transactionPayloadRecord,
-} from '../database/records';
+import { nowIso, type TransactionRecord, transactionPayloadRecord } from '../database/records';
 import { TransactionStatus } from '../enums/transaction-status';
 import type { SispEventEmitter } from '../events';
 import { SispError, TransactionStateError } from '../exceptions';

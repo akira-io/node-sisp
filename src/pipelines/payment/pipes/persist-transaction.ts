@@ -2,10 +2,10 @@ import type { Knex } from 'knex';
 import type { PaymentPipe } from '../../../contracts/pipes';
 import { runWithLogSource } from '../../../database/log-context';
 import type { Invoice } from '../../../database/models/invoice';
-import type { TransactionItem } from '../../../database/models/transaction-item';
 import type { Transaction } from '../../../database/models/transaction';
-import { paymentRequestToFormFields } from '../../../value-objects/payment-request';
+import type { TransactionItem } from '../../../database/models/transaction-item';
 import { customerDataFrom, customerDataToRecord } from '../../../value-objects/customer-data';
+import { paymentRequestToFormFields } from '../../../value-objects/payment-request';
 import { transactionItemCollection } from '../../../value-objects/transaction-item-data';
 import type { PaymentContext } from '../payment-context';
 

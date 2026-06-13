@@ -2,8 +2,8 @@ import express from 'express';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSisp } from '../../src/create-sisp';
-import { sispRoutes } from '../../src/express';
 import { TransactionStateError } from '../../src/exceptions';
+import { sispRoutes } from '../../src/express';
 import type { Sisp } from '../../src/sisp';
 
 let sisp: Sisp;

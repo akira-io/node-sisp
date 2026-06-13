@@ -47,9 +47,7 @@ describe('retry payment', () => {
   it('resets the transaction to pending with a rotated session on POST', async () => {
     const transaction = await createFailedTransaction();
 
-    const response = await request(app)
-      .post(sisp.signedRetryUrl(transaction.id))
-      .expect(200);
+    const response = await request(app).post(sisp.signedRetryUrl(transaction.id)).expect(200);
 
     expect(response.text).toContain("name='merchantRef' value='R20260612100000'");
 

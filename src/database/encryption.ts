@@ -30,7 +30,8 @@ export class PayloadCipher {
       return stored;
     }
 
-    const plain = this.key !== null && isEncrypted(stored) ? this.decrypt(stored, this.key) : stored;
+    const plain =
+      this.key !== null && isEncrypted(stored) ? this.decrypt(stored, this.key) : stored;
 
     if (plain === null) {
       return stored;
@@ -45,9 +46,12 @@ export class PayloadCipher {
     const encrypted = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
 
-    return [PREFIX, iv.toString('base64'), tag.toString('base64'), encrypted.toString('base64')].join(
-      ':',
-    );
+    return [
+      PREFIX,
+      iv.toString('base64'),
+      tag.toString('base64'),
+      encrypted.toString('base64'),
+    ].join(':');
   }
 
   private decrypt(stored: string, key: Buffer): string | null {

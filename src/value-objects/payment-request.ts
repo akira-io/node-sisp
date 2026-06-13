@@ -18,7 +18,9 @@ export interface PaymentRequest {
   purchaseRequest: string;
 }
 
-export function paymentRequestToFormFields(request: PaymentRequest): Record<string, string | number> {
+export function paymentRequestToFormFields(
+  request: PaymentRequest,
+): Record<string, string | number> {
   const fields: Record<string, string | number> = {
     posID: request.posID,
     merchantRef: request.merchantRef,

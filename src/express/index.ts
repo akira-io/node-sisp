@@ -1,4 +1,4 @@
-import { json, Router, urlencoded, type Request, type RequestHandler } from 'express';
+import { json, type Request, type RequestHandler, Router, urlencoded } from 'express';
 import type { HttpRequestInfo } from '../http/request-info';
 import type { HttpResult } from '../http/results';
 import type { Sisp } from '../sisp';
@@ -15,15 +15,42 @@ export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router 
   router.use(urlencoded({ extended: true }));
   router.use(json());
 
-  router.post('/payment', handle((request) => sisp.handlers.handlePayment(request)));
-  router.get('/callback', handle((request) => sisp.handlers.handleCallback(request)));
-  router.post('/callback', handle((request) => sisp.handlers.handleCallback(request)));
-  router.get('/retry-payment', handle((request) => sisp.handlers.handleRetryPayment(request)));
-  router.post('/retry-payment', handle((request) => sisp.handlers.handleRetryPayment(request)));
-  router.get('/cancel', handle((request) => sisp.handlers.handleCancel(request)));
-  router.get('/sandbox', handle((request) => sisp.handlers.handleSandbox(request)));
-  router.post('/sandbox', handle((request) => sisp.handlers.handleSandbox(request)));
-  router.get('/countries', handle(() => Promise.resolve(sisp.handlers.handleCountries())));
+  router.post(
+    '/payment',
+    handle((request) => sisp.handlers.handlePayment(request)),
+  );
+  router.get(
+    '/callback',
+    handle((request) => sisp.handlers.handleCallback(request)),
+  );
+  router.post(
+    '/callback',
+    handle((request) => sisp.handlers.handleCallback(request)),
+  );
+  router.get(
+    '/retry-payment',
+    handle((request) => sisp.handlers.handleRetryPayment(request)),
+  );
+  router.post(
+    '/retry-payment',
+    handle((request) => sisp.handlers.handleRetryPayment(request)),
+  );
+  router.get(
+    '/cancel',
+    handle((request) => sisp.handlers.handleCancel(request)),
+  );
+  router.get(
+    '/sandbox',
+    handle((request) => sisp.handlers.handleSandbox(request)),
+  );
+  router.post(
+    '/sandbox',
+    handle((request) => sisp.handlers.handleSandbox(request)),
+  );
+  router.get(
+    '/countries',
+    handle(() => Promise.resolve(sisp.handlers.handleCountries())),
+  );
 
   router.post('/refund/:transaction', (req, res, next) => {
     Promise.resolve(authorizeRefund(req))

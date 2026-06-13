@@ -42,9 +42,7 @@ export class Invoice {
   }
 
   async findByTransaction(transactionId: number): Promise<InvoiceRecord | null> {
-    const row = await this.db(this.tables.invoices)
-      .where('transaction_id', transactionId)
-      .first();
+    const row = await this.db(this.tables.invoices).where('transaction_id', transactionId).first();
 
     return (row as InvoiceRecord | undefined) ?? null;
   }

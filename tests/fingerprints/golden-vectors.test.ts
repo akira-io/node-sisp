@@ -12,34 +12,38 @@ describe('golden vectors generated from akira-io/laravel-sisp@2.x', () => {
     expect(computeToken(posAutCode)).toBe(token);
   });
 
-  it.each(vectors.amounts)(
-    'amount $value ($kind) to thousandths and cents',
-    ({ value, thousandths, cents }) => {
-      expect(toThousandths(value)).toBe(thousandths);
-      expect(toCents(value)).toBe(cents);
-    },
-  );
+  it.each(vectors.amounts)('amount $value ($kind) to thousandths and cents', ({
+    value,
+    thousandths,
+    cents,
+  }) => {
+    expect(toThousandths(value)).toBe(thousandths);
+    expect(toCents(value)).toBe(cents);
+  });
 
-  it.each(vectors.payment)(
-    'payment request fingerprint for $data.merchantRef',
-    ({ posAutCode, data, fingerprint }) => {
-      expect(generatePaymentFingerprint(computeToken(posAutCode), data)).toBe(fingerprint);
-    },
-  );
+  it.each(vectors.payment)('payment request fingerprint for $data.merchantRef', ({
+    posAutCode,
+    data,
+    fingerprint,
+  }) => {
+    expect(generatePaymentFingerprint(computeToken(posAutCode), data)).toBe(fingerprint);
+  });
 
-  it.each(vectors.callback)(
-    'callback fingerprint for messageType $post.messageType',
-    ({ posAutCode, post, fingerprint }) => {
-      const payload = callbackPayloadFrom(post);
+  it.each(vectors.callback)('callback fingerprint for messageType $post.messageType', ({
+    posAutCode,
+    post,
+    fingerprint,
+  }) => {
+    const payload = callbackPayloadFrom(post);
 
-      expect(generateCallbackFingerprint(computeToken(posAutCode), payload)).toBe(fingerprint);
-    },
-  );
+    expect(generateCallbackFingerprint(computeToken(posAutCode), payload)).toBe(fingerprint);
+  });
 
-  it.each(vectors.refund)(
-    'refund fingerprint for transactionCode $data.transactionCode',
-    ({ posAutCode, data, fingerprint }) => {
-      expect(generateRefundFingerprint(computeToken(posAutCode), data)).toBe(fingerprint);
-    },
-  );
+  it.each(vectors.refund)('refund fingerprint for transactionCode $data.transactionCode', ({
+    posAutCode,
+    data,
+    fingerprint,
+  }) => {
+    expect(generateRefundFingerprint(computeToken(posAutCode), data)).toBe(fingerprint);
+  });
 });

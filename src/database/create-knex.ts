@@ -1,4 +1,4 @@
-import { knex, type Knex } from 'knex';
+import { type Knex, knex } from 'knex';
 import type { SispDatabaseConfig } from '../config';
 
 export function createKnexInstance(config: SispDatabaseConfig): Knex {

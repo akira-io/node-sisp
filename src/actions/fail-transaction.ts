@@ -1,6 +1,6 @@
 import { runWithLogSource } from '../database/log-context';
-import type { TransactionRecord } from '../database/records';
 import type { Transaction } from '../database/models/transaction';
+import type { TransactionRecord } from '../database/records';
 import { TransactionStatus } from '../enums/transaction-status';
 import type { CallbackPayload } from '../value-objects/callback-payload';
 

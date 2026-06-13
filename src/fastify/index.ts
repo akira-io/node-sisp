@@ -27,15 +27,42 @@ export async function sispFastifyPlugin(
     };
   };
 
-  fastify.post('/payment', route((request) => sisp.handlers.handlePayment(request)));
-  fastify.get('/callback', route((request) => sisp.handlers.handleCallback(request)));
-  fastify.post('/callback', route((request) => sisp.handlers.handleCallback(request)));
-  fastify.get('/retry-payment', route((request) => sisp.handlers.handleRetryPayment(request)));
-  fastify.post('/retry-payment', route((request) => sisp.handlers.handleRetryPayment(request)));
-  fastify.get('/cancel', route((request) => sisp.handlers.handleCancel(request)));
-  fastify.get('/sandbox', route((request) => sisp.handlers.handleSandbox(request)));
-  fastify.post('/sandbox', route((request) => sisp.handlers.handleSandbox(request)));
-  fastify.get('/countries', route(() => Promise.resolve(sisp.handlers.handleCountries())));
+  fastify.post(
+    '/payment',
+    route((request) => sisp.handlers.handlePayment(request)),
+  );
+  fastify.get(
+    '/callback',
+    route((request) => sisp.handlers.handleCallback(request)),
+  );
+  fastify.post(
+    '/callback',
+    route((request) => sisp.handlers.handleCallback(request)),
+  );
+  fastify.get(
+    '/retry-payment',
+    route((request) => sisp.handlers.handleRetryPayment(request)),
+  );
+  fastify.post(
+    '/retry-payment',
+    route((request) => sisp.handlers.handleRetryPayment(request)),
+  );
+  fastify.get(
+    '/cancel',
+    route((request) => sisp.handlers.handleCancel(request)),
+  );
+  fastify.get(
+    '/sandbox',
+    route((request) => sisp.handlers.handleSandbox(request)),
+  );
+  fastify.post(
+    '/sandbox',
+    route((request) => sisp.handlers.handleSandbox(request)),
+  );
+  fastify.get(
+    '/countries',
+    route(() => Promise.resolve(sisp.handlers.handleCountries())),
+  );
 
   fastify.post('/refund/:transaction', async (request, reply) => {
     if (!(await authorizeRefund(request))) {

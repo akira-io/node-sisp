@@ -82,9 +82,11 @@ describe('forCredentials', () => {
   });
 
   it('queries the transaction status with the scoped credentials', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ result: true, transactionSuccess: true }), { status: 200 }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ result: true, transactionSuccess: true }), { status: 200 }),
+      );
     vi.stubGlobal('fetch', fetchMock);
 
     const withPortal = await createSisp({

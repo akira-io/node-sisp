@@ -1,9 +1,6 @@
 import { createHash } from 'node:crypto';
-import type {
-  NewRequestMetadata,
-  RequestMetadata,
-} from '../database/models/request-metadata';
-import { headerValue, type HttpRequestInfo } from '../http/request-info';
+import type { NewRequestMetadata, RequestMetadata } from '../database/models/request-metadata';
+import { type HttpRequestInfo, headerValue } from '../http/request-info';
 import {
   detectBrowser,
   detectDeviceType,

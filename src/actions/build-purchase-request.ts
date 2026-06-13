@@ -9,7 +9,10 @@ export interface ThreeDSecureCustomer {
   phone?: string | null;
 }
 
-export function buildPurchaseRequest(customer: ThreeDSecureCustomer, now: Date = new Date()): string {
+export function buildPurchaseRequest(
+  customer: ThreeDSecureCustomer,
+  now: Date = new Date(),
+): string {
   const payload = {
     acctID: 'x',
     acctInfo: buildAcctInfo(now),

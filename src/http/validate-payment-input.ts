@@ -76,12 +76,19 @@ function validateItem(
     const value = Number(item[field]);
 
     if (item[field] === undefined || Number.isNaN(value) || value < 0) {
-      addError(errors, `items.${index}.${field}`, `The ${field.replace('_', ' ')} must be a number of at least 0.`);
+      addError(
+        errors,
+        `items.${index}.${field}`,
+        `The ${field.replace('_', ' ')} must be a number of at least 0.`,
+      );
     }
   }
 }
 
-function validateCustomerFields(body: Record<string, unknown>, errors: Record<string, string[]>): void {
+function validateCustomerFields(
+  body: Record<string, unknown>,
+  errors: Record<string, string[]>,
+): void {
   const email = body.customer_email;
 
   if (email !== undefined && (typeof email !== 'string' || !EMAIL_PATTERN.test(email))) {

@@ -2,11 +2,7 @@ import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BuildRequestPayloadAction } from '../../src/actions/build-request-payload';
 import { StoreRequestMetadataAction } from '../../src/actions/store-request-metadata';
-import {
-  credentialsFromConfig,
-  type ResolvedSispConfig,
-  resolveConfig,
-} from '../../src/config';
+import { credentialsFromConfig, type ResolvedSispConfig, resolveConfig } from '../../src/config';
 import { StaticCredentialsResolver } from '../../src/contracts/credentials-resolver';
 import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
@@ -15,8 +11,8 @@ import { Blacklist } from '../../src/database/models/blacklist';
 import { Invoice } from '../../src/database/models/invoice';
 import { RateLimit } from '../../src/database/models/rate-limit';
 import { RequestMetadata } from '../../src/database/models/request-metadata';
-import { TransactionItem } from '../../src/database/models/transaction-item';
 import { Transaction } from '../../src/database/models/transaction';
+import { TransactionItem } from '../../src/database/models/transaction-item';
 import { BlacklistedIdentifierError, RateLimitExceededError } from '../../src/exceptions';
 import type { HttpRequestInfo } from '../../src/http/request-info';
 import { PaymentContext } from '../../src/pipelines/payment/payment-context';
@@ -90,9 +86,7 @@ function paymentRequest(): HttpRequestInfo {
       amount: 1500,
       customer_name: 'Kid',
       customer_email: 'kid@akira.cv',
-      items: [
-        { product_name: 'Plano Pro', quantity: 2, unit_price: 750, total_price: 1500 },
-      ],
+      items: [{ product_name: 'Plano Pro', quantity: 2, unit_price: 750, total_price: 1500 }],
     },
   };
 }

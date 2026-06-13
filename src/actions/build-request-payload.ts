@@ -27,8 +27,7 @@ export class BuildRequestPayloadAction {
       amount: data.amount,
       currency: data.currency ?? credentials.currency,
       is3DSec: credentials.is3DSec,
-      urlMerchantResponse:
-        credentials.urlMerchantResponse ?? routeUrl(this.config, 'callback'),
+      urlMerchantResponse: credentials.urlMerchantResponse ?? routeUrl(this.config, 'callback'),
       languageMessages: credentials.languageMessages,
       timeStamp: data.timeStamp ?? this.config.generators.timeStamp(),
       fingerprintversion: credentials.fingerprintVersion,
