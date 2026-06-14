@@ -32,4 +32,18 @@ jobs:
 
       - run: npm run build
 
-      - run: npm publish --access public
+      - name: Publish to npm
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "@akira-io/sisp@${VERSION}" version >/dev/null 2>&1; then
+            echo "Version ${VERSION} already published, skipping."
+            exit 0
+          fi
+          TAG="${GITHUB_REF_NAME#v}"
+          if [[ "$TAG" == *-* ]]; then
+            DIST_TAG="${TAG#*-}"
+            DIST_TAG="${DIST_TAG%%.*}"
+          else
+            DIST_TAG="latest"
+          fi
+          npm publish --access public --tag "$DIST_TAG"
