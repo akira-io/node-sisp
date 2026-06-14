@@ -1,0 +1,5 @@
+# Changelog
+
+All notable changes to this project are documented in this file. The
+changelog is generated from conventional commits via
+[git-cliff](https://git-cliff.org) on every release tag.

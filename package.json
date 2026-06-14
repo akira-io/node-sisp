@@ -1,8 +1,9 @@
 {
   "name": "@akira-io/sisp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "SISP/Vinti4 (Cabo Verde) payment gateway client for Node.js",
-  "license": "MIT",
+  "license": "(MIT OR Apache-2.0)",
+  "author": "Kidiatoliny <kidiatoliny@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/akira-io/node-sisp.git"
@@ -10,6 +11,9 @@
   "type": "module",
   "engines": {
     "node": ">=20"
+  },
+  "bin": {
+    "sisp": "./dist/cli.js"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -24,6 +28,16 @@
       "types": "./dist/express/index.d.ts",
       "import": "./dist/express/index.js",
       "require": "./dist/express/index.cjs"
+    },
+    "./fastify": {
+      "types": "./dist/fastify/index.d.ts",
+      "import": "./dist/fastify/index.js",
+      "require": "./dist/fastify/index.cjs"
+    },
+    "./nest": {
+      "types": "./dist/nest/index.d.ts",
+      "import": "./dist/nest/index.js",
+      "require": "./dist/nest/index.cjs"
     }
   },
   "files": [
@@ -38,15 +52,28 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "knex": "^3.1.0"
+    "knex": "^3.1.0",
+    "qs": "^6.15.2"
   },
   "peerDependencies": {
+    "@fastify/formbody": ">=7",
+    "@nestjs/common": ">=10",
     "better-sqlite3": ">=11",
     "express": ">=4.18",
+    "fastify": ">=4.27",
     "mysql2": ">=3",
     "pg": ">=8"
   },
   "peerDependenciesMeta": {
+    "@fastify/formbody": {
+      "optional": true
+    },
+    "@nestjs/common": {
+      "optional": true
+    },
+    "fastify": {
+      "optional": true
+    },
     "better-sqlite3": {
       "optional": true
     },
@@ -62,12 +89,21 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.0",
+    "@fastify/formbody": "^8.0.2",
+    "@nestjs/common": "^11.1.26",
+    "@nestjs/core": "^11.1.26",
+    "@nestjs/platform-express": "^11.1.26",
+    "@nestjs/testing": "^11.1.26",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
+    "@types/qs": "^6.15.1",
     "@types/supertest": "^6.0.0",
     "@vitest/coverage-v8": "^3.2.0",
     "better-sqlite3": "^12.4.0",
     "express": "^5.1.0",
+    "fastify": "^5.8.5",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
     "supertest": "^7.1.0",
     "tsup": "^8.5.0",
     "typescript": "^5.9.0",
