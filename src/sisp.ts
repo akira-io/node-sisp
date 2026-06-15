@@ -10,7 +10,9 @@ import type { CredentialsResolver } from './contracts/credentials-resolver';
 import type { SispDriver } from './contracts/sisp-driver';
 import type { Blacklist } from './database/models/blacklist';
 import type { Invoice } from './database/models/invoice';
+import type { PaymentIntent } from './database/models/payment-intent';
 import type { Transaction } from './database/models/transaction';
+import type { TransactionAttempt } from './database/models/transaction-attempt';
 import type { TransactionItem } from './database/models/transaction-item';
 import type { TransactionLog } from './database/models/transaction-log';
 import type { TransactionRecord } from './database/records';
@@ -33,6 +35,8 @@ import type { TransactionStatusResponse } from './value-objects/transaction-stat
 export interface SispModels {
   transactions: Transaction;
   transactionItems: TransactionItem;
+  transactionAttempts: TransactionAttempt;
+  paymentIntents: PaymentIntent;
   invoices: Invoice;
   transactionLogs: TransactionLog;
   blacklist: Blacklist;

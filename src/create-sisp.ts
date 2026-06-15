@@ -1,6 +1,7 @@
 import { BuildRefundRequestAction } from './actions/build-refund-request';
 import { CanRetryPaymentAction } from './actions/can-retry-payment';
 import { CancelTransactionAction } from './actions/cancel-transaction';
+import { CreateRetryPaymentAttemptAction } from './actions/create-retry-payment-attempt';
 import { RefundTransactionAction } from './actions/refund-transaction';
 import { RetryPaymentAction } from './actions/retry-payment';
 import { StoreRequestMetadataAction } from './actions/store-request-metadata';
@@ -19,9 +20,11 @@ import { createKnexInstance } from './database/create-knex';
 import { PayloadCipher } from './database/encryption';
 import { Blacklist } from './database/models/blacklist';
 import { Invoice } from './database/models/invoice';
+import { PaymentIntent } from './database/models/payment-intent';
 import { RateLimit } from './database/models/rate-limit';
 import { RequestMetadata } from './database/models/request-metadata';
 import { Transaction } from './database/models/transaction';
+import { TransactionAttempt } from './database/models/transaction-attempt';
 import { TransactionItem } from './database/models/transaction-item';
 import { TransactionLog } from './database/models/transaction-log';
 import { SispEventEmitter } from './events';
@@ -51,6 +54,8 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   const models: SispModels = {
     transactions: new Transaction(db, resolved.tables, cipher),
     transactionItems: new TransactionItem(db, resolved.tables),
+    transactionAttempts: new TransactionAttempt(db, resolved.tables, cipher),
+    paymentIntents: new PaymentIntent(db, resolved.tables),
     invoices: new Invoice(db, resolved.tables),
     transactionLogs: new TransactionLog(db, resolved.tables),
     blacklist: new Blacklist(db, resolved.tables),
@@ -65,7 +70,15 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
       new EnsureIpIsNotBlacklisted(models.blacklist),
       new EnforceRateLimits(rateLimits, resolved.rateLimiting),
       new BuildPaymentRequest(services.buildRequestPayload),
-      new PersistTransaction(db, models.transactions, models.transactionItems, models.invoices),
+      new PersistTransaction(
+        resolved,
+        db,
+        models.transactions,
+        models.transactionAttempts,
+        models.transactionItems,
+        models.invoices,
+        services.buildRequestPayload,
+      ),
       new CaptureRequestMetadata(storeMetadata),
     ]),
   );
@@ -73,6 +86,13 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   const urlSigner = new UrlSigner(resolved.appKey);
   const cancelTransaction = new CancelTransactionAction(models.transactions, events);
   const retryPayment = new RetryPaymentAction(services.buildRequestPayload);
+  const createRetryAttempt = new CreateRetryPaymentAttemptAction(
+    resolved,
+    db,
+    models.transactions,
+    models.transactionAttempts,
+    retryPayment,
+  );
   const canRetryPayment = new CanRetryPaymentAction(resolved);
   const refundTransaction = new RefundTransactionAction(
     models.transactions,
@@ -82,16 +102,20 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
 
   const handlers = new SispHttpHandlers({
     config: resolved,
+    db,
     manager: services.manager,
     paymentPipeline,
     callbackPipeline: services.callbackPipeline,
     transactions: models.transactions,
+    attempts: models.transactionAttempts,
+    paymentIntents: models.paymentIntents,
     invoices: models.invoices,
     storeMetadata,
     updateInvoiceStatus: services.updateInvoiceStatus,
     buildSandboxPayload: services.buildSandboxPayload,
     cancelTransaction,
     retryPayment,
+    createRetryAttempt,
     canRetryPayment,
     refundTransaction,
     rateLimits,

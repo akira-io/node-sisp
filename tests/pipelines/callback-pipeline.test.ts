@@ -7,6 +7,7 @@ import { runMigrations } from '../../src/database/auto-migrate';
 import { createKnexInstance } from '../../src/database/create-knex';
 import { PayloadCipher } from '../../src/database/encryption';
 import { Transaction } from '../../src/database/models/transaction';
+import { TransactionAttempt } from '../../src/database/models/transaction-attempt';
 import { TransactionLog } from '../../src/database/models/transaction-log';
 import { SispEventEmitter } from '../../src/events';
 import { TransactionNotFoundError } from '../../src/exceptions';
@@ -26,6 +27,7 @@ const token = computeToken('TEST_POS_AUT_CODE');
 let db: Knex;
 let config: ResolvedSispConfig;
 let transactions: Transaction;
+let attempts: TransactionAttempt;
 let logs: TransactionLog;
 let events: SispEventEmitter;
 let pipeline: HandleCallbackPipeline;
@@ -40,18 +42,21 @@ beforeEach(async () => {
   });
   await runMigrations(db, config.tables);
 
-  transactions = new Transaction(db, config.tables, new PayloadCipher(config.appKey));
+  const cipher = new PayloadCipher(config.appKey);
+
+  transactions = new Transaction(db, config.tables, cipher);
+  attempts = new TransactionAttempt(db, config.tables, cipher);
   logs = new TransactionLog(db, config.tables);
   events = new SispEventEmitter();
 
   const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(config));
-  const failTransaction = new FailTransactionAction(transactions);
+  const failTransaction = new FailTransactionAction(transactions, attempts);
 
   pipeline = new HandleCallbackPipeline([
-    new ResolveTransaction(transactions),
+    new ResolveTransaction(transactions, attempts),
     new ValidateFingerprint(credentialsResolver, failTransaction, events),
     new EnsureCallbackMatchesTransaction(config, credentialsResolver, failTransaction, events),
-    new ApplyTransactionStatus(transactions),
+    new ApplyTransactionStatus(transactions, attempts),
     new DispatchPaymentEvents(events),
   ]);
 });
@@ -61,13 +66,17 @@ afterEach(async () => {
 });
 
 async function createPendingTransaction(amount: number | string = '1500') {
-  return transactions.create({
+  const transaction = await transactions.create({
     merchantRef: 'R20260612100000',
     merchantSession: 'S20260612100000',
     amount,
     currency: '132',
     transactionCode: '1',
   });
+
+  await attempts.createFromTransaction(transaction);
+
+  return transaction;
 }
 
 function signedCallback(overrides: Record<string, unknown> = {}) {

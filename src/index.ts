@@ -1,6 +1,7 @@
 export { mapTransactionStatus } from './actions/map-transaction-status';
 export { PaymentBuilder } from './builders/payment-builder';
 export type {
+  IdempotencyConfig,
   RateLimiting,
   RateLimitRule,
   ResolvedSispConfig,
@@ -24,6 +25,7 @@ export { runWithLogSource } from './database/log-context';
 export type {
   BlacklistRecord,
   InvoiceRecord,
+  PaymentIntentRecord,
   RequestMetadataRecord,
   TransactionItemRecord,
   TransactionLogRecord,
@@ -57,6 +59,7 @@ export {
 export {
   BlacklistedIdentifierError,
   MissingThreeDSecureDataError,
+  PaymentIntentAlreadyProcessingError,
   RateLimitExceededError,
   SispError,
   TransactionNotFoundError,

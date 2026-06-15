@@ -12,6 +12,7 @@ import { Invoice } from '../../src/database/models/invoice';
 import { RateLimit } from '../../src/database/models/rate-limit';
 import { RequestMetadata } from '../../src/database/models/request-metadata';
 import { Transaction } from '../../src/database/models/transaction';
+import { TransactionAttempt } from '../../src/database/models/transaction-attempt';
 import { TransactionItem } from '../../src/database/models/transaction-item';
 import { BlacklistedIdentifierError, RateLimitExceededError } from '../../src/exceptions';
 import type { HttpRequestInfo } from '../../src/http/request-info';
@@ -27,6 +28,7 @@ let db: Knex;
 let config: ResolvedSispConfig;
 let pipeline: ProcessPaymentPipeline;
 let transactions: Transaction;
+let attempts: TransactionAttempt;
 let items: TransactionItem;
 let invoices: Invoice;
 let metadata: RequestMetadata;
@@ -48,6 +50,7 @@ beforeEach(async () => {
   const cipher = new PayloadCipher(config.appKey);
 
   transactions = new Transaction(db, config.tables, cipher);
+  attempts = new TransactionAttempt(db, config.tables, cipher);
   items = new TransactionItem(db, config.tables);
   invoices = new Invoice(db, config.tables);
   metadata = new RequestMetadata(db, config.tables);
@@ -62,7 +65,15 @@ beforeEach(async () => {
     new EnsureIpIsNotBlacklisted(blacklist),
     new EnforceRateLimits(new RateLimit(db, config.tables), config.rateLimiting),
     new BuildPaymentRequest(buildRequestPayload),
-    new PersistTransaction(db, transactions, items, invoices),
+    new PersistTransaction(
+      config,
+      db,
+      transactions,
+      attempts,
+      items,
+      invoices,
+      buildRequestPayload,
+    ),
     new CaptureRequestMetadata(new StoreRequestMetadataAction(metadata)),
   ]);
 });
@@ -113,6 +124,12 @@ describe('ProcessPaymentPipeline', () => {
     expect(storedItems).toHaveLength(1);
     expect(storedItems[0]?.unit_price_cents).toBe(75000);
     expect(storedItems[0]?.total_price_cents).toBe(150000);
+
+    const storedAttempts = await attempts.listByTransaction(transaction.id);
+
+    expect(storedAttempts).toHaveLength(1);
+    expect(storedAttempts[0]?.merchant_ref).toBe(transaction.merchant_ref);
+    expect(storedAttempts[0]?.merchant_session).toBe(transaction.merchant_session);
 
     const invoice = await invoices.findByTransaction(transaction.id);
 

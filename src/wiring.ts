@@ -34,15 +34,18 @@ export function wireCredentialScopedServices(
   const manager = createSispManager(config, credentialsResolver);
   const buildRequestPayload = new BuildRequestPayloadAction(config, credentialsResolver);
   const buildSandboxPayload = new BuildSandboxPayloadAction(config, credentialsResolver);
-  const failTransaction = new FailTransactionAction(models.transactions);
+  const failTransaction = new FailTransactionAction(
+    models.transactions,
+    models.transactionAttempts,
+  );
   const updateInvoiceStatus = new UpdateInvoiceStatusAction(models.invoices);
 
   const callbackPipeline = new HandleCallbackPipeline(
     customizePipes(config.pipelines.callback, [
-      new ResolveTransaction(models.transactions),
+      new ResolveTransaction(models.transactions, models.transactionAttempts),
       new ValidateFingerprint(credentialsResolver, failTransaction, events),
       new EnsureCallbackMatchesTransaction(config, credentialsResolver, failTransaction, events),
-      new ApplyTransactionStatus(models.transactions),
+      new ApplyTransactionStatus(models.transactions, models.transactionAttempts),
       new DispatchPaymentEvents(events),
     ]),
   );

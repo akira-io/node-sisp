@@ -16,6 +16,8 @@ export interface SispPipelineCustomizers {
 export interface SispTables {
   transactions: string;
   transactionItems: string;
+  transactionAttempts: string;
+  paymentIntents: string;
   invoices: string;
   requestMetadata: string;
   rateLimits: string;
@@ -27,6 +29,16 @@ export interface SispGenerators {
   merchantReference: () => string;
   merchantSession: () => string;
   timeStamp: () => string;
+}
+
+export interface IdentifierGenerationConfig {
+  maxAttempts: number;
+  collisionRetrySleepMs: number;
+}
+
+export interface IdempotencyConfig {
+  enabled: boolean;
+  requestKeys: string[];
 }
 
 export interface RateLimitRule {
@@ -85,6 +97,8 @@ export interface SispConfig {
   rateLimiting?: DeepPartial<RateLimiting>;
   security?: Partial<SecuritySettings>;
   generators?: Partial<SispGenerators>;
+  identifierGeneration?: Partial<IdentifierGenerationConfig>;
+  idempotency?: Partial<IdempotencyConfig>;
   pipelines?: SispPipelineCustomizers;
   onEventListenerError?: EventErrorHandler;
   transactionStatus?: Partial<TransactionStatusConfig>;
@@ -113,6 +127,8 @@ export interface ResolvedSispConfig {
   rateLimiting: RateLimiting;
   security: SecuritySettings;
   generators: SispGenerators;
+  identifierGeneration: IdentifierGenerationConfig;
+  idempotency: IdempotencyConfig;
   pipelines: SispPipelineCustomizers;
   onEventListenerError: EventErrorHandler | null;
   transactionStatus: TransactionStatusConfig;
@@ -125,6 +141,8 @@ type DeepPartial<T> = {
 export const DEFAULT_TABLES: SispTables = {
   transactions: 'sisp_transactions',
   transactionItems: 'sisp_transaction_items',
+  transactionAttempts: 'sisp_transaction_attempts',
+  paymentIntents: 'sisp_payment_intents',
   invoices: 'sisp_invoices',
   requestMetadata: 'sisp_request_metadata',
   rateLimits: 'sisp_rate_limits',
@@ -147,6 +165,16 @@ const DEFAULT_RATE_LIMITING: RateLimiting = {
   perIp: { enabled: true, limit: 100, windowSeconds: 3600 },
   perMerchant: { enabled: true, limit: 500, windowSeconds: 3600 },
   perUser: { enabled: true, limit: 50, windowSeconds: 3600 },
+};
+
+const DEFAULT_IDENTIFIER_GENERATION: IdentifierGenerationConfig = {
+  maxAttempts: 5,
+  collisionRetrySleepMs: 1000,
+};
+
+const DEFAULT_IDEMPOTENCY: IdempotencyConfig = {
+  enabled: true,
+  requestKeys: ['idempotency_key', 'checkout_intent_id'],
 };
 
 export function resolveConfig(config: SispConfig): ResolvedSispConfig {
@@ -181,6 +209,14 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
         config.generators?.merchantReference ?? (() => generateMerchantReference()),
       merchantSession: config.generators?.merchantSession ?? (() => generateMerchantSession()),
       timeStamp: config.generators?.timeStamp ?? (() => generateTimeStamp()),
+    },
+    identifierGeneration: {
+      ...DEFAULT_IDENTIFIER_GENERATION,
+      ...config.identifierGeneration,
+    },
+    idempotency: {
+      ...DEFAULT_IDEMPOTENCY,
+      ...config.idempotency,
     },
     pipelines: config.pipelines ?? {},
     onEventListenerError: config.onEventListenerError ?? null,

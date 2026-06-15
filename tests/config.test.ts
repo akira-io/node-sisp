@@ -33,6 +33,14 @@ describe('resolveConfig', () => {
     expect(resolved.rateLimiting.perMerchant.limit).toBe(500);
     expect(resolved.rateLimiting.perUser.limit).toBe(50);
     expect(resolved.security.collectMetadata).toBe(true);
+    expect(resolved.identifierGeneration).toEqual({
+      maxAttempts: 5,
+      collisionRetrySleepMs: 1000,
+    });
+    expect(resolved.idempotency).toEqual({
+      enabled: true,
+      requestKeys: ['idempotency_key', 'checkout_intent_id'],
+    });
   });
 
   it('keeps user overrides', () => {
@@ -42,6 +50,8 @@ describe('resolveConfig', () => {
       currency: '978',
       tables: { transactions: 'custom_transactions' },
       rateLimiting: { perIp: { limit: 5 } },
+      identifierGeneration: { maxAttempts: 2, collisionRetrySleepMs: 0 },
+      idempotency: { enabled: false, requestKeys: ['payment_key'] },
       database: { client: 'better-sqlite3', connection: ':memory:', autoMigrate: false },
     });
 
@@ -51,6 +61,10 @@ describe('resolveConfig', () => {
     expect(resolved.tables.invoices).toBe('sisp_invoices');
     expect(resolved.rateLimiting.perIp.limit).toBe(5);
     expect(resolved.rateLimiting.perIp.windowSeconds).toBe(3600);
+    expect(resolved.identifierGeneration.maxAttempts).toBe(2);
+    expect(resolved.identifierGeneration.collisionRetrySleepMs).toBe(0);
+    expect(resolved.idempotency.enabled).toBe(false);
+    expect(resolved.idempotency.requestKeys).toEqual(['payment_key']);
     expect(resolved.database.autoMigrate).toBe(false);
   });
 
