@@ -1,10 +1,11 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../config';
-import type { TransactionStatus } from '../../enums/transaction-status';
+import { TransactionStatus } from '../../enums/transaction-status';
 import type { CallbackPayload } from '../../value-objects/callback-payload';
 import type { PaymentRequest } from '../../value-objects/payment-request';
 import { paymentRequestToFormFields } from '../../value-objects/payment-request';
 import type { PayloadCipher } from '../encryption';
+import { lockForUpdate } from '../locking';
 import { nowIso, type TransactionAttemptRecord, type TransactionRecord } from '../records';
 
 export interface TransactionAttemptChanges {
@@ -102,6 +103,18 @@ export class TransactionAttempt {
     return row ? this.map(row) : null;
   }
 
+  async findByRefAndSessionForUpdate(
+    merchantRef: string,
+    merchantSession: string,
+  ): Promise<TransactionAttemptRecord | null> {
+    const query = this.table()
+      .where('merchant_ref', merchantRef)
+      .where('merchant_session', merchantSession);
+    const row = await lockForUpdate(this.db, query).first();
+
+    return row ? this.map(row) : null;
+  }
+
   async listByTransaction(transactionId: number): Promise<TransactionAttemptRecord[]> {
     const rows = await this.table()
       .where('transaction_id', transactionId)
@@ -159,6 +172,13 @@ export class TransactionAttempt {
 
 export function isCurrentAttempt(attempt: TransactionAttemptRecord): boolean {
   return attempt.superseded_at === null;
+}
+
+export function shouldPropagateAttemptToTransaction(
+  attempt: TransactionAttemptRecord,
+  status: TransactionStatus,
+): boolean {
+  return isCurrentAttempt(attempt) || status === TransactionStatus.Completed;
 }
 
 function extractId(value: unknown): number {

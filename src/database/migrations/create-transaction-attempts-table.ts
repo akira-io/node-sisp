@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../config';
+import { isIndexAlreadyExistsError } from '../../support/database-errors';
 import { nowIso } from '../records';
 
 export async function createTransactionAttemptsTable(db: Knex, tables: SispTables): Promise<void> {
@@ -132,11 +133,7 @@ async function addMerchantReferenceUniqueIndex(db: Knex, tables: SispTables): Pr
       table.unique(['merchant_ref']);
     });
   } catch (error) {
-    if (
-      !String((error as Error).message)
-        .toLowerCase()
-        .includes('already')
-    ) {
+    if (!isIndexAlreadyExistsError(error)) {
       throw error;
     }
   }

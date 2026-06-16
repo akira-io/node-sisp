@@ -61,7 +61,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     blacklist: new Blacklist(db, resolved.tables),
   };
 
-  const services = wireCredentialScopedServices(resolved, events, models, credentialsResolver);
+  const services = wireCredentialScopedServices(db, resolved, events, models, credentialsResolver);
   const storeMetadata = new StoreRequestMetadataAction(new RequestMetadata(db, resolved.tables));
   const rateLimits = new RateLimit(db, resolved.tables);
 

@@ -3,6 +3,7 @@ import type { SispTables } from '../../config';
 import type { TransactionStatus } from '../../enums/transaction-status';
 import { toCents } from '../../support/sisp-amount';
 import type { PayloadCipher } from '../encryption';
+import { lockForUpdate } from '../locking';
 import { currentLogSource } from '../log-context';
 import { nowIso, type TransactionRecord } from '../records';
 
@@ -86,6 +87,18 @@ export class Transaction {
       .where('merchant_ref', merchantRef)
       .where('merchant_session', merchantSession)
       .first();
+
+    return row ? this.map(row) : null;
+  }
+
+  async findByRefAndSessionForUpdate(
+    merchantRef: string,
+    merchantSession: string,
+  ): Promise<TransactionRecord | null> {
+    const query = this.table()
+      .where('merchant_ref', merchantRef)
+      .where('merchant_session', merchantSession);
+    const row = await lockForUpdate(this.db, query).first();
 
     return row ? this.map(row) : null;
   }

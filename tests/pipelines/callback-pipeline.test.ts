@@ -50,13 +50,13 @@ beforeEach(async () => {
   events = new SispEventEmitter();
 
   const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(config));
-  const failTransaction = new FailTransactionAction(transactions, attempts);
+  const failTransaction = new FailTransactionAction(db, transactions, attempts);
 
   pipeline = new HandleCallbackPipeline([
-    new ResolveTransaction(transactions, attempts),
+    new ResolveTransaction(db, transactions, attempts),
     new ValidateFingerprint(credentialsResolver, failTransaction, events),
     new EnsureCallbackMatchesTransaction(config, credentialsResolver, failTransaction, events),
-    new ApplyTransactionStatus(transactions, attempts),
+    new ApplyTransactionStatus(db, transactions, attempts),
     new DispatchPaymentEvents(events),
   ]);
 });
@@ -134,6 +134,40 @@ describe('HandleCallbackPipeline', () => {
     expect(context.requireTransaction().status).toBe('failed');
     expect(context.requireTransaction().merchant_response).toBe('invalid_callback_fingerprint');
     expect(failed).toHaveBeenCalledTimes(1);
+  });
+
+  it('rolls back attempt updates when the propagated success transaction write fails', async () => {
+    const transaction = await createPendingTransaction();
+
+    await db.schema.dropTable(config.tables.transactionLogs);
+
+    await expect(pipeline.run(new CallbackContext(signedCallback()))).rejects.toThrow();
+
+    const [attempt] = await attempts.listByTransaction(transaction.id);
+    const stored = await transactions.findById(transaction.id);
+
+    expect(attempt?.gateway_transaction_id).toBeNull();
+    expect(attempt?.status).toBe('pending');
+    expect(stored?.transaction_id).toBeNull();
+    expect(stored?.status).toBe('pending');
+  });
+
+  it('rolls back attempt updates when the propagated failure transaction write fails', async () => {
+    const transaction = await createPendingTransaction();
+
+    await db.schema.dropTable(config.tables.transactionLogs);
+
+    const payload = { ...signedCallback(), fingerprint: 'tampered' };
+
+    await expect(pipeline.run(new CallbackContext(payload))).rejects.toThrow();
+
+    const [attempt] = await attempts.listByTransaction(transaction.id);
+    const stored = await transactions.findById(transaction.id);
+
+    expect(attempt?.gateway_transaction_id).toBeNull();
+    expect(attempt?.status).toBe('pending');
+    expect(stored?.transaction_id).toBeNull();
+    expect(stored?.status).toBe('pending');
   });
 
   it('fails the transaction when callback details do not match', async () => {

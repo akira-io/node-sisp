@@ -73,7 +73,13 @@ export class Sisp {
   ) {}
 
   forCredentials(credentials: Partial<SispCredentials>): ScopedSisp {
-    return new ScopedSisp(this.config, this.events, this.models, sispCredentials(credentials));
+    return new ScopedSisp(
+      this.db,
+      this.config,
+      this.events,
+      this.models,
+      sispCredentials(credentials),
+    );
   }
 
   async queryTransactionStatus(

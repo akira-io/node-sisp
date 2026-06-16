@@ -15,6 +15,20 @@ export class PaymentIntent {
 
   async reserve(idempotencyKey: string): Promise<boolean> {
     const timestamp = nowIso();
+    const reclaimed = await this.table()
+      .where('idempotency_key', idempotencyKey)
+      .where('status', 'failed')
+      .whereNull('transaction_id')
+      .update({
+        status: 'processing',
+        transaction_id: null,
+        failure_reason: null,
+        updated_at: timestamp,
+      });
+
+    if (reclaimed > 0) {
+      return true;
+    }
 
     try {
       await this.table().insert({
@@ -48,10 +62,15 @@ export class PaymentIntent {
     });
   }
 
-  async fail(idempotencyKey: string, reason: string): Promise<void> {
+  async fail(
+    idempotencyKey: string,
+    reason: string,
+    transactionId: number | null = null,
+  ): Promise<void> {
     await this.table()
       .where('idempotency_key', idempotencyKey)
       .update({
+        transaction_id: transactionId,
         status: 'failed',
         failure_reason: reason.slice(0, 65_535),
         updated_at: nowIso(),
