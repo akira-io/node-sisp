@@ -1,10 +1,14 @@
-import type { TransactionRecord } from '../../database/records';
+import type { TransactionAttemptRecord, TransactionRecord } from '../../database/records';
 import type { CallbackPayload } from '../../value-objects/callback-payload';
 
 export class CallbackContext {
   transaction: TransactionRecord | null = null;
 
+  attempt: TransactionAttemptRecord | null = null;
+
   failureReason: string | null = null;
+
+  transactionStatusPropagated = true;
 
   constructor(readonly payload: CallbackPayload) {}
 
@@ -14,6 +18,14 @@ export class CallbackContext {
     }
 
     return this.transaction;
+  }
+
+  requireAttempt(): TransactionAttemptRecord {
+    if (this.attempt === null) {
+      throw new Error('The callback transaction attempt has not been resolved yet.');
+    }
+
+    return this.attempt;
   }
 
   fail(reason: string): this {

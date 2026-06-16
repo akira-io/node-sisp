@@ -1,3 +1,4 @@
+import type { Knex } from 'knex';
 import { BuildRequestPayloadAction } from './actions/build-request-payload';
 import { FailTransactionAction } from './actions/fail-transaction';
 import { ReconcileTransactionStatusAction } from './actions/reconcile-transaction-status';
@@ -26,6 +27,7 @@ export interface CredentialScopedServices {
 }
 
 export function wireCredentialScopedServices(
+  db: Knex,
   config: ResolvedSispConfig,
   events: SispEventEmitter,
   models: SispModels,
@@ -34,15 +36,19 @@ export function wireCredentialScopedServices(
   const manager = createSispManager(config, credentialsResolver);
   const buildRequestPayload = new BuildRequestPayloadAction(config, credentialsResolver);
   const buildSandboxPayload = new BuildSandboxPayloadAction(config, credentialsResolver);
-  const failTransaction = new FailTransactionAction(models.transactions);
+  const failTransaction = new FailTransactionAction(
+    db,
+    models.transactions,
+    models.transactionAttempts,
+  );
   const updateInvoiceStatus = new UpdateInvoiceStatusAction(models.invoices);
 
   const callbackPipeline = new HandleCallbackPipeline(
     customizePipes(config.pipelines.callback, [
-      new ResolveTransaction(models.transactions),
+      new ResolveTransaction(db, models.transactions, models.transactionAttempts),
       new ValidateFingerprint(credentialsResolver, failTransaction, events),
       new EnsureCallbackMatchesTransaction(config, credentialsResolver, failTransaction, events),
-      new ApplyTransactionStatus(models.transactions),
+      new ApplyTransactionStatus(db, models.transactions, models.transactionAttempts),
       new DispatchPaymentEvents(events),
     ]),
   );

@@ -46,6 +46,6 @@ The CLI reads the configuration from `sisp.config.js`, `sisp.config.mjs`, `sisp.
 
 ## Created tables
 
-`sisp_transactions`, `sisp_transaction_items`, `sisp_invoices`, `sisp_request_metadata`, `sisp_rate_limits`, `sisp_blacklist`, and `sisp_transaction_logs`. All names are configurable through the `tables` option.
+`sisp_transactions`, `sisp_transaction_items`, `sisp_transaction_attempts`, `sisp_payment_intents`, `sisp_invoices`, `sisp_request_metadata`, `sisp_rate_limits`, `sisp_blacklist`, and `sisp_transaction_logs`. All names are configurable through the `tables` option.
 
 **Next:** [Configuration](02-configuration.md)

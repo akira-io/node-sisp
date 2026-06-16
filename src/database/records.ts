@@ -44,6 +44,38 @@ export interface TransactionItemRecord {
   updated_at: string | null;
 }
 
+export interface TransactionAttemptRecord {
+  id: number;
+  transaction_id: number;
+  attempt_number: number;
+  merchant_ref: string;
+  merchant_session: string;
+  status: TransactionStatus;
+  gateway_transaction_id: string | null;
+  message_type: string | null;
+  response_code: string | null;
+  merchant_response: string | null;
+  fingerprint: string | null;
+  payload: unknown;
+  callback_payload: unknown;
+  failure_reason: string | null;
+  submitted_at: string | null;
+  callback_received_at: string | null;
+  superseded_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface PaymentIntentRecord {
+  id: number;
+  idempotency_key: string;
+  transaction_id: number | null;
+  status: string;
+  failure_reason: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 export interface InvoiceRecord {
   id: number;
   transaction_id: number;

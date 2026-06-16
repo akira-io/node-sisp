@@ -16,5 +16,6 @@ Framework-agnostic Node.js client for the SISP/Vinti4 payment gateway (Cabo Verd
 | 08 | [Sandbox and Testing](08-sandbox-testing.md) | Fake gateway, golden vectors, test strategies |
 | 09 | [API Reference](09-api-reference.md) | Public exports of every entry point |
 | 10 | [Architecture](10-architecture.md) | Actions, builders, pipelines, drivers, contracts |
+| 11 | [Idempotency and Attempts](11-idempotency.md) | Payment intents, retries, attempt audit trail, collision handling |
 
 **Next:** [Installation](01-installation.md)

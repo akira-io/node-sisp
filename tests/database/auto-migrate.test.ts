@@ -18,7 +18,12 @@ describe('runMigrations', () => {
   it('creates every SISP table plus the control table', async () => {
     const ran = await runMigrations(db, DEFAULT_TABLES);
 
-    expect(ran).toEqual(['0001_create_sisp_tables', '0002_create_transaction_logs_table']);
+    expect(ran).toEqual([
+      '0001_create_sisp_tables',
+      '0002_create_transaction_logs_table',
+      '0003_create_transaction_attempts_table',
+      '0004_create_payment_intents_table',
+    ]);
 
     for (const table of Object.values(DEFAULT_TABLES)) {
       expect(await db.schema.hasTable(table)).toBe(true);
@@ -35,7 +40,7 @@ describe('runMigrations', () => {
 
     const rows = await db(MIGRATIONS_TABLE).select('name');
 
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(4);
   });
 
   it('survives a lost control table when the schema already exists', async () => {
@@ -44,7 +49,12 @@ describe('runMigrations', () => {
 
     const ran = await runMigrations(db, DEFAULT_TABLES);
 
-    expect(ran).toEqual(['0001_create_sisp_tables', '0002_create_transaction_logs_table']);
+    expect(ran).toEqual([
+      '0001_create_sisp_tables',
+      '0002_create_transaction_logs_table',
+      '0003_create_transaction_attempts_table',
+      '0004_create_payment_intents_table',
+    ]);
     expect(await db.schema.hasTable(DEFAULT_TABLES.transactions)).toBe(true);
   });
 

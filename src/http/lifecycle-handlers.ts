@@ -1,14 +1,15 @@
+import type { Knex } from 'knex';
 import type { CanRetryPaymentAction } from '../actions/can-retry-payment';
 import type { CancelTransactionAction } from '../actions/cancel-transaction';
+import type { CreateRetryPaymentAttemptAction } from '../actions/create-retry-payment-attempt';
 import type { RefundTransactionAction } from '../actions/refund-transaction';
 import type { RetryPaymentAction } from '../actions/retry-payment';
 import { type ResolvedSispConfig, routeUrl } from '../config';
-import { runWithLogSource } from '../database/log-context';
 import type { RateLimit } from '../database/models/rate-limit';
 import type { Transaction } from '../database/models/transaction';
+import type { TransactionAttempt } from '../database/models/transaction-attempt';
 import type { TransactionRecord } from '../database/records';
 import type { SispManager } from '../drivers/sisp-manager';
-import { TransactionStatus } from '../enums/transaction-status';
 import { SispError, TransactionStateError } from '../exceptions';
 import type { UrlSigner } from '../support/signed-url';
 import { type PaymentRequest, paymentRequestToFormFields } from '../value-objects/payment-request';
@@ -20,10 +21,13 @@ import { type HttpResult, html, json, redirect } from './results';
 
 export interface LifecycleHandlersDeps {
   config: ResolvedSispConfig;
+  db: Knex;
   manager: SispManager;
   transactions: Transaction;
+  attempts: TransactionAttempt;
   cancelTransaction: CancelTransactionAction;
   retryPayment: RetryPaymentAction;
+  createRetryAttempt: CreateRetryPaymentAttemptAction;
   canRetryPayment: CanRetryPaymentAction;
   refundTransaction: RefundTransactionAction;
   rateLimits: RateLimit;
@@ -36,7 +40,8 @@ export class LifecycleHandlers {
   constructor(private readonly deps: LifecycleHandlersDeps) {}
 
   async handleRetryPayment(request: HttpRequestInfo): Promise<HttpResult> {
-    const { config, transactions, canRetryPayment, retryPayment, urlSigner } = this.deps;
+    const { config, transactions, canRetryPayment, retryPayment, createRetryAttempt, urlSigner } =
+      this.deps;
 
     if (!urlSigner.validate(`${config.basePath}/retry-payment`, request.query)) {
       return json({ message: 'Invalid signature.' }, 403);
@@ -62,21 +67,7 @@ export class LifecycleHandlers {
       return this.renderRetryForm(retryPayment.handle(transaction, false));
     }
 
-    const paymentRequest = retryPayment.handle(transaction);
-
-    await runWithLogSource('retry', () =>
-      transactions.update(transaction.id, {
-        merchant_session: paymentRequest.merchantSession,
-        transaction_id: null,
-        message_type: null,
-        merchant_response: null,
-        response_code: null,
-        fingerprint: null,
-        status: TransactionStatus.Pending,
-      }),
-    );
-
-    return this.renderRetryForm(paymentRequest);
+    return this.renderRetryForm(await createRetryAttempt.handle(transaction));
   }
 
   async handleCancel(request: HttpRequestInfo): Promise<HttpResult> {

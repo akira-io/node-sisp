@@ -5,10 +5,24 @@
 ```ts
 const transaction = await sisp.models.transactions.findByRef('R20260612100000');
 const items = await sisp.models.transactionItems.listByTransaction(transaction.id);
+const attempts = await sisp.models.transactionAttempts.listByTransaction(transaction.id);
 const logs = await sisp.models.transactionLogs.listByTransaction(transaction.id);
 ```
 
 Every update appends a row to `sisp_transaction_logs` with the source (`callback`, `refund`, `cancel`, `retry`, `reconciliation`, `customer-data`, or `model`), the changed attributes, and old plus new values. Timestamp-only updates are ignored.
+
+## Attempts
+
+`sisp_transaction_attempts` stores every payment request submitted to SISP. The parent transaction keeps the current effective state. Attempts keep the per-submission state.
+
+```ts
+const attempts = await sisp.models.transactionAttempts.listByTransaction(transaction.id);
+const current = attempts.find((attempt) => attempt.superseded_at === null);
+```
+
+The first payment creates attempt `1`. A retry marks the current attempt as superseded, creates the next attempt, and rotates `merchantSession`. The `merchantRef` stays stable so reconciliation still points to the same merchant transaction.
+
+Late callbacks are matched to attempts, not only to the parent transaction. A completed callback from an old attempt updates the parent transaction. A failed callback from an old superseded attempt stays on that attempt and does not overwrite the active retry.
 
 ## Retry
 
@@ -18,7 +32,9 @@ Failed payments can be retried through a signed URL that expires after 30 minute
 const url = sisp.signedRetryUrl(transaction.id);
 ```
 
-`GET` renders the payment form again without touching the transaction. `POST` resets it to pending, rotates the `merchantSession`, clears the gateway response fields, and renders a freshly signed form. Retry is refused when `allowRetry` is off, the transaction is not failed, or 3-D Secure data is missing while `is3DSec` is `'1'`.
+`GET` renders the payment form again without touching the transaction. `POST` resets it to pending, creates a new attempt, rotates the `merchantSession`, clears the gateway response fields, and renders a freshly signed form. Retry is refused when `allowRetry` is off, the transaction is not failed, or 3-D Secure data is missing while `is3DSec` is `'1'`.
+
+When a failed transaction has no attempt row because it predates the attempts migration, the retry flow backfills attempt `1` first. Concurrent retry requests tolerate the unique-constraint race and continue with the attempt created by the other request.
 
 ## Cancel
 

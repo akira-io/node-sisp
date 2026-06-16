@@ -17,15 +17,16 @@ src/
   actions/               one unit of work each, ported 1:1 from the PHP actions
   builders/              PaymentBuilder, RefundBuilder
   pipelines/
-    payment/             context plus five pipes
-    callback/            context plus five pipes
+    payment/             context plus default payment pipes
+    callback/            context plus default callback pipes
   drivers/               SispManager, production, sandbox, TransactionStatusClient
   database/
     migrations/          bundled schema, mirror of the Laravel migrations
-    models/              table gateways (Transaction, Invoice, RateLimit, ...)
+    models/              table gateways (Transaction, TransactionAttempt, PaymentIntent, ...)
     encryption.ts        AES-256-GCM payload cipher
+    locking.ts           row-level lock helper for supported drivers
     log-context.ts       AsyncLocalStorage log source, like TransactionLogContext
-  http/                  pure handlers, validation, results, auto-submit forms
+  http/                  pure handlers, idempotency resolver, validation, results, auto-submit forms
   express/ fastify/ nest/  thin adapters over the same handlers
   sandbox.ts             fake gateway payload builder
   events.ts              typed emitter
@@ -36,6 +37,8 @@ src/
 
 - **Pipelines** are arrays of `{ handle(context, next) }` objects executed by a tiny async runner. The default pipe sets can be customized per flow through `pipelines.payment` and `pipelines.callback`.
 - **Models** are table gateways over knex, not an ORM. `Transaction.update` diffs changes, encrypts the payload, and appends the audit log in one place.
+- **Payment intents** live at the HTTP boundary. They reserve checkout keys, link keys to transactions, and allow safe replay of the same checkout.
+- **Transaction attempts** live under the parent transaction. They preserve every gateway submission and let callbacks update the exact attempt that SISP answered.
 - **Drivers** decide the payment endpoint and the status API client. `manager.extend('custom', factory)` registers new gateways.
 - **Credential scoping** rebuilds only the credential-dependent services (`wiring.ts`) around a static resolver, which is how `forCredentials` works without a container.
 - **Parity** with the PHP package is pinned by golden vectors generated from the real implementation, not by re-derived constants.

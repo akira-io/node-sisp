@@ -2,7 +2,7 @@ import type { FailTransactionAction } from '../../../actions/fail-transaction';
 import type { ResolvedSispConfig } from '../../../config';
 import type { CredentialsResolver } from '../../../contracts/credentials-resolver';
 import type { CallbackPipe } from '../../../contracts/pipes';
-import type { TransactionRecord } from '../../../database/records';
+import type { TransactionAttemptRecord, TransactionRecord } from '../../../database/records';
 import type { SispEventEmitter } from '../../../events';
 import { toThousandths } from '../../../support/sisp-amount';
 import type { CallbackPayload } from '../../../value-objects/callback-payload';
@@ -19,17 +19,28 @@ export class EnsureCallbackMatchesTransaction implements CallbackPipe {
   ) {}
 
   async handle(context: CallbackContext, next: () => Promise<void>): Promise<void> {
-    if (!this.matchesTransaction(context.requireTransaction(), context.payload)) {
-      context.transaction = await this.failTransaction.handle(
+    if (
+      !this.matchesTransaction(
+        context.requireTransaction(),
+        context.requireAttempt(),
+        context.payload,
+      )
+    ) {
+      const failed = await this.failTransaction.handle(
         context.requireTransaction(),
         context.payload,
         DETAILS_MISMATCH,
+        context.requireAttempt(),
       );
+      context.transactionStatusPropagated = failed.propagated;
+      context.transaction = failed.transaction;
 
-      this.events.emit('payment:failed', {
-        transaction: context.requireTransaction(),
-        payload: context.payload,
-      });
+      if (failed.propagated) {
+        this.events.emit('payment:failed', {
+          transaction: context.requireTransaction(),
+          payload: context.payload,
+        });
+      }
 
       context.fail(DETAILS_MISMATCH);
 
@@ -39,10 +50,14 @@ export class EnsureCallbackMatchesTransaction implements CallbackPipe {
     await next();
   }
 
-  private matchesTransaction(transaction: TransactionRecord, payload: CallbackPayload): boolean {
+  private matchesTransaction(
+    transaction: TransactionRecord,
+    attempt: TransactionAttemptRecord,
+    payload: CallbackPayload,
+  ): boolean {
     return (
-      transaction.merchant_ref === payload.merchantRef &&
-      transaction.merchant_session === payload.merchantSession &&
+      attempt.merchant_ref === payload.merchantRef &&
+      attempt.merchant_session === payload.merchantSession &&
       toThousandths(transaction.amount) === toThousandths(payload.amount) &&
       (!payload.currencyProvided || transaction.currency === payload.currency) &&
       (!payload.transactionCodeProvided ||

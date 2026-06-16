@@ -1,22 +1,26 @@
+import type { Knex } from 'knex';
 import type { CanRetryPaymentAction } from '../actions/can-retry-payment';
 import type { CancelTransactionAction } from '../actions/cancel-transaction';
+import type { CreateRetryPaymentAttemptAction } from '../actions/create-retry-payment-attempt';
 import type { RefundTransactionAction } from '../actions/refund-transaction';
 import type { RetryPaymentAction } from '../actions/retry-payment';
 import type { StoreRequestMetadataAction } from '../actions/store-request-metadata';
 import type { UpdateInvoiceStatusAction } from '../actions/update-invoice-status';
 import { type ResolvedSispConfig, routeUrl } from '../config';
 import type { Invoice } from '../database/models/invoice';
+import type { PaymentIntent } from '../database/models/payment-intent';
 import type { RateLimit } from '../database/models/rate-limit';
 import type { Transaction } from '../database/models/transaction';
+import type { TransactionAttempt } from '../database/models/transaction-attempt';
 import type { SispManager } from '../drivers/sisp-manager';
 import {
   BlacklistedIdentifierError,
+  PaymentIntentAlreadyProcessingError,
   RateLimitExceededError,
   TransactionNotFoundError,
 } from '../exceptions';
 import { CallbackContext } from '../pipelines/callback/callback-context';
 import type { HandleCallbackPipeline } from '../pipelines/callback/handle-callback-pipeline';
-import { PaymentContext } from '../pipelines/payment/payment-context';
 import type { ProcessPaymentPipeline } from '../pipelines/payment/process-payment-pipeline';
 import type { BuildSandboxPayloadAction } from '../sandbox';
 import { allCountries } from '../support/countries';
@@ -25,11 +29,13 @@ import {
   callbackPayloadFrom,
   callbackPayloadToFormFields,
 } from '../value-objects/callback-payload';
-import { paymentRequestToFormFields } from '../value-objects/payment-request';
+import { type PaymentRequest, paymentRequestToFormFields } from '../value-objects/payment-request';
 import { paymentRequestDataFrom } from '../value-objects/payment-request-data';
 import { renderAutoSubmitForm } from './auto-submit-form';
+import { booleanFromInput, isAlreadyProcessed } from './callback-processing';
 import { buildGatewayFormAction } from './gateway-form-action';
 import { LifecycleHandlers } from './lifecycle-handlers';
+import { PaymentContextResolver } from './payment-context-resolver';
 import { paymentResponseData } from './payment-response';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
@@ -37,16 +43,20 @@ import { validatePaymentInput } from './validate-payment-input';
 
 export interface SispHandlersDeps {
   config: ResolvedSispConfig;
+  db: Knex;
   manager: SispManager;
   paymentPipeline: ProcessPaymentPipeline;
   callbackPipeline: HandleCallbackPipeline;
   transactions: Transaction;
+  attempts: TransactionAttempt;
+  paymentIntents: PaymentIntent;
   invoices: Invoice;
   storeMetadata: StoreRequestMetadataAction;
   updateInvoiceStatus: UpdateInvoiceStatusAction;
   buildSandboxPayload: BuildSandboxPayloadAction;
   cancelTransaction: CancelTransactionAction;
   retryPayment: RetryPaymentAction;
+  createRetryAttempt: CreateRetryPaymentAttemptAction;
   canRetryPayment: CanRetryPaymentAction;
   refundTransaction: RefundTransactionAction;
   rateLimits: RateLimit;
@@ -56,31 +66,44 @@ export interface SispHandlersDeps {
 export class SispHttpHandlers {
   private readonly config: ResolvedSispConfig;
   private readonly manager: SispManager;
-  private readonly paymentPipeline: ProcessPaymentPipeline;
   private readonly callbackPipeline: HandleCallbackPipeline;
   private readonly transactions: Transaction;
+  private readonly attempts: TransactionAttempt;
   private readonly invoices: Invoice;
   private readonly storeMetadata: StoreRequestMetadataAction;
   private readonly updateInvoiceStatus: UpdateInvoiceStatusAction;
   private readonly buildSandboxPayload: BuildSandboxPayloadAction;
   private readonly lifecycle: LifecycleHandlers;
+  private readonly paymentContexts: PaymentContextResolver;
 
   constructor(deps: SispHandlersDeps) {
     this.config = deps.config;
     this.manager = deps.manager;
-    this.paymentPipeline = deps.paymentPipeline;
     this.callbackPipeline = deps.callbackPipeline;
     this.transactions = deps.transactions;
+    this.attempts = deps.attempts;
     this.invoices = deps.invoices;
     this.storeMetadata = deps.storeMetadata;
     this.updateInvoiceStatus = deps.updateInvoiceStatus;
     this.buildSandboxPayload = deps.buildSandboxPayload;
+    this.paymentContexts = new PaymentContextResolver({
+      config: deps.config,
+      paymentPipeline: deps.paymentPipeline,
+      transactions: deps.transactions,
+      attempts: deps.attempts,
+      paymentIntents: deps.paymentIntents,
+      createRetryAttempt: deps.createRetryAttempt,
+      canRetryPayment: deps.canRetryPayment,
+    });
     this.lifecycle = new LifecycleHandlers({
       config: deps.config,
+      db: deps.db,
       manager: deps.manager,
       transactions: deps.transactions,
+      attempts: deps.attempts,
       cancelTransaction: deps.cancelTransaction,
       retryPayment: deps.retryPayment,
+      createRetryAttempt: deps.createRetryAttempt,
       canRetryPayment: deps.canRetryPayment,
       refundTransaction: deps.refundTransaction,
       rateLimits: deps.rateLimits,
@@ -116,26 +139,16 @@ export class SispHttpHandlers {
     }
 
     try {
-      const context = await this.paymentPipeline.run(
-        new PaymentContext(paymentRequestDataFrom(request.body), request),
-      );
+      const context = await this.paymentContexts.resolve(request);
 
-      const fields = paymentRequestToFormFields(context.requirePaymentRequest());
-
-      return html(
-        renderAutoSubmitForm(
-          buildGatewayFormAction(this.manager, fields),
-          fields,
-          'SISP - Redirecting to payment',
-        ),
-      );
+      return this.renderPaymentForm(context.requirePaymentRequest());
     } catch (error) {
       return this.guardErrorResult(error);
     }
   }
 
   async handleCallback(request: HttpRequestInfo): Promise<HttpResult> {
-    if (toBoolean(request.body.UserCancelled ?? request.query.UserCancelled)) {
+    if (booleanFromInput(request.body.UserCancelled ?? request.query.UserCancelled)) {
       return redirect(this.config.redirectUrl);
     }
 
@@ -199,7 +212,14 @@ export class SispHttpHandlers {
       return redirect(this.config.redirectUrl);
     }
 
-    if (await this.isAlreadyProcessed(payload.merchantRef, payload.merchantSession)) {
+    if (
+      await isAlreadyProcessed(
+        this.transactions,
+        this.attempts,
+        payload.merchantRef,
+        payload.merchantSession,
+      )
+    ) {
       return redirect(this.config.redirectUrl);
     }
 
@@ -238,10 +258,16 @@ export class SispHttpHandlers {
     return existing !== null && ['completed', 'failed', 'pending'].includes(existing.status);
   }
 
-  private async isAlreadyProcessed(merchantRef: string, merchantSession: string): Promise<boolean> {
-    const transaction = await this.transactions.findByRefAndSession(merchantRef, merchantSession);
+  private renderPaymentForm(paymentRequest: PaymentRequest): HttpResult {
+    const fields = paymentRequestToFormFields(paymentRequest);
 
-    return transaction !== null && transaction.transaction_id !== null;
+    return html(
+      renderAutoSubmitForm(
+        buildGatewayFormAction(this.manager, fields),
+        fields,
+        'SISP - Redirecting to payment',
+      ),
+    );
   }
 
   private guardErrorResult(error: unknown): HttpResult {
@@ -253,30 +279,16 @@ export class SispHttpHandlers {
       return json({ message: error.message }, 429);
     }
 
+    if (error instanceof PaymentIntentAlreadyProcessingError) {
+      return json({ message: error.message }, 409);
+    }
+
     throw error;
   }
 
   private async runQuietly(operation: () => Promise<void>): Promise<void> {
     try {
       await operation();
-    } catch {
-      // Post-completion work must never break the callback response.
-    }
+    } catch {}
   }
-}
-
-function toBoolean(value: unknown): boolean {
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  if (typeof value === 'number') {
-    return value === 1;
-  }
-
-  if (typeof value === 'string') {
-    return ['1', 'true', 'on', 'yes'].includes(value.toLowerCase());
-  }
-
-  return false;
 }

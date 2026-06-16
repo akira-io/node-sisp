@@ -19,16 +19,21 @@ export class ValidateFingerprint implements CallbackPipe {
     const token = computeToken(this.credentialsResolver.resolve().posAutCode);
 
     if (!validateCallbackFingerprint(token, context.payload)) {
-      context.transaction = await this.failTransaction.handle(
+      const failed = await this.failTransaction.handle(
         context.requireTransaction(),
         context.payload,
         INVALID_FINGERPRINT,
+        context.requireAttempt(),
       );
+      context.transactionStatusPropagated = failed.propagated;
+      context.transaction = failed.transaction;
 
-      this.events.emit('payment:failed', {
-        transaction: context.requireTransaction(),
-        payload: context.payload,
-      });
+      if (failed.propagated) {
+        this.events.emit('payment:failed', {
+          transaction: context.requireTransaction(),
+          payload: context.payload,
+        });
+      }
 
       context.fail(INVALID_FINGERPRINT);
 

@@ -90,6 +90,7 @@ Prefer Express or NestJS? See the [adapters guide](docs/06-adapters.md).
 - [Sandbox and Testing](docs/08-sandbox-testing.md)
 - [API Reference](docs/09-api-reference.md)
 - [Architecture](docs/10-architecture.md)
+- [Idempotency and Attempts](docs/11-idempotency.md)
 
 ## Testing
 

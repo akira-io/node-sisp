@@ -13,6 +13,12 @@ export class DispatchPaymentEvents implements CallbackPipe {
   constructor(private readonly events: SispEventEmitter) {}
 
   async handle(context: CallbackContext, next: () => Promise<void>): Promise<void> {
+    if (!context.transactionStatusPropagated) {
+      await next();
+
+      return;
+    }
+
     const transaction = context.requireTransaction();
     const eventName = STATUS_EVENTS[transaction.status];
 

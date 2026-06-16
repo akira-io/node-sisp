@@ -1,3 +1,4 @@
+import type { Knex } from 'knex';
 import { PaymentBuilder } from './builders/payment-builder';
 import type { ResolvedSispConfig } from './config';
 import { StaticCredentialsResolver } from './contracts/credentials-resolver';
@@ -19,12 +20,14 @@ export class ScopedSisp {
   private readonly services: CredentialScopedServices;
 
   constructor(
+    db: Knex,
     config: ResolvedSispConfig,
     events: SispEventEmitter,
     models: SispModels,
     readonly credentials: SispCredentials,
   ) {
     this.services = wireCredentialScopedServices(
+      db,
       config,
       events,
       models,

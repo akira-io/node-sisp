@@ -38,6 +38,8 @@ describe('sisp migrate', () => {
     expect(lines).toEqual([
       'Migrated: 0001_create_sisp_tables',
       'Migrated: 0002_create_transaction_logs_table',
+      'Migrated: 0003_create_transaction_attempts_table',
+      'Migrated: 0004_create_payment_intents_table',
     ]);
   });
 
