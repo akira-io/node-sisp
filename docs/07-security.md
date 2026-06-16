@@ -18,6 +18,14 @@ With an `appKey` configured, the transaction `payload` column is encrypted at re
 
 Retry and cancel routes only respond to URLs signed with HMAC-SHA256 derived from `appKey`. Retry URLs expire after 30 minutes. Tampering with any parameter, the path, or the expiry invalidates the signature.
 
+## Idempotency and callback safety
+
+The package stores checkout idempotency keys in `sisp_payment_intents`. A duplicate payment POST with the same key returns the already linked transaction instead of creating a new one. Failed intents without a transaction can be reclaimed on the next request.
+
+Every gateway submission is stored in `sisp_transaction_attempts`. Callback validation uses the attempt's `merchantRef` and `merchantSession`, then updates the attempt and parent transaction atomically. This prevents a late failed callback from an old retry attempt from overwriting the active pending retry.
+
+Idempotency does not replace SISP fingerprints. Fingerprints still prove callback integrity. Idempotency prevents duplicate local transactions and gives each retry a distinct audit trail.
+
 ## Blacklist and rate limits
 
 ```ts

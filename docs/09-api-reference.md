@@ -16,7 +16,7 @@
 | `on(event, listener)` / `off(...)` | Typed event subscription |
 | `driver(name?)` | Resolves the active or a named `SispDriver` |
 | `manager` | `SispManager` with `extend(name, factory)` |
-| `models` | `transactions`, `transactionItems`, `invoices`, `transactionLogs`, `blacklist` |
+| `models` | `transactions`, `transactionItems`, `transactionAttempts`, `paymentIntents`, `invoices`, `transactionLogs`, `blacklist` |
 | `handlers` | Framework-agnostic HTTP handlers used by the adapters |
 | `buildRequestPayload(data)` | Signed `PaymentRequest` from raw data |
 | `validateCallback(payload)` | Constant-time fingerprint check |
@@ -43,7 +43,9 @@
 
 ### Errors
 
-`SispError` is the base class for `BlacklistedIdentifierError`, `RateLimitExceededError`, `TransactionNotFoundError`, `TransactionStateError`, and `MissingThreeDSecureDataError`.
+`SispError` is the base class for `BlacklistedIdentifierError`, `RateLimitExceededError`, `TransactionNotFoundError`, `PaymentIntentAlreadyProcessingError`, and `MissingThreeDSecureDataError`.
+
+`PaymentIntentAlreadyProcessingError` maps to HTTP 409 in the payment handler when an idempotency key is currently reserved but not yet linked to a transaction.
 
 ## `@akira-io/sisp/express`
 

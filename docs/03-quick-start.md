@@ -53,6 +53,7 @@ POST a form to `/sisp/payment`:
 
 ```html
 <form action="/sisp/payment" method="post">
+  <input type="hidden" name="checkout_intent_id" value="checkout_123">
   <input type="hidden" name="amount" value="1500">
   <input type="hidden" name="customer_email" value="cliente@example.cv">
   <input type="hidden" name="items[0][product_name]" value="Plano Pro">
@@ -62,6 +63,8 @@ POST a form to `/sisp/payment`:
   <button>Pagar</button>
 </form>
 ```
+
+Use one stable `checkout_intent_id` per checkout. If the customer posts the same checkout again, the package reuses the same local transaction instead of creating a duplicate.
 
 The response is an auto-submitting form that redirects the browser to the gateway. In sandbox mode that is the local `/sisp/sandbox` route, which immediately posts a correctly signed callback back to `/sisp/callback`. The browser lands on `/sisp/callback?ref=R...`, which returns the payment result as JSON.
 

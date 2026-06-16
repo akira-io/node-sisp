@@ -29,7 +29,7 @@
 | `driver` | derived | `'production'`, `'sandbox'`, or a custom driver name |
 | `sandbox` | `false` | Selects the sandbox driver when no explicit `driver` |
 | `allowRetry` | `true` | Enables the retry flow for failed payments |
-| `tables` | `sisp_*` | Override any of the seven table names |
+| `tables` | `sisp_*` | Override any of the package table names |
 
 ## Guards
 
@@ -56,6 +56,30 @@ transactionStatus: {
 }
 ```
 
+## Idempotency
+
+```ts
+idempotency: {
+  enabled: true,
+  requestKeys: ['idempotency_key', 'checkout_intent_id'],
+}
+```
+
+The payment handler reads the first non-empty configured key from the request body. That key is stored in `sisp_payment_intents` and linked to the local transaction. Reposting the same checkout key reuses the same transaction instead of creating a duplicate.
+
+Use one stable key per checkout intent. Do not use a timestamp as the idempotency key, because a new timestamp is generated on every click.
+
+## Identifier generation
+
+```ts
+identifierGeneration: {
+  maxAttempts: 5,
+  collisionRetrySleepMs: 1000,
+}
+```
+
+`merchantReference`, `merchantSession`, and retry attempts are protected by unique constraints. If a custom generator collides, the package retries with a new candidate until `maxAttempts` is reached. The default sleep is `1000` milliseconds, which is one second.
+
 ## Extension points
 
 | Key | Description |
@@ -78,5 +102,7 @@ const sisp = await createSisp({
   },
 });
 ```
+
+Custom generators may keep using date-based values. The package does not require a specific format. It only requires that the generated identifiers pass the database uniqueness checks within the configured retry limit.
 
 **Next:** [Quick Start](03-quick-start.md)
