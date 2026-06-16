@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSisp } from '../../src/create-sisp';
 import { UnableToGenerateUniquePaymentIdentifiersError } from '../../src/exceptions';
 import type { HttpRequestInfo } from '../../src/http/request-info';
@@ -147,6 +147,57 @@ describe('transaction attempts', () => {
     expect(attempts[1]?.merchant_ref).toBe('R20260612100000');
     expect(attempts[1]?.merchant_session).toBe(retried.merchant_session);
     expect(attempts[1]?.superseded_at).toBeNull();
+  });
+
+  it('continues retry when legacy attempt backfill collides with another request', async () => {
+    sisp = await createSisp(baseConfig());
+
+    const transaction = await sisp.models.transactions.create({
+      merchantRef: 'R20260612111111',
+      merchantSession: 'S20260612111111',
+      amount: 1500,
+    });
+    const failed = await sisp.models.transactions.update(transaction.id, {
+      status: 'failed',
+      transaction_id: 'TID-legacy',
+      message_type: '6',
+      response_code: '01',
+      merchant_response: '00',
+      fingerprint: 'fp',
+    });
+    const createFromTransaction = sisp.models.transactionAttempts.createFromTransaction.bind(
+      sisp.models.transactionAttempts,
+    );
+    let raceInserted = false;
+
+    vi.spyOn(sisp.models.transactionAttempts, 'createFromTransaction').mockImplementation(
+      async (record) => {
+        if (!raceInserted) {
+          raceInserted = true;
+          await createFromTransaction(record);
+          throw Object.assign(
+            new Error(
+              'UNIQUE constraint failed: sisp_transaction_attempts.transaction_id, sisp_transaction_attempts.attempt_number',
+            ),
+            { code: 'SQLITE_CONSTRAINT' },
+          );
+        }
+
+        return createFromTransaction(record);
+      },
+    );
+
+    const response = await sisp.handlers.handleRetryPayment(
+      retryRequest(sisp.signedRetryUrl(failed.id)),
+    );
+    const attempts = await sisp.models.transactionAttempts.listByTransaction(failed.id);
+    const retried = await sisp.models.transactions.findById(failed.id);
+
+    expect(response.type).toBe('html');
+    expect(attempts).toHaveLength(2);
+    expect(attempts[0]?.attempt_number).toBe(1);
+    expect(attempts[1]?.attempt_number).toBe(2);
+    expect(retried?.status).toBe('pending');
   });
 
   it('does not let a late failed callback from an old attempt overwrite the active retry', async () => {

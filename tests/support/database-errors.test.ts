@@ -25,6 +25,24 @@ describe('database error helpers', () => {
         message: 'duplicate value rejected by another integrity rule',
       }),
     ).toBe(false);
+    expect(
+      isUniqueConstraintError({
+        message: 'merchant reference must be unique across all providers',
+      }),
+    ).toBe(false);
+  });
+
+  it('uses narrow message fallbacks for drivers without structured codes', () => {
+    expect(
+      isUniqueConstraintError({
+        message: 'duplicate key value violates unique constraint "transactions_merchant_ref"',
+      }),
+    ).toBe(true);
+    expect(
+      isUniqueConstraintError({
+        message: 'UNIQUE constraint failed: sisp_transactions.merchant_ref',
+      }),
+    ).toBe(true);
   });
 
   it('detects existing index errors across supported drivers', () => {

@@ -22,9 +22,7 @@ export class CreateRetryPaymentAttemptAction {
   async handle(transaction: TransactionRecord): Promise<PaymentRequest> {
     const maxAttempts = Math.max(1, this.config.identifierGeneration.maxAttempts);
 
-    if ((await this.attempts.listByTransaction(transaction.id)).length === 0) {
-      await this.attempts.createFromTransaction(transaction);
-    }
+    await this.ensureInitialAttempt(transaction);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const paymentRequest = this.retryPayment.handle(transaction);
@@ -64,5 +62,23 @@ export class CreateRetryPaymentAttemptAction {
     }
 
     throw new UnableToGenerateUniquePaymentIdentifiersError(maxAttempts);
+  }
+
+  private async ensureInitialAttempt(transaction: TransactionRecord): Promise<void> {
+    if ((await this.attempts.listByTransaction(transaction.id)).length > 0) {
+      return;
+    }
+
+    try {
+      await this.attempts.createFromTransaction(transaction);
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+
+      if ((await this.attempts.listByTransaction(transaction.id)).length === 0) {
+        throw error;
+      }
+    }
   }
 }

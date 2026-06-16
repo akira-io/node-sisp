@@ -10,7 +10,7 @@ export function isUniqueConstraintError(error: unknown): boolean {
   const sqlState = String(candidate.sqlState ?? '');
   const message = String(candidate.message ?? '').toLowerCase();
 
-  return (
+  if (
     code === '23505' ||
     sqlState === '23505' ||
     code === 'ER_DUP_ENTRY' ||
@@ -18,7 +18,11 @@ export function isUniqueConstraintError(error: unknown): boolean {
     code === 'SQLITE_CONSTRAINT_UNIQUE' ||
     code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
     (code === 'SQLITE_CONSTRAINT' && message.includes('unique constraint failed'))
-  );
+  ) {
+    return true;
+  }
+
+  return message.includes('unique constraint') || message.includes('duplicate key');
 }
 
 export function isIndexAlreadyExistsError(error: unknown): boolean {
