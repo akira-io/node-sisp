@@ -189,7 +189,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     url: config.url ?? '',
     merchantId: config.merchantId ?? '',
     driver: config.driver ?? null,
-    sandbox: config.sandbox ?? false,
+    sandbox: booleanSetting(config.sandbox, false),
     currency: config.currency ?? '132',
     languageMessages: config.languageMessages ?? 'EN',
     fingerprintVersion: config.fingerprintVersion ?? '1',
@@ -200,10 +200,10 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     appKey: config.appKey ?? null,
     baseUrl: config.baseUrl ?? '',
     basePath: config.basePath ?? '/sisp',
-    allowRetry: config.allowRetry ?? true,
+    allowRetry: booleanSetting(config.allowRetry, true),
     tables: { ...DEFAULT_TABLES, ...config.tables },
     rateLimiting: resolveRateLimiting(config.rateLimiting),
-    security: { collectMetadata: config.security?.collectMetadata ?? true },
+    security: { collectMetadata: booleanSetting(config.security?.collectMetadata, true) },
     generators: {
       merchantReference:
         config.generators?.merchantReference ?? (() => generateMerchantReference()),
@@ -245,7 +245,7 @@ export function routeUrl(config: ResolvedSispConfig, route: string): string {
 
 function resolveRateLimiting(overrides: DeepPartial<RateLimiting> | undefined): RateLimiting {
   return {
-    enabled: overrides?.enabled ?? DEFAULT_RATE_LIMITING.enabled,
+    enabled: booleanSetting(overrides?.enabled, DEFAULT_RATE_LIMITING.enabled),
     perIp: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perIp, overrides?.perIp),
     perMerchant: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perMerchant, overrides?.perMerchant),
     perUser: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perUser, overrides?.perUser),
@@ -257,8 +257,32 @@ function resolveRateLimitRule(
   overrides: Partial<RateLimitRule> | undefined,
 ): RateLimitRule {
   return {
-    enabled: overrides?.enabled ?? defaults.enabled,
+    enabled: booleanSetting(overrides?.enabled, defaults.enabled),
     limit: overrides?.limit ?? defaults.limit,
     windowSeconds: overrides?.windowSeconds ?? defaults.windowSeconds,
   };
+}
+
+function booleanSetting(value: unknown, fallback: boolean): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+      return true;
+    }
+
+    if (['0', 'false', 'no', 'off', ''].includes(normalized)) {
+      return false;
+    }
+  }
+
+  return fallback;
 }
