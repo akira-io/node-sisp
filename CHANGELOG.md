@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.2](https://github.com/akira-io/node-sisp/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2026-06-20)
+
+### Bug Fixes
+
+- **payments:** Add SISP payment intents ([070e5d3](https://github.com/akira-io/node-sisp/commit/070e5d396583dba5db8b01a186076941ec6fbda3))
+- **payments:** Harden idempotent retry attempts ([2b97910](https://github.com/akira-io/node-sisp/commit/2b9791012e19adefeb60a583b8b9b72669d4f6cc))
+- **payments:** Handle retry attempt races ([64a196e](https://github.com/akira-io/node-sisp/commit/64a196e263a23893c4efb0d72448d79bb62f1872))
+- **config:** Normalize boolean flags ([389ec64](https://github.com/akira-io/node-sisp/commit/389ec64955f502d4fc5e737a580f6eeb4dfc0af5))
+
 ## [1.0.0-beta.1](https://github.com/akira-io/node-sisp/compare/...v1.0.0-beta.1) (2026-06-14)
 
 ### Bug Fixes
