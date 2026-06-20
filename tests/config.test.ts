@@ -68,6 +68,25 @@ describe('resolveConfig', () => {
     expect(resolved.database.autoMigrate).toBe(false);
   });
 
+  it('normalizes runtime boolean strings', () => {
+    const resolved = resolveConfig({
+      ...minimalConfig,
+      sandbox: 'true',
+      allowRetry: 'false',
+      rateLimiting: {
+        enabled: 'false',
+        perIp: { enabled: 'false' },
+      },
+      security: { collectMetadata: 'false' },
+    } as unknown as SispConfig);
+
+    expect(resolved.sandbox).toBe(true);
+    expect(resolved.allowRetry).toBe(false);
+    expect(resolved.rateLimiting.enabled).toBe(false);
+    expect(resolved.rateLimiting.perIp.enabled).toBe(false);
+    expect(resolved.security.collectMetadata).toBe(false);
+  });
+
   it('provides default generators matching the SISP formats', () => {
     const resolved = resolveConfig(minimalConfig);
 
