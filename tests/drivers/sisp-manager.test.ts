@@ -25,6 +25,15 @@ describe('SispManager', () => {
     expect(driver.paymentEndpoint()).toBe('https://gateway.vinti4.test/payment');
   });
 
+  it('requires production gateway endpoints to be absolute HTTPS URLs', () => {
+    expect(() => managerFor({ url: '' }).driver().paymentEndpoint()).toThrow(
+      'SISP production payment URL must be an absolute HTTPS URL.',
+    );
+    expect(() =>
+      managerFor({ url: 'http://gateway.vinti4.test/payment' }).driver().paymentEndpoint(),
+    ).toThrow('SISP production payment URL must be an absolute HTTPS URL.');
+  });
+
   it('derives the sandbox driver from sandbox credentials', () => {
     const driver = managerFor({ sandbox: true }).driver();
 
