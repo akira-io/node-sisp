@@ -128,7 +128,7 @@ export class SispHttpHandlers {
   }
 
   async handlePayment(request: HttpRequestInfo): Promise<HttpResult> {
-    const validation = validatePaymentInput(request.body);
+    const validation = validatePaymentInput(request.body, this.config.paymentValidation);
 
     if (!validation.valid) {
       return json({ message: 'The given data was invalid.', errors: validation.errors }, 422);

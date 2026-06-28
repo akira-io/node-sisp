@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import type { CallbackPipe, PaymentPipe } from './contracts/pipes';
 import type { EventErrorHandler } from './events';
+import { type PaymentValidationConfig, resolvePaymentValidation } from './payment-validation';
 import {
   generateMerchantReference,
   generateMerchantSession,
@@ -99,6 +100,7 @@ export interface SispConfig {
   generators?: Partial<SispGenerators>;
   identifierGeneration?: Partial<IdentifierGenerationConfig>;
   idempotency?: Partial<IdempotencyConfig>;
+  paymentValidation?: Partial<PaymentValidationConfig>;
   pipelines?: SispPipelineCustomizers;
   onEventListenerError?: EventErrorHandler;
   transactionStatus?: Partial<TransactionStatusConfig>;
@@ -129,6 +131,7 @@ export interface ResolvedSispConfig {
   generators: SispGenerators;
   identifierGeneration: IdentifierGenerationConfig;
   idempotency: IdempotencyConfig;
+  paymentValidation: PaymentValidationConfig;
   pipelines: SispPipelineCustomizers;
   onEventListenerError: EventErrorHandler | null;
   transactionStatus: TransactionStatusConfig;
@@ -218,6 +221,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
       ...DEFAULT_IDEMPOTENCY,
       ...config.idempotency,
     },
+    paymentValidation: resolvePaymentValidation(config.paymentValidation, config.currency ?? '132'),
     pipelines: config.pipelines ?? {},
     onEventListenerError: config.onEventListenerError ?? null,
     transactionStatus: { ...DEFAULT_TRANSACTION_STATUS, ...config.transactionStatus },

@@ -1,14 +1,27 @@
+import {
+  DEFAULT_MAX_PAYMENT_AMOUNT,
+  type PaymentValidationConfig,
+  resolvePaymentValidation,
+} from '../payment-validation';
+
 export interface PaymentValidationResult {
   valid: boolean;
   errors: Record<string, string[]>;
 }
 
+const DEFAULT_PAYMENT_VALIDATION = resolvePaymentValidation(undefined, '132');
+const DECIMAL_AMOUNT_PATTERN = /^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/;
 const WHITESPACE_PATTERN = /\s/;
 
-export function validatePaymentInput(body: Record<string, unknown>): PaymentValidationResult {
+export function validatePaymentInput(
+  body: Record<string, unknown>,
+  options: PaymentValidationConfig = DEFAULT_PAYMENT_VALIDATION,
+): PaymentValidationResult {
   const errors: Record<string, string[]> = {};
 
-  validateAmount(body.amount, errors);
+  validateAmount(body.amount, errors, options);
+  validateCurrency(body.currency, errors, options);
+  validateClientControlledFields(body, errors, options);
   validateItems(body.items, errors);
   validateCustomerFields(body, errors);
 
@@ -19,23 +32,74 @@ export function validatePaymentInput(body: Record<string, unknown>): PaymentVali
   return { valid: Object.keys(errors).length === 0, errors };
 }
 
-function validateAmount(amount: unknown, errors: Record<string, string[]>): void {
+function validateAmount(
+  amount: unknown,
+  errors: Record<string, string[]>,
+  options: PaymentValidationConfig,
+): void {
   if (amount === undefined || amount === null || amount === '') {
     addError(errors, 'amount', 'The amount field is required.');
 
     return;
   }
 
-  const value = Number(amount);
+  const value = parseDecimalAmount(amount);
 
-  if (Number.isNaN(value)) {
-    addError(errors, 'amount', 'The amount must be a number.');
+  if (value === null) {
+    addError(errors, 'amount', 'The amount must be a decimal number.');
 
     return;
   }
 
   if (value < 0.01) {
     addError(errors, 'amount', 'The amount must be at least 0.01.');
+  }
+
+  if (value > options.maxAmount) {
+    addError(errors, 'amount', `The amount may not be greater than ${options.maxAmount}.`);
+  }
+}
+
+function validateCurrency(
+  currency: unknown,
+  errors: Record<string, string[]>,
+  options: PaymentValidationConfig,
+): void {
+  if (currency === undefined || currency === null || currency === '') {
+    return;
+  }
+
+  if (typeof currency !== 'string' || !options.allowedCurrencies.includes(currency)) {
+    addError(errors, 'currency', 'The currency is not allowed.');
+  }
+}
+
+function validateClientControlledFields(
+  body: Record<string, unknown>,
+  errors: Record<string, string[]>,
+  options: PaymentValidationConfig,
+): void {
+  if (!options.allowClientMerchantIdentifiers) {
+    rejectSuppliedField(body, errors, 'merchantRef');
+    rejectSuppliedField(body, errors, 'merchantSession');
+  }
+
+  if (!options.allowClientTimestamp) {
+    rejectSuppliedField(body, errors, 'timeStamp');
+  }
+
+  if (!options.allowClientTransactionCode) {
+    rejectSuppliedField(body, errors, 'transactionCode');
+  }
+}
+
+function rejectSuppliedField(
+  body: Record<string, unknown>,
+  errors: Record<string, string[]>,
+  field: string,
+): void {
+  if (field in body) {
+    addError(errors, field, `The ${field} field cannot be supplied by payment requests.`);
   }
 }
 
@@ -73,9 +137,9 @@ function validateItem(
   }
 
   for (const field of ['unit_price', 'total_price'] as const) {
-    const value = Number(item[field]);
+    const value = parseDecimalAmount(item[field]);
 
-    if (item[field] === undefined || Number.isNaN(value) || value < 0) {
+    if (item[field] === undefined || value === null || value < 0) {
       addError(
         errors,
         `items.${index}.${field}`,
@@ -138,9 +202,23 @@ function validateTotals(body: Record<string, unknown>, errors: Record<string, st
 }
 
 function minorUnits(amount: unknown): number {
-  return Math.round(Number(amount ?? 0) * 100);
+  return Math.round((parseDecimalAmount(amount) ?? 0) * 100);
 }
 
 function addError(errors: Record<string, string[]>, field: string, message: string): void {
   errors[field] = [...(errors[field] ?? []), message];
 }
+
+function parseDecimalAmount(amount: unknown): number | null {
+  if (typeof amount === 'number') {
+    return Number.isFinite(amount) ? amount : null;
+  }
+
+  if (typeof amount !== 'string' || !DECIMAL_AMOUNT_PATTERN.test(amount)) {
+    return null;
+  }
+
+  return Number(amount);
+}
+
+export { DEFAULT_MAX_PAYMENT_AMOUNT };

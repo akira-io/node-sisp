@@ -41,6 +41,11 @@ describe('resolveConfig', () => {
       enabled: true,
       requestKeys: ['idempotency_key', 'checkout_intent_id'],
     });
+    expect(resolved.paymentValidation).toMatchObject({
+      maxAmount: 10_000_000,
+      allowedCurrencies: ['132'],
+      allowClientTransactionCode: false,
+    });
   });
 
   it('keeps user overrides', () => {
@@ -52,6 +57,11 @@ describe('resolveConfig', () => {
       rateLimiting: { perIp: { limit: 5 } },
       identifierGeneration: { maxAttempts: 2, collisionRetrySleepMs: 0 },
       idempotency: { enabled: false, requestKeys: ['payment_key'] },
+      paymentValidation: {
+        maxAmount: 1000,
+        allowedCurrencies: ['132', '978'],
+        allowClientTransactionCode: true,
+      },
       database: { client: 'better-sqlite3', connection: ':memory:', autoMigrate: false },
     });
 
@@ -65,6 +75,9 @@ describe('resolveConfig', () => {
     expect(resolved.identifierGeneration.collisionRetrySleepMs).toBe(0);
     expect(resolved.idempotency.enabled).toBe(false);
     expect(resolved.idempotency.requestKeys).toEqual(['payment_key']);
+    expect(resolved.paymentValidation.maxAmount).toBe(1000);
+    expect(resolved.paymentValidation.allowedCurrencies).toEqual(['132', '978']);
+    expect(resolved.paymentValidation.allowClientTransactionCode).toBe(true);
     expect(resolved.database.autoMigrate).toBe(false);
   });
 
