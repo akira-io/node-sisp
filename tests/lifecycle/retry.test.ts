@@ -55,7 +55,7 @@ describe('retry payment', () => {
 
     expect(updated?.status).toBe('pending');
     expect(updated?.merchant_session).not.toBe('S20260612100000');
-    expect(updated?.merchant_session).toMatch(/^S\d{14}$/);
+    expect(updated?.merchant_session).toMatch(/^S\d{14}[0-9a-f]{12}$/);
     expect(updated?.transaction_id).toBeNull();
     expect(updated?.message_type).toBeNull();
     expect(updated?.merchant_response).toBeNull();
