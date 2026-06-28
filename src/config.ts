@@ -63,6 +63,8 @@ export interface TransactionStatusConfig {
   portalId: string;
   portalPassword: string;
   timeoutSeconds: number;
+  retryAttempts: number;
+  retryDelayMs: number;
   reconciliationEnabled: boolean;
   reconcileAfterMinutes: number;
   reconcileLimit: number;
@@ -155,6 +157,8 @@ const DEFAULT_TRANSACTION_STATUS: TransactionStatusConfig = {
   portalId: '',
   portalPassword: '',
   timeoutSeconds: 10,
+  retryAttempts: 2,
+  retryDelayMs: 100,
   reconciliationEnabled: false,
   reconcileAfterMinutes: 5,
   reconcileLimit: 50,

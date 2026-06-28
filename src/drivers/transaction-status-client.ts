@@ -1,6 +1,6 @@
 import type { ResolvedSispConfig } from '../config';
 import type { CredentialsResolver } from '../contracts/credentials-resolver';
-import { SispError } from '../exceptions';
+import { SispError, TransactionStatusTransportError } from '../exceptions';
 import {
   type TransactionStatusResponse,
   transactionStatusResponseFrom,
@@ -13,7 +13,8 @@ export class TransactionStatusClient {
   ) {}
 
   async query(merchantRef: string): Promise<TransactionStatusResponse> {
-    const { url, portalId, portalPassword, timeoutSeconds } = this.config.transactionStatus;
+    const settings = this.config.transactionStatus;
+    const { url, portalId, portalPassword, timeoutSeconds, retryAttempts, retryDelayMs } = settings;
 
     if (portalId === '' || portalPassword === '') {
       throw new SispError('SISP transaction status portal credentials are not configured.');
@@ -21,6 +22,25 @@ export class TransactionStatusClient {
 
     const credentials = this.credentialsResolver.resolve();
 
+    return this.withRetries(
+      () =>
+        this.queryOnce(url, portalId, portalPassword, timeoutSeconds, merchantRef, {
+          posID: credentials.posId,
+          posAuthCode: credentials.posAutCode,
+        }),
+      retryAttempts,
+      retryDelayMs,
+    );
+  }
+
+  private async queryOnce(
+    url: string,
+    portalId: string,
+    portalPassword: string,
+    timeoutSeconds: number,
+    merchantRef: string,
+    body: { posID: string; posAuthCode: string },
+  ): Promise<TransactionStatusResponse> {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -28,25 +48,70 @@ export class TransactionStatusClient {
         'content-type': 'application/json',
         authorization: `Basic ${Buffer.from(`${portalId}:${portalPassword}`, 'utf8').toString('base64')}`,
       },
-      body: JSON.stringify({
-        posID: credentials.posId,
-        posAuthCode: credentials.posAutCode,
-        merchantRef,
-      }),
+      body: JSON.stringify({ ...body, merchantRef }),
       signal: AbortSignal.timeout(timeoutSeconds * 1000),
     });
 
     if (!response.ok) {
-      return transactionStatusResponseFrom({
-        result: false,
-        transactionSuccess: false,
-        transactionStatusDescription: '',
-        msg: `SISP transaction status request failed with HTTP ${response.status}.`,
-      });
+      throw new TransactionStatusTransportError(
+        `SISP transaction status request failed with HTTP ${response.status}.`,
+        response.status >= 500,
+      );
     }
 
-    const body = (await response.json().catch(() => ({}))) as Record<string, unknown> | null;
+    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown> | null;
 
-    return transactionStatusResponseFrom(body ?? {});
+    return transactionStatusResponseFrom(payload ?? {});
   }
+
+  private async withRetries<T>(
+    operation: () => Promise<T>,
+    retryAttempts: number,
+    retryDelayMs: number,
+  ): Promise<T> {
+    const maxAttempts = Math.max(1, Math.floor(retryAttempts));
+    let lastError: unknown = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = toTransportError(error);
+
+        if (!shouldRetry(lastError) || attempt >= maxAttempts) {
+          throw lastError;
+        }
+
+        await sleep(retryDelayMs);
+      }
+    }
+
+    throw toTransportError(lastError);
+  }
+}
+
+function shouldRetry(error: unknown): boolean {
+  return !(error instanceof TransactionStatusTransportError) || error.retryable;
+}
+
+function toTransportError(error: unknown): TransactionStatusTransportError {
+  if (error instanceof TransactionStatusTransportError) {
+    return error;
+  }
+
+  if (error instanceof Error && error.name.toLowerCase().includes('timeout')) {
+    return new TransactionStatusTransportError('SISP transaction status request timed out.');
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+
+  return new TransactionStatusTransportError(`SISP transaction status request failed: ${message}.`);
+}
+
+async function sleep(delayMs: number): Promise<void> {
+  if (delayMs <= 0) {
+    return;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
 }
