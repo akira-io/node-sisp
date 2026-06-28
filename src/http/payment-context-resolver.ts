@@ -115,9 +115,7 @@ export class PaymentContextResolver {
     transaction: TransactionRecord,
     idempotencyKey: string,
   ): Promise<PaymentRequest> {
-    const attempts = await this.deps.attempts.listByTransaction(transaction.id);
-    const currentAttempt =
-      attempts.find((attempt) => attempt.superseded_at === null) ?? attempts.at(-1);
+    const currentAttempt = await this.deps.attempts.currentByTransaction(transaction.id);
 
     const paymentRequest =
       paymentRequestFromStoredPayload(currentAttempt?.payload) ??

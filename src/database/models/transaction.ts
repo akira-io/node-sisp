@@ -7,6 +7,9 @@ import { lockForUpdate } from '../locking';
 import { currentLogSource } from '../log-context';
 import { nowIso, type TransactionRecord } from '../records';
 
+const MAX_TRANSACTION_LOGS_PER_TRANSACTION = 100;
+const LOG_RETENTION_PRUNE_BATCH = 100;
+
 export interface NewTransaction {
   merchantRef: string;
   merchantSession: string;
@@ -166,6 +169,24 @@ export class Transaction {
       created_at: timestamp,
       updated_at: timestamp,
     });
+
+    await this.pruneTransactionLogs(transactionId);
+  }
+
+  private async pruneTransactionLogs(transactionId: number): Promise<void> {
+    const staleRows = await this.db(this.tables.transactionLogs)
+      .select('id')
+      .where('transaction_id', transactionId)
+      .orderBy('id', 'desc')
+      .offset(MAX_TRANSACTION_LOGS_PER_TRANSACTION)
+      .limit(LOG_RETENTION_PRUNE_BATCH);
+    const staleIds = staleRows.map((row: Record<string, unknown>) => Number(row.id));
+
+    if (staleIds.length === 0) {
+      return;
+    }
+
+    await this.db(this.tables.transactionLogs).whereIn('id', staleIds).delete();
   }
 
   private normalizeChanges(changes: TransactionChanges): Record<string, unknown> {

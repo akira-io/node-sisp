@@ -1,5 +1,11 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../config';
+import {
+  type ListByTransactionOptions,
+  normalizeListLimit,
+  normalizeListOffset,
+  normalizeListOrder,
+} from '../list-options';
 import type { TransactionLogRecord } from '../records';
 
 export class TransactionLog {
@@ -8,10 +14,15 @@ export class TransactionLog {
     private readonly tables: SispTables,
   ) {}
 
-  async listByTransaction(transactionId: number): Promise<TransactionLogRecord[]> {
+  async listByTransaction(
+    transactionId: number,
+    options: ListByTransactionOptions = {},
+  ): Promise<TransactionLogRecord[]> {
     const rows = await this.db(this.tables.transactionLogs)
       .where('transaction_id', transactionId)
-      .orderBy('id');
+      .orderBy('id', normalizeListOrder(options.order))
+      .limit(normalizeListLimit(options.limit))
+      .offset(normalizeListOffset(options.offset));
 
     return rows.map((row: Record<string, unknown>) => ({
       ...(row as unknown as TransactionLogRecord),

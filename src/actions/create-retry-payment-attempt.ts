@@ -65,7 +65,7 @@ export class CreateRetryPaymentAttemptAction {
   }
 
   private async ensureInitialAttempt(transaction: TransactionRecord): Promise<void> {
-    if ((await this.attempts.listByTransaction(transaction.id)).length > 0) {
+    if (await this.attempts.existsByTransaction(transaction.id)) {
       return;
     }
 
@@ -76,7 +76,7 @@ export class CreateRetryPaymentAttemptAction {
         throw error;
       }
 
-      if ((await this.attempts.listByTransaction(transaction.id)).length === 0) {
+      if (!(await this.attempts.existsByTransaction(transaction.id))) {
         throw error;
       }
     }

@@ -1,5 +1,11 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../config';
+import {
+  type ListByTransactionOptions,
+  normalizeListLimit,
+  normalizeListOffset,
+  normalizeListOrder,
+} from '../list-options';
 import { nowIso, type RequestMetadataRecord } from '../records';
 
 export type NewRequestMetadata = Omit<
@@ -26,10 +32,15 @@ export class RequestMetadata {
     });
   }
 
-  async listByTransaction(transactionId: number): Promise<RequestMetadataRecord[]> {
+  async listByTransaction(
+    transactionId: number,
+    options: ListByTransactionOptions = {},
+  ): Promise<RequestMetadataRecord[]> {
     const rows = await this.db(this.tables.requestMetadata)
       .where('transaction_id', transactionId)
-      .orderBy('id');
+      .orderBy('id', normalizeListOrder(options.order))
+      .limit(normalizeListLimit(options.limit))
+      .offset(normalizeListOffset(options.offset));
 
     return rows.map((row: Record<string, unknown>) => ({
       ...(row as unknown as RequestMetadataRecord),

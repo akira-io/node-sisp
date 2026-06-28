@@ -5,6 +5,12 @@ import type { CallbackPayload } from '../../value-objects/callback-payload';
 import type { PaymentRequest } from '../../value-objects/payment-request';
 import { paymentRequestToFormFields } from '../../value-objects/payment-request';
 import type { PayloadCipher } from '../encryption';
+import {
+  type ListByTransactionOptions,
+  normalizeListLimit,
+  normalizeListOffset,
+  normalizeListOrder,
+} from '../list-options';
 import { lockForUpdate } from '../locking';
 import { nowIso, type TransactionAttemptRecord, type TransactionRecord } from '../records';
 
@@ -115,12 +121,42 @@ export class TransactionAttempt {
     return row ? this.map(row) : null;
   }
 
-  async listByTransaction(transactionId: number): Promise<TransactionAttemptRecord[]> {
+  async listByTransaction(
+    transactionId: number,
+    options: ListByTransactionOptions = {},
+  ): Promise<TransactionAttemptRecord[]> {
     const rows = await this.table()
       .where('transaction_id', transactionId)
-      .orderBy('attempt_number', 'asc');
+      .orderBy('attempt_number', normalizeListOrder(options.order))
+      .limit(normalizeListLimit(options.limit))
+      .offset(normalizeListOffset(options.offset));
 
     return rows.map((row: Record<string, unknown>) => this.map(row));
+  }
+
+  async existsByTransaction(transactionId: number): Promise<boolean> {
+    const row = await this.table().select('id').where('transaction_id', transactionId).first();
+
+    return row !== undefined;
+  }
+
+  async currentByTransaction(transactionId: number): Promise<TransactionAttemptRecord | null> {
+    const current = await this.table()
+      .where('transaction_id', transactionId)
+      .whereNull('superseded_at')
+      .orderBy('id', 'desc')
+      .first();
+
+    if (current) {
+      return this.map(current);
+    }
+
+    const latest = await this.table()
+      .where('transaction_id', transactionId)
+      .orderBy('id', 'desc')
+      .first();
+
+    return latest ? this.map(latest) : null;
   }
 
   async update(id: number, changes: TransactionAttemptChanges): Promise<TransactionAttemptRecord> {
