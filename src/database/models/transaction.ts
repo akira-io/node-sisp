@@ -79,6 +79,12 @@ export class Transaction {
     return row ? this.map(row) : null;
   }
 
+  async findByIdForUpdate(id: number): Promise<TransactionRecord | null> {
+    const row = await lockForUpdate(this.db, this.table().where('id', id)).first();
+
+    return row ? this.map(row) : null;
+  }
+
   async findByRefAndSession(
     merchantRef: string,
     merchantSession: string,
