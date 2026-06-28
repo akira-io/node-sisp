@@ -58,6 +58,24 @@ describe('validatePaymentInput', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('uses canonical cents for half-cent totals', () => {
+    const result = validatePaymentInput({
+      amount: '1.01',
+      items: [{ product_name: 'A', quantity: 1, unit_price: '1.005', total_price: '1.005' }],
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects totals that only match binary-float rounding', () => {
+    const result = validatePaymentInput({
+      amount: '1.00',
+      items: [{ product_name: 'A', quantity: 1, unit_price: '1.005', total_price: '1.005' }],
+    });
+
+    expect(result.errors.amount).toEqual(['Payment amount must equal the sum of item totals.']);
+  });
+
   it.each([
     ['kid@akira.cv', true],
     ['a@b.co', true],
