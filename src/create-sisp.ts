@@ -95,6 +95,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   );
   const canRetryPayment = new CanRetryPaymentAction(resolved);
   const refundTransaction = new RefundTransactionAction(
+    db,
     models.transactions,
     new BuildRefundRequestAction(resolved, credentialsResolver),
     events,
