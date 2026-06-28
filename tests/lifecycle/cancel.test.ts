@@ -74,9 +74,10 @@ describe('cancel transaction', () => {
 
     const response = await request(app).get(url).expect(302);
 
-    expect(response.headers.location).toBe(
-      `/sisp/callback?ref=${encodeURIComponent(transaction.merchant_ref)}`,
-    );
+    expect(response.headers.location).toContain('/sisp/callback?');
+    expect(response.headers.location).toContain(`transaction=${transaction.id}`);
+    expect(response.headers.location).toContain('signature=');
+    expect(response.headers.location).not.toContain('ref=');
 
     const updated = await sisp.models.transactions.findById(transaction.id);
 
