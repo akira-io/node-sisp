@@ -78,7 +78,6 @@ describe('runMigrations', () => {
     for (const column of [
       'merchant_ref',
       'merchant_session',
-      'amount',
       'amount_cents',
       'currency',
       'status',
@@ -98,5 +97,7 @@ describe('runMigrations', () => {
     ]) {
       expect(await db.schema.hasColumn(DEFAULT_TABLES.transactions, column)).toBe(true);
     }
+
+    expect(await db.schema.hasColumn(DEFAULT_TABLES.transactions, 'amount')).toBe(false);
   });
 });

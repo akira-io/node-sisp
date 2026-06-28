@@ -19,7 +19,6 @@ async function createTransactionsTable(db: Knex, tables: SispTables): Promise<vo
     table.bigIncrements('id');
     table.string('merchant_ref').notNullable();
     table.string('merchant_session').notNullable();
-    table.double('amount').notNullable();
     table.bigInteger('amount_cents').notNullable().defaultTo(0);
     table.string('currency').notNullable().defaultTo('132');
     table.string('status').notNullable().defaultTo('pending');

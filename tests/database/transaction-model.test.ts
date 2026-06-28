@@ -47,6 +47,18 @@ describe('Transaction', () => {
     const raw = await db(DEFAULT_TABLES.transactions).where('id', transaction.id).first();
 
     expect(isEncrypted(raw.payload)).toBe(true);
+    expect(raw.amount).toBeUndefined();
+  });
+
+  it('derives the public amount from canonical cents', async () => {
+    const transaction = await transactions.create({
+      merchantRef: 'R20260612100001',
+      merchantSession: 'S20260612100001',
+      amount: '8.0295',
+    });
+
+    expect(transaction.amount_cents).toBe(803);
+    expect(transaction.amount).toBe(8.03);
   });
 
   it('finds transactions by ref and session', async () => {

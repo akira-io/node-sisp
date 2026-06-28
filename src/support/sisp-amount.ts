@@ -14,6 +14,12 @@ export function toCents(amount: number | string): number {
   return phpRound(toThousandths(amount) / 10);
 }
 
+export function fromCents(cents: number | string): number {
+  const parsed = Number(cents);
+
+  return Number.isFinite(parsed) ? parsed / 100 : 0;
+}
+
 function phpRound(value: number): number {
   return value < 0 ? -Math.round(-value) : Math.round(value);
 }
