@@ -18,6 +18,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Install git-cliff
         uses: taiki-e/install-action@873c7452cadb7c034694a1282227095d93fbdf92 # v2.62.59
         with:
@@ -28,12 +32,40 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: git-cliff --config cliff.toml --tag "${{ github.ref_name }}" --output CHANGELOG.md
 
-      - name: Commit CHANGELOG
+      - name: Ensure CHANGELOG contains tag
         run: |
-          git config user.name "${GITHUB_ACTOR}"
-          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          VERSION="${GITHUB_REF_NAME#v}"
+          DATE="$(date -u +%F)"
+          if ! grep -q "^## \\[$VERSION\\]" CHANGELOG.md; then
+            awk -v version="$VERSION" -v date="$DATE" '
+              BEGIN {
+                inserted = 0
+                entry = "## [" version "] - " date "\n\n### Changed\n\n- Release v" version ".\n"
+              }
+              /^## \[/ && inserted == 0 {
+                print entry
+                inserted = 1
+              }
+              { print }
+              END {
+                if (inserted == 0) {
+                  print ""
+                  print entry
+                }
+              }
+            ' CHANGELOG.md > CHANGELOG.md.tmp
+            mv CHANGELOG.md.tmp CHANGELOG.md
+          fi
+
+      - name: Bump package version
+        run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Commit release files
+        run: |
           DEFAULT_BRANCH="$(git remote show origin | sed -n 's/.*HEAD branch: //p')"
-          git add CHANGELOG.md
+          git config user.name "$(git show -s --format='%an' HEAD)"
+          git config user.email "$(git show -s --format='%ae' HEAD)"
+          git add CHANGELOG.md package.json package-lock.json
           git diff --cached --quiet || git commit -m "chore(changelog): ${{ github.ref_name }}"
           git push origin "HEAD:${DEFAULT_BRANCH}" || true
 
@@ -52,7 +84,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "${{ github.ref_name }}" == *-* ]]; then
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             RELEASE_FLAG="--prerelease"
           else
             RELEASE_FLAG="--latest"
