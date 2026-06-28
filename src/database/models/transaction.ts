@@ -79,6 +79,12 @@ export class Transaction {
     return row ? this.map(row) : null;
   }
 
+  async findByIdForUpdate(id: number): Promise<TransactionRecord | null> {
+    const row = await lockForUpdate(this.db, this.table().where('id', id)).first();
+
+    return row ? this.map(row) : null;
+  }
+
   async findByRefAndSession(
     merchantRef: string,
     merchantSession: string,
@@ -130,7 +136,11 @@ export class Transaction {
   }
 
   async update(id: number, changes: TransactionChanges): Promise<TransactionRecord> {
-    const current = await this.findOrFail(id);
+    return this.db.transaction((trx) => this.withConnection(trx).updateLocked(id, changes));
+  }
+
+  private async updateLocked(id: number, changes: TransactionChanges): Promise<TransactionRecord> {
+    const current = await this.findOrFailForUpdate(id);
     const normalizedChanges = this.normalizeChanges(changes);
     const diff = this.diff(current, normalizedChanges);
 
@@ -221,6 +231,16 @@ export class Transaction {
 
   private async findOrFail(id: number): Promise<TransactionRecord> {
     const record = await this.findById(id);
+
+    if (record === null) {
+      throw new Error(`Transaction ${id} not found.`);
+    }
+
+    return record;
+  }
+
+  private async findOrFailForUpdate(id: number): Promise<TransactionRecord> {
+    const record = await this.findByIdForUpdate(id);
 
     if (record === null) {
       throw new Error(`Transaction ${id} not found.`);
