@@ -37,6 +37,7 @@ describe('resolveConfig', () => {
       maxAttempts: 5,
       collisionRetrySleepMs: 1000,
     });
+    expect(resolved.retry).toEqual({ maxAttempts: 3 });
     expect(resolved.idempotency).toEqual({
       enabled: true,
       requestKeys: ['idempotency_key', 'checkout_intent_id'],
@@ -51,6 +52,7 @@ describe('resolveConfig', () => {
       tables: { transactions: 'custom_transactions' },
       rateLimiting: { perIp: { limit: 5 } },
       identifierGeneration: { maxAttempts: 2, collisionRetrySleepMs: 0 },
+      retry: { maxAttempts: 2 },
       idempotency: { enabled: false, requestKeys: ['payment_key'] },
       database: { client: 'better-sqlite3', connection: ':memory:', autoMigrate: false },
     });
@@ -63,6 +65,7 @@ describe('resolveConfig', () => {
     expect(resolved.rateLimiting.perIp.windowSeconds).toBe(3600);
     expect(resolved.identifierGeneration.maxAttempts).toBe(2);
     expect(resolved.identifierGeneration.collisionRetrySleepMs).toBe(0);
+    expect(resolved.retry.maxAttempts).toBe(2);
     expect(resolved.idempotency.enabled).toBe(false);
     expect(resolved.idempotency.requestKeys).toEqual(['payment_key']);
     expect(resolved.database.autoMigrate).toBe(false);

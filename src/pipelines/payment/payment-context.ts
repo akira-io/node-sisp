@@ -8,6 +8,8 @@ export class PaymentContext {
 
   transaction: TransactionRecord | null = null;
 
+  private preflightCompleted = false;
+
   constructor(
     readonly data: PaymentRequestData,
     readonly request: HttpRequestInfo,
@@ -27,5 +29,13 @@ export class PaymentContext {
     }
 
     return this.transaction;
+  }
+
+  markPreflightCompleted(): void {
+    this.preflightCompleted = true;
+  }
+
+  hasCompletedPreflight(): boolean {
+    return this.preflightCompleted;
   }
 }

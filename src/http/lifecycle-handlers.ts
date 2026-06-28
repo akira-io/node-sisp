@@ -10,7 +10,7 @@ import type { Transaction } from '../database/models/transaction';
 import type { TransactionAttempt } from '../database/models/transaction-attempt';
 import type { TransactionRecord } from '../database/records';
 import type { SispManager } from '../drivers/sisp-manager';
-import { SispError, TransactionStateError } from '../exceptions';
+import { PaymentRetryLimitExceededError, SispError, TransactionStateError } from '../exceptions';
 import type { UrlSigner } from '../support/signed-url';
 import { type PaymentRequest, paymentRequestToFormFields } from '../value-objects/payment-request';
 import { renderAutoSubmitForm } from './auto-submit-form';
@@ -56,7 +56,16 @@ export class LifecycleHandlers {
       return json({ message: 'Transaction not found.' }, 404);
     }
 
-    if (!canRetryPayment.handle(transaction)) {
+    const attemptCount = await this.paymentAttemptCount(transaction.id);
+
+    if (transaction.status === 'failed' && canRetryPayment.retryLimitReached(attemptCount)) {
+      return json(
+        { message: new PaymentRetryLimitExceededError(config.retry.maxAttempts).message },
+        409,
+      );
+    }
+
+    if (!canRetryPayment.handle(transaction, attemptCount)) {
       return json(
         { message: 'This payment cannot be retried because required customer data is missing.' },
         400,
@@ -67,7 +76,15 @@ export class LifecycleHandlers {
       return this.renderRetryForm(retryPayment.handle(transaction, false));
     }
 
-    return this.renderRetryForm(await createRetryAttempt.handle(transaction));
+    try {
+      return this.renderRetryForm(await createRetryAttempt.handle(transaction));
+    } catch (error) {
+      if (error instanceof PaymentRetryLimitExceededError) {
+        return json({ message: error.message }, 409);
+      }
+
+      throw error;
+    }
   }
 
   async handleCancel(request: HttpRequestInfo): Promise<HttpResult> {
@@ -158,8 +175,10 @@ export class LifecycleHandlers {
     });
   }
 
-  retryAvailability(transaction: TransactionRecord): RetryAvailability {
-    if (!this.deps.canRetryPayment.handle(transaction)) {
+  async retryAvailability(transaction: TransactionRecord): Promise<RetryAvailability> {
+    const attemptCount = await this.paymentAttemptCount(transaction.id);
+
+    if (!this.deps.canRetryPayment.handle(transaction, attemptCount)) {
       return { allowed: false, url: null };
     }
 
@@ -188,6 +207,12 @@ export class LifecycleHandlers {
         'SISP - Redirecting to payment',
       ),
     );
+  }
+
+  private async paymentAttemptCount(transactionId: number): Promise<number> {
+    const attempts = await this.deps.attempts.listByTransaction(transactionId);
+
+    return Math.max(1, attempts.length);
   }
 
   private async resolveCancellable(

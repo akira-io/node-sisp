@@ -16,6 +16,7 @@ import type { SispManager } from '../drivers/sisp-manager';
 import {
   BlacklistedIdentifierError,
   PaymentIntentAlreadyProcessingError,
+  PaymentRetryLimitExceededError,
   RateLimitExceededError,
   TransactionNotFoundError,
 } from '../exceptions';
@@ -199,10 +200,9 @@ export class SispHttpHandlers {
     }
 
     const invoice = await this.invoices.findByTransaction(transaction.id);
+    const retry = await this.lifecycle.retryAvailability(transaction);
 
-    return json(
-      paymentResponseData(transaction, invoice, this.lifecycle.retryAvailability(transaction)),
-    );
+    return json(paymentResponseData(transaction, invoice, retry));
   }
 
   private async handleCallbackNotification(request: HttpRequestInfo): Promise<HttpResult> {
@@ -280,6 +280,10 @@ export class SispHttpHandlers {
     }
 
     if (error instanceof PaymentIntentAlreadyProcessingError) {
+      return json({ message: error.message }, 409);
+    }
+
+    if (error instanceof PaymentRetryLimitExceededError) {
       return json({ message: error.message }, 409);
     }
 
