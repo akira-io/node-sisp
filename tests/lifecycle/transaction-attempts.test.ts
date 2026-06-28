@@ -200,6 +200,29 @@ describe('transaction attempts', () => {
     expect(retried?.status).toBe('pending');
   });
 
+  it('honors the retry attempt cap when generated sessions keep colliding', async () => {
+    sisp = await createSisp({
+      ...baseConfig(),
+      generators: {
+        merchantSession: () => 'S20260612100000',
+      },
+      identifierGeneration: { maxAttempts: 2, collisionRetrySleepMs: 0 },
+    });
+
+    const failed = await createFailedTransaction();
+
+    await expect(
+      sisp.handlers.handleRetryPayment(retryRequest(sisp.signedRetryUrl(failed.id))),
+    ).rejects.toThrow(UnableToGenerateUniquePaymentIdentifiersError);
+
+    const attempts = await sisp.models.transactionAttempts.listByTransaction(failed.id);
+    const stored = await sisp.models.transactions.findById(failed.id);
+
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0]?.superseded_at).toBeNull();
+    expect(stored?.status).toBe('failed');
+  });
+
   it('does not let a late failed callback from an old attempt overwrite the active retry', async () => {
     sisp = await createSisp(baseConfig());
 

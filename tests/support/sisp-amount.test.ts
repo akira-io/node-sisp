@@ -9,6 +9,8 @@ describe('toThousandths', () => {
     ['two decimals', '100.50', 100500],
     ['three decimals', '0.001', 1],
     ['rounds fourth decimal up', '8.0295', 8030],
+    ['half-cent precision', '1.005', 1005],
+    ['comma decimal falls back to leading number', '1,005', 1000],
     ['keeps fourth decimal below half down', '8.0294', 8029],
     ['ignores digits beyond the fourth decimal', '8.03001', 8030],
     ['bare fraction', '.5', 500],
@@ -22,6 +24,7 @@ describe('toThousandths', () => {
     ['leading numeric prefix', '12abc', 12000],
     ['scientific notation falls back to float parsing', '1e3', 1000000],
     ['zero', 0, 0],
+    ['large value near safe integer boundary', '90071992547409.91', 90071992547409900],
   ] as const)('%s', (_label, amount, expected) => {
     expect(toThousandths(amount)).toBe(expected);
   });
@@ -33,8 +36,11 @@ describe('toCents', () => {
     ['decimal float', 8.03, 803],
     ['whole amount', 1000, 100000],
     ['rounds half cent up', '8.025', 803],
+    ['rounds 1.005 to the nearest cent', '1.005', 101],
+    ['comma decimal falls back to leading number', '1,005', 100],
     ['keeps below half cent down', '8.024', 802],
     ['negative amount rounds away from zero', '-8.025', -803],
+    ['large value near safe integer boundary', '90071992547409.91', 9007199254740990],
   ] as const)('%s', (_label, amount, expected) => {
     expect(toCents(amount)).toBe(expected);
   });

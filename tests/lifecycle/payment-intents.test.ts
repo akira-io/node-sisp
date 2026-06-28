@@ -64,6 +64,25 @@ describe('payment intents', () => {
     expect(Number(intents[0]?.transaction_id)).toBe(Number(transaction.id));
   });
 
+  it('persists one transaction for concurrent duplicate checkout intents', async () => {
+    sisp = await createSisp(baseConfig());
+
+    const responses = await Promise.all([
+      sisp.handlers.handlePayment(paymentRequest({ checkout_intent_id: 'checkout-intent-race' })),
+      sisp.handlers.handlePayment(paymentRequest({ checkout_intent_id: 'checkout-intent-race' })),
+    ]);
+    const transactions = await sisp.db(sisp.config.tables.transactions);
+    const attempts = await sisp.db(sisp.config.tables.transactionAttempts);
+    const intents = await sisp.db(sisp.config.tables.paymentIntents);
+
+    expect(responses.some((response) => response.type === 'html')).toBe(true);
+    expect(transactions).toHaveLength(1);
+    expect(attempts).toHaveLength(1);
+    expect(intents).toHaveLength(1);
+    expect(intents[0]?.status).toBe('submitted');
+    expect(Number(intents[0]?.transaction_id)).toBe(Number(transactions[0]?.id));
+  });
+
   it('creates a retry attempt for the same transaction when a failed checkout intent is posted again', async () => {
     let session = 0;
 

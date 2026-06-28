@@ -26,7 +26,7 @@ afterEach(async () => {
   await sisp.destroy();
 });
 
-async function runSandboxPayment(status?: string) {
+async function sandboxCallbackForm(status?: string) {
   const paymentResponse = await request(app)
     .post('/sisp/payment')
     .type('form')
@@ -57,6 +57,12 @@ async function runSandboxPayment(status?: string) {
   const callbackForm = extractForm(sandboxResponse.text);
 
   expect(callbackForm.action).toBe('/sisp/callback');
+
+  return callbackForm;
+}
+
+async function runSandboxPayment(status?: string) {
+  const callbackForm = await sandboxCallbackForm(status);
 
   const callbackResponse = await request(app)
     .post('/sisp/callback')
@@ -146,6 +152,27 @@ describe('sandbox end-to-end payment flow', () => {
 
     expect(replay.headers.location).toBe('/');
     expect(completed).toHaveBeenCalledTimes(1);
+  });
+
+  it('processes concurrent duplicate callback notifications once', async () => {
+    const completed = vi.fn();
+    sisp.on('payment:completed', completed);
+
+    const callbackForm = await sandboxCallbackForm();
+    const responses = await Promise.all([
+      request(app).post('/sisp/callback').type('form').send(callbackForm.fields).expect(302),
+      request(app).post('/sisp/callback').type('form').send(callbackForm.fields).expect(302),
+    ]);
+    const locations = responses.map((response) => response.headers.location as string);
+    const transactions = await sisp.db(sisp.config.tables.transactions);
+    const attempts = await sisp.db(sisp.config.tables.transactionAttempts);
+
+    expect(locations.some((location) => location.startsWith('/sisp/callback?ref='))).toBe(true);
+    expect(locations.some((location) => location === '/')).toBe(true);
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(transactions).toHaveLength(1);
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0]?.gateway_transaction_id).not.toBeNull();
   });
 
   it('serves the SISP country catalog', async () => {
