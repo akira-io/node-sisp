@@ -90,8 +90,8 @@ describe('resolveConfig', () => {
   it('provides default generators matching the SISP formats', () => {
     const resolved = resolveConfig(minimalConfig);
 
-    expect(resolved.generators.merchantReference()).toMatch(/^R\d{14}$/);
-    expect(resolved.generators.merchantSession()).toMatch(/^S\d{14}$/);
+    expect(resolved.generators.merchantReference()).toMatch(/^R\d{14}[0-9a-f]{12}$/);
+    expect(resolved.generators.merchantSession()).toMatch(/^S\d{14}[0-9a-f]{12}$/);
     expect(resolved.generators.timeStamp()).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   });
 
@@ -102,7 +102,7 @@ describe('resolveConfig', () => {
     });
 
     expect(resolved.generators.merchantReference()).toBe('R-fixed');
-    expect(resolved.generators.merchantSession()).toMatch(/^S\d{14}$/);
+    expect(resolved.generators.merchantSession()).toMatch(/^S\d{14}[0-9a-f]{12}$/);
   });
 });
 
