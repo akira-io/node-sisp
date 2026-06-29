@@ -81,6 +81,30 @@ describe('Transaction', () => {
     expect(entries[0]?.new_values).toMatchObject({ status: 'completed', transaction_id: 'TID-1' });
   });
 
+  it('serializes concurrent updates before diffing transaction logs', async () => {
+    const transaction = await createTransaction();
+
+    await Promise.all([
+      transactions.update(transaction.id, { status: 'completed' }),
+      transactions.update(transaction.id, { status: 'failed' }),
+    ]);
+
+    const entries = await logs.listByTransaction(transaction.id);
+
+    expect(entries).toHaveLength(2);
+
+    const firstNewValues = entries[0]?.new_values;
+
+    if (firstNewValues === null || typeof firstNewValues !== 'object') {
+      throw new Error('Expected the first transaction log to have new values.');
+    }
+
+    expect(entries[0]?.old_values).toMatchObject({ status: 'pending' });
+    expect(entries[1]?.old_values).toMatchObject({
+      status: firstNewValues.status,
+    });
+  });
+
   it('defaults the log source to model outside a context', async () => {
     const transaction = await createTransaction();
 
