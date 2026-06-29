@@ -20,7 +20,7 @@ When the same idempotency key is posted again, the handler does not create a sec
 
 ## Callback pipeline (POST /callback)
 
-`UserCancelled` posts and payloads missing ref or session redirect to `redirectUrl`. Replays (the matching attempt already has a gateway `transaction_id`) redirect without reprocessing. Then:
+A `UserCancelled` post resolves the transaction by `merchantRef` plus `merchantSession`, cancels it, and emits `transaction:cancelled` before redirecting to `redirectUrl`; unknown or already-terminal transactions just redirect. Payloads missing ref or session redirect to `redirectUrl`. Replays (the matching attempt already has a gateway `transaction_id`) redirect without reprocessing. Then:
 
 1. **ResolveTransaction** by `merchantRef` plus `merchantSession` against `sisp_transaction_attempts`. Legacy rows without attempts are backfilled under a row lock.
 2. **ValidateFingerprint.** Constant-time comparison of the 16-field callback fingerprint. A mismatch marks the transaction failed with `invalid_callback_fingerprint`, emits `payment:failed`, and short-circuits.
