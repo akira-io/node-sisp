@@ -121,21 +121,18 @@ export class SispHttpHandlers {
   async handleRefund(request: HttpRequestInfo, transactionId: number): Promise<HttpResult> {
     return this.lifecycle.handleRefund(request, transactionId);
   }
-
   async handleRetryPayment(request: HttpRequestInfo): Promise<HttpResult> {
     return this.lifecycle.handleRetryPayment(request);
   }
-
   async handleCancel(request: HttpRequestInfo): Promise<HttpResult> {
     return this.lifecycle.handleCancel(request);
   }
-
   signedRetryUrl(transactionId: number): string {
     return this.lifecycle.signedRetryUrl(transactionId);
   }
 
   async handlePayment(request: HttpRequestInfo): Promise<HttpResult> {
-    const validation = validatePaymentInput(request.body);
+    const validation = validatePaymentInput(request.body, this.config.paymentValidation);
 
     if (!validation.valid) {
       return json({ message: 'The given data was invalid.', errors: validation.errors }, 422);
@@ -288,11 +285,9 @@ export class SispHttpHandlers {
     if (error instanceof PaymentIntentAlreadyProcessingError) {
       return json({ message: error.message }, 409);
     }
-
     if (error instanceof PaymentRetryLimitExceededError) {
       return json({ message: error.message }, 409);
     }
-
     throw error;
   }
 

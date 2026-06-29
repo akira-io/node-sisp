@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { formatAmountEcv } from '../../src/http/payment-response';
-import { validatePaymentInput } from '../../src/http/validate-payment-input';
+import {
+  DEFAULT_MAX_PAYMENT_AMOUNT,
+  validatePaymentInput,
+} from '../../src/http/validate-payment-input';
+import { resolvePaymentValidation } from '../../src/payment-validation';
 
 const validBody = {
   amount: 1500,
@@ -24,6 +28,28 @@ describe('validatePaymentInput', () => {
     expect(validatePaymentInput({ ...validBody, amount: 0 }).errors.amount).toEqual([
       'The amount must be at least 0.01.',
     ]);
+  });
+
+  it.each(['1e12', ' 10 ', '8.001', 'abc'])('requires strict decimal amount %s', (amount) => {
+    expect(validatePaymentInput({ ...validBody, amount }).errors.amount).toEqual([
+      'The amount must be a decimal number.',
+    ]);
+  });
+
+  it('enforces a configurable maximum amount', () => {
+    const result = validatePaymentInput(
+      {
+        amount: 1001,
+        items: [{ product_name: 'Plano Pro', quantity: 1, unit_price: 1001, total_price: 1001 }],
+      },
+      resolvePaymentValidation({ maxAmount: 1000 }, '132'),
+    );
+
+    expect(result.errors.amount).toEqual(['The amount may not be greater than 1000.']);
+  });
+
+  it('uses a safe default maximum amount', () => {
+    expect(DEFAULT_MAX_PAYMENT_AMOUNT).toBe(10_000_000);
   });
 
   it('rejects line totals that do not match quantity times unit price', () => {
@@ -58,22 +84,65 @@ describe('validatePaymentInput', () => {
     expect(result.valid).toBe(true);
   });
 
-  it('uses canonical cents for half-cent totals', () => {
-    const result = validatePaymentInput({
-      amount: '1.01',
-      items: [{ product_name: 'A', quantity: 1, unit_price: '1.005', total_price: '1.005' }],
-    });
+  it('allows only configured currencies when supplied', () => {
+    const result = validatePaymentInput({ ...validBody, currency: '978' });
+
+    expect(result.errors.currency).toEqual(['The currency is not allowed.']);
+    expect(
+      validatePaymentInput(
+        { ...validBody, currency: '978' },
+        resolvePaymentValidation({ allowedCurrencies: ['132', '978'] }, '132'),
+      ).valid,
+    ).toBe(true);
+  });
+
+  it.each([
+    'merchantRef',
+    'merchantSession',
+    'timeStamp',
+    'transactionCode',
+  ])('rejects public %s overrides', (field) => {
+    const result = validatePaymentInput({ ...validBody, [field]: 'client-value' });
+
+    expect(result.errors[field]).toEqual([
+      `The ${field} field cannot be supplied by payment requests.`,
+    ]);
+  });
+
+  it('can opt in to server-controlled request field overrides', () => {
+    const result = validatePaymentInput(
+      {
+        ...validBody,
+        merchantRef: 'R1',
+        merchantSession: 'S1',
+        timeStamp: '2026-06-12 10:00:00',
+        transactionCode: '4',
+      },
+      resolvePaymentValidation(
+        {
+          allowClientMerchantIdentifiers: true,
+          allowClientTimestamp: true,
+          allowClientTransactionCode: true,
+        },
+        '132',
+      ),
+    );
 
     expect(result.valid).toBe(true);
   });
 
-  it('rejects totals that only match binary-float rounding', () => {
+  it('rejects half-cent item values before total comparison', () => {
     const result = validatePaymentInput({
       amount: '1.00',
       items: [{ product_name: 'A', quantity: 1, unit_price: '1.005', total_price: '1.005' }],
     });
 
-    expect(result.errors.amount).toEqual(['Payment amount must equal the sum of item totals.']);
+    expect(result.errors['items.0.unit_price']).toEqual([
+      'The unit price must be a number of at least 0.',
+    ]);
+    expect(result.errors['items.0.total_price']).toEqual([
+      'The total price must be a number of at least 0.',
+    ]);
   });
 
   it.each([
