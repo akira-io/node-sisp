@@ -58,7 +58,7 @@ beforeEach(async () => {
 
   pipeline = new HandleCallbackPipeline([
     new ResolveTransaction(db, transactions, attempts),
-    new ValidateFingerprint(credentialsResolver),
+    new ValidateFingerprint(credentialsResolver, failTransaction, events),
     new EnsureCallbackMatchesTransaction(config, credentialsResolver, failTransaction, events),
     new ApplyTransactionStatus(db, transactions, attempts),
     new DispatchPaymentEvents(events),
@@ -165,7 +165,7 @@ describe('HandleCallbackPipeline', () => {
     expect(entries).toHaveLength(1);
   });
 
-  it('ignores invalid fingerprints without changing transaction state', async () => {
+  it('fails the transaction and emits payment:failed on an invalid fingerprint', async () => {
     const pending = await createPendingTransaction();
     const failed = vi.fn();
     events.on('payment:failed', failed);
@@ -176,12 +176,11 @@ describe('HandleCallbackPipeline', () => {
     const stored = await transactions.findById(pending.id);
 
     expect(context.failureReason).toBe('invalid_callback_fingerprint');
-    expect(context.transactionStatusPropagated).toBe(false);
-    expect(stored?.status).toBe('pending');
-    expect(stored?.merchant_response).toBeNull();
-    expect(attempt?.status).toBe('pending');
-    expect(attempt?.merchant_response).toBeNull();
-    expect(failed).not.toHaveBeenCalled();
+    expect(context.transactionStatusPropagated).toBe(true);
+    expect(stored?.status).toBe('failed');
+    expect(stored?.merchant_response).toBe('invalid_callback_fingerprint');
+    expect(attempt?.status).toBe('failed');
+    expect(failed).toHaveBeenCalledTimes(1);
   });
 
   it('rolls back attempt updates when the propagated success transaction write fails', async () => {
