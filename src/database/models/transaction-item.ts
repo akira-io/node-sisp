@@ -1,6 +1,12 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../config';
 import type { TransactionItemData } from '../../value-objects/transaction-item-data';
+import {
+  type ListByTransactionOptions,
+  normalizeListLimit,
+  normalizeListOffset,
+  normalizeListOrder,
+} from '../list-options';
 import { nowIso, type TransactionItemRecord } from '../records';
 
 export class TransactionItem {
@@ -36,10 +42,15 @@ export class TransactionItem {
     );
   }
 
-  async listByTransaction(transactionId: number): Promise<TransactionItemRecord[]> {
+  async listByTransaction(
+    transactionId: number,
+    options: ListByTransactionOptions = {},
+  ): Promise<TransactionItemRecord[]> {
     const rows = await this.db(this.tables.transactionItems)
       .where('transaction_id', transactionId)
-      .orderBy('id');
+      .orderBy('id', normalizeListOrder(options.order))
+      .limit(normalizeListLimit(options.limit))
+      .offset(normalizeListOffset(options.offset));
 
     return rows.map((row: Record<string, unknown>) => ({
       ...(row as unknown as TransactionItemRecord),

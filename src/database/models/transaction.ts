@@ -6,7 +6,7 @@ import type { PayloadCipher } from '../encryption';
 import { lockForUpdate } from '../locking';
 import { currentLogSource } from '../log-context';
 import { nowIso, type TransactionRecord } from '../records';
-
+import { pruneTransactionLogs } from '../transaction-log-pruning';
 export interface NewTransaction {
   merchantRef: string;
   merchantSession: string;
@@ -175,6 +175,8 @@ export class Transaction {
       created_at: timestamp,
       updated_at: timestamp,
     });
+
+    await pruneTransactionLogs(this.db, this.tables, transactionId);
   }
 
   private normalizeChanges(changes: TransactionChanges): Record<string, unknown> {

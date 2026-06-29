@@ -90,7 +90,7 @@ export class CreateRetryPaymentAttemptAction {
         throw error;
       }
 
-      if ((await this.attempts.listByTransaction(transaction.id)).length === 0) {
+      if (!(await this.attempts.existsByTransaction(transaction.id))) {
         throw error;
       }
     }
