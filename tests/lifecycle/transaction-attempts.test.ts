@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSisp } from '../../src/create-sisp';
-import { UnableToGenerateUniquePaymentIdentifiersError } from '../../src/exceptions';
-import type { HttpRequestInfo } from '../../src/http/request-info';
-import type { Sisp } from '../../src/sisp';
+import { createSisp } from '../../src/application/create-sisp';
+import type { Sisp } from '../../src/application/sisp';
+import { UnableToGenerateUniquePaymentIdentifiersError } from '../../src/domain/errors/exceptions';
+import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
 
 let sisp: Sisp | null = null;
 

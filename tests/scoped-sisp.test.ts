@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSisp } from '../src/create-sisp';
-import { generatePaymentFingerprint } from '../src/fingerprints/payment-fingerprint';
-import { computeToken } from '../src/fingerprints/token';
-import type { Sisp } from '../src/sisp';
+import { createSisp } from '../src/application/create-sisp';
+import type { Sisp } from '../src/application/sisp';
+import { generatePaymentFingerprint } from '../src/infrastructure/fingerprints/payment-fingerprint';
+import { computeToken } from '../src/infrastructure/fingerprints/token';
 
 let sisp: Sisp;
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
 import {
   generateCallbackFingerprint,
   validateCallbackFingerprint,
-} from '../../src/fingerprints/callback-fingerprint';
-import { computeToken } from '../../src/fingerprints/token';
-import { callbackPayloadFrom } from '../../src/value-objects/callback-payload';
+} from '../../src/infrastructure/fingerprints/callback-fingerprint';
+import { computeToken } from '../../src/infrastructure/fingerprints/token';
 
 const token = computeToken('TEST_POS_AUT_CODE');
 

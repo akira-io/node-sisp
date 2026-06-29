@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { credentialsFromConfig, resolveConfig, type SispConfig } from '../../src/config';
-import { StaticCredentialsResolver } from '../../src/contracts/credentials-resolver';
-import type { SispDriver } from '../../src/contracts/sisp-driver';
-import { createSispManager } from '../../src/drivers/sisp-manager';
+import {
+  credentialsFromConfig,
+  resolveConfig,
+  type SispConfig,
+} from '../../src/application/config';
+import { StaticCredentialsResolver } from '../../src/core/contracts/credentials-resolver';
+import type { SispDriver } from '../../src/core/contracts/sisp-driver';
+import { createSispManager } from '../../src/infrastructure/drivers/sisp-manager';
 
 function managerFor(overrides: Partial<SispConfig> = {}) {
   const config = resolveConfig({

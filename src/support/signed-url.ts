@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { constantTimeEquals } from '../fingerprints/hash';
+import { constantTimeEquals } from '../infrastructure/fingerprints/hash';
 import { deriveSispKey } from './key-derivation';
 
 export class UrlSigner {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isEncrypted, PayloadCipher } from '../../src/database/encryption';
+import { isEncrypted, PayloadCipher } from '../../src/infrastructure/database/encryption';
 import { deriveSispKey } from '../../src/support/key-derivation';
 
 const cipher = new PayloadCipher('base64:test-app-key');

@@ -2,8 +2,8 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadConfigFile, runCli } from '../../src/cli/run';
-import type { SispConfig } from '../../src/config';
+import type { SispConfig } from '../../src/application/config';
+import { loadConfigFile, runCli } from '../../src/presentation/cli/run';
 
 function memoryConfig(overrides: Partial<SispConfig> = {}): SispConfig {
   return {

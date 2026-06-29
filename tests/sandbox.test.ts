@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { credentialsFromConfig, resolveConfig, type SispConfig } from '../src/config';
-import { StaticCredentialsResolver } from '../src/contracts/credentials-resolver';
-import { validateCallbackFingerprint } from '../src/fingerprints/callback-fingerprint';
-import { computeToken } from '../src/fingerprints/token';
-import { renderAutoSubmitForm } from '../src/http/auto-submit-form';
-import { BuildSandboxPayloadAction } from '../src/sandbox';
-import { callbackPayloadToFormFields } from '../src/value-objects/callback-payload';
+import { credentialsFromConfig, resolveConfig, type SispConfig } from '../src/application/config';
+import { BuildSandboxPayloadAction } from '../src/application/sandbox';
+import { StaticCredentialsResolver } from '../src/core/contracts/credentials-resolver';
+import { callbackPayloadToFormFields } from '../src/domain/value-objects/callback-payload';
+import { validateCallbackFingerprint } from '../src/infrastructure/fingerprints/callback-fingerprint';
+import { computeToken } from '../src/infrastructure/fingerprints/token';
+import { renderAutoSubmitForm } from '../src/infrastructure/http/auto-submit-form';
 
 function actionFor(overrides: Partial<SispConfig> = {}) {
   const config = resolveConfig({

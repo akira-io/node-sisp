@@ -1,9 +1,9 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import qs from 'qs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSisp } from '../../src/create-sisp';
-import { sispFastifyPlugin } from '../../src/fastify';
-import type { Sisp } from '../../src/sisp';
+import { createSisp } from '../../src/application/create-sisp';
+import type { Sisp } from '../../src/application/sisp';
+import { sispFastifyPlugin } from '../../src/presentation/fastify';
 import { extractForm } from '../helpers/auto-submit-form';
 
 let sisp: Sisp;

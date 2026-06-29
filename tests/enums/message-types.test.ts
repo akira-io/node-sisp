@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { mapTransactionStatus } from '../../src/actions/map-transaction-status';
+import { mapTransactionStatus } from '../../src/application/actions/map-transaction-status';
 import {
   ERROR_MESSAGE_TYPE_VALUES,
   errorActionLabel,
   errorCategoryLabel,
   errorMessageTypeFromValue,
   errorMessageTypeLabel,
-} from '../../src/enums/error-message-type';
+} from '../../src/domain/enums/error-message-type';
 import {
   SUCCESS_MESSAGE_TYPE_VALUES,
   successMessageTypeFromValue,
   successMessageTypeLabel,
-} from '../../src/enums/success-message-type';
-import { TransactionStatus } from '../../src/enums/transaction-status';
+} from '../../src/domain/enums/success-message-type';
+import { TransactionStatus } from '../../src/domain/enums/transaction-status';
 
 describe('error message types', () => {
   it('ports all 36 SISP error codes', () => {

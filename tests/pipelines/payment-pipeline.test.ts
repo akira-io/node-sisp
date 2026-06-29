@@ -1,28 +1,35 @@
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { BuildRequestPayloadAction } from '../../src/actions/build-request-payload';
-import { StoreRequestMetadataAction } from '../../src/actions/store-request-metadata';
-import { credentialsFromConfig, type ResolvedSispConfig, resolveConfig } from '../../src/config';
-import { StaticCredentialsResolver } from '../../src/contracts/credentials-resolver';
-import { runMigrations } from '../../src/database/auto-migrate';
-import { createKnexInstance } from '../../src/database/create-knex';
-import { PayloadCipher } from '../../src/database/encryption';
-import { Blacklist } from '../../src/database/models/blacklist';
-import { Invoice } from '../../src/database/models/invoice';
-import { RateLimit } from '../../src/database/models/rate-limit';
-import { RequestMetadata } from '../../src/database/models/request-metadata';
-import { Transaction } from '../../src/database/models/transaction';
-import { TransactionAttempt } from '../../src/database/models/transaction-attempt';
-import { TransactionItem } from '../../src/database/models/transaction-item';
-import { BlacklistedIdentifierError, RateLimitExceededError } from '../../src/exceptions';
-import type { HttpRequestInfo } from '../../src/http/request-info';
-import { PaymentContext } from '../../src/pipelines/payment/payment-context';
-import { BuildPaymentRequest } from '../../src/pipelines/payment/pipes/build-payment-request';
-import { CaptureRequestMetadata } from '../../src/pipelines/payment/pipes/capture-request-metadata';
-import { EnforceRateLimits } from '../../src/pipelines/payment/pipes/enforce-rate-limits';
-import { EnsureIpIsNotBlacklisted } from '../../src/pipelines/payment/pipes/ensure-ip-is-not-blacklisted';
-import { PersistTransaction } from '../../src/pipelines/payment/pipes/persist-transaction';
-import { ProcessPaymentPipeline } from '../../src/pipelines/payment/process-payment-pipeline';
+import { BuildRequestPayloadAction } from '../../src/application/actions/build-request-payload';
+import { StoreRequestMetadataAction } from '../../src/application/actions/store-request-metadata';
+import {
+  credentialsFromConfig,
+  type ResolvedSispConfig,
+  resolveConfig,
+} from '../../src/application/config';
+import { PaymentContext } from '../../src/application/pipelines/payment/payment-context';
+import { BuildPaymentRequest } from '../../src/application/pipelines/payment/pipes/build-payment-request';
+import { CaptureRequestMetadata } from '../../src/application/pipelines/payment/pipes/capture-request-metadata';
+import { EnforceRateLimits } from '../../src/application/pipelines/payment/pipes/enforce-rate-limits';
+import { EnsureIpIsNotBlacklisted } from '../../src/application/pipelines/payment/pipes/ensure-ip-is-not-blacklisted';
+import { PersistTransaction } from '../../src/application/pipelines/payment/pipes/persist-transaction';
+import { ProcessPaymentPipeline } from '../../src/application/pipelines/payment/process-payment-pipeline';
+import { StaticCredentialsResolver } from '../../src/core/contracts/credentials-resolver';
+import {
+  BlacklistedIdentifierError,
+  RateLimitExceededError,
+} from '../../src/domain/errors/exceptions';
+import { runMigrations } from '../../src/infrastructure/database/auto-migrate';
+import { createKnexInstance } from '../../src/infrastructure/database/create-knex';
+import { PayloadCipher } from '../../src/infrastructure/database/encryption';
+import { Blacklist } from '../../src/infrastructure/database/models/blacklist';
+import { Invoice } from '../../src/infrastructure/database/models/invoice';
+import { RateLimit } from '../../src/infrastructure/database/models/rate-limit';
+import { RequestMetadata } from '../../src/infrastructure/database/models/request-metadata';
+import { Transaction } from '../../src/infrastructure/database/models/transaction';
+import { TransactionAttempt } from '../../src/infrastructure/database/models/transaction-attempt';
+import { TransactionItem } from '../../src/infrastructure/database/models/transaction-item';
+import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
 
 let db: Knex;
 let config: ResolvedSispConfig;

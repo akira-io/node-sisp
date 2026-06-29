@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSisp } from '../../src/create-sisp';
-import { SispError } from '../../src/exceptions';
-import type { Sisp } from '../../src/sisp';
+import { createSisp } from '../../src/application/create-sisp';
+import type { Sisp } from '../../src/application/sisp';
+import { SispError } from '../../src/domain/errors/exceptions';
 
 const fetchMock = vi.fn();
 
