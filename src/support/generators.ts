@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 
 export const MERCHANT_IDENTIFIER_MAX_LENGTH = 15;
 
@@ -38,11 +38,10 @@ function pad(value: number): string {
 }
 
 function randomAlphanumeric(length: number): string {
-  const bytes = randomBytes(length);
   let identifier = '';
 
   for (let index = 0; index < length; index += 1) {
-    identifier += IDENTIFIER_ALPHABET[(bytes[index] ?? 0) % IDENTIFIER_ALPHABET.length];
+    identifier += IDENTIFIER_ALPHABET[randomInt(IDENTIFIER_ALPHABET.length)];
   }
 
   return identifier;
