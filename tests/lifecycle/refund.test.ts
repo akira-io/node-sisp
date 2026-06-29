@@ -113,6 +113,26 @@ describe('refund transaction', () => {
     );
   });
 
+  it('serializes concurrent partial refunds against the persisted balance', async () => {
+    const transaction = await createCompletedTransaction(1000);
+    const results = await Promise.allSettled([
+      sisp.refund(transaction).amount(700).reason('first').process(),
+      sisp.refund(transaction).amount(700).reason('second').process(),
+    ]);
+    const fulfilled = results.filter((result) => result.status === 'fulfilled');
+    const rejected = results.filter((result) => result.status === 'rejected');
+    const persisted = await sisp.models.transactions.findById(transaction.id);
+
+    if (persisted === null) {
+      throw new Error('Expected persisted transaction to exist.');
+    }
+
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(payloadRefunds(persisted.payload)).toHaveLength(1);
+    expect(persisted.status).toBe('completed');
+  });
+
   it('rejects refunds on transactions that are not completed', async () => {
     const transaction = await sisp.models.transactions.create({
       merchantRef: 'R2',

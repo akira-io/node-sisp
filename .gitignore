@@ -5,3 +5,5 @@ coverage/
 *.sqlite
 *.tsbuildinfo
 .DS_Store
+.env*
+sisp.config.*

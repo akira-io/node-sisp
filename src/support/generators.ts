@@ -1,9 +1,11 @@
+import { randomBytes } from 'node:crypto';
+
 export function generateMerchantReference(date: Date = new Date()): string {
-  return `R${formatCompactTimestamp(date)}`;
+  return `R${formatCompactTimestamp(date)}${randomEntropy()}`;
 }
 
 export function generateMerchantSession(date: Date = new Date()): string {
-  return `S${formatCompactTimestamp(date)}`;
+  return `S${formatCompactTimestamp(date)}${randomEntropy()}`;
 }
 
 export function generateTimeStamp(date: Date = new Date()): string {
@@ -26,4 +28,8 @@ export function formatSispTimestamp(date: Date): string {
 
 function pad(value: number): string {
   return String(value).padStart(2, '0');
+}
+
+function randomEntropy(): string {
+  return randomBytes(6).toString('hex');
 }

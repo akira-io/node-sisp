@@ -54,7 +54,7 @@ beforeEach(async () => {
 
   pipeline = new HandleCallbackPipeline([
     new ResolveTransaction(db, transactions, attempts),
-    new ValidateFingerprint(credentialsResolver, failTransaction, events),
+    new ValidateFingerprint(credentialsResolver),
     new EnsureCallbackMatchesTransaction(config, credentialsResolver, failTransaction, events),
     new ApplyTransactionStatus(db, transactions, attempts),
     new DispatchPaymentEvents(events),
@@ -79,7 +79,7 @@ async function createPendingTransaction(amount: number | string = '1500') {
   return transaction;
 }
 
-function signedCallback(overrides: Record<string, unknown> = {}) {
+function signedCallback(overrides: Record<string, unknown> = {}, omittedFields: string[] = []) {
   const post: Record<string, unknown> = {
     messageType: '8',
     merchantRespCP: '01',
@@ -94,6 +94,10 @@ function signedCallback(overrides: Record<string, unknown> = {}) {
     transactionCode: '1',
     ...overrides,
   };
+
+  for (const field of omittedFields) {
+    delete post[field];
+  }
 
   const fingerprint = generateCallbackFingerprint(token, callbackPayloadFrom(post));
 
@@ -157,18 +161,23 @@ describe('HandleCallbackPipeline', () => {
     expect(entries).toHaveLength(1);
   });
 
-  it('fails the transaction and short-circuits on an invalid fingerprint', async () => {
-    await createPendingTransaction();
+  it('ignores invalid fingerprints without changing transaction state', async () => {
+    const pending = await createPendingTransaction();
     const failed = vi.fn();
     events.on('payment:failed', failed);
 
     const payload = { ...signedCallback(), fingerprint: 'tampered' };
     const context = await pipeline.run(new CallbackContext(payload));
+    const [attempt] = await attempts.listByTransaction(pending.id);
+    const stored = await transactions.findById(pending.id);
 
     expect(context.failureReason).toBe('invalid_callback_fingerprint');
-    expect(context.requireTransaction().status).toBe('failed');
-    expect(context.requireTransaction().merchant_response).toBe('invalid_callback_fingerprint');
-    expect(failed).toHaveBeenCalledTimes(1);
+    expect(context.transactionStatusPropagated).toBe(false);
+    expect(stored?.status).toBe('pending');
+    expect(stored?.merchant_response).toBeNull();
+    expect(attempt?.status).toBe('pending');
+    expect(attempt?.merchant_response).toBeNull();
+    expect(failed).not.toHaveBeenCalled();
   });
 
   it('rolls back attempt updates when the propagated success transaction write fails', async () => {
@@ -187,12 +196,12 @@ describe('HandleCallbackPipeline', () => {
     expect(stored?.status).toBe('pending');
   });
 
-  it('rolls back attempt updates when the propagated failure transaction write fails', async () => {
+  it('rolls back attempt updates when a propagated failure transaction write fails', async () => {
     const transaction = await createPendingTransaction();
 
     await db.schema.dropTable(config.tables.transactionLogs);
 
-    const payload = { ...signedCallback(), fingerprint: 'tampered' };
+    const payload = signedCallback({ merchantRespCP: '99' });
 
     await expect(pipeline.run(new CallbackContext(payload))).rejects.toThrow();
 
@@ -221,6 +230,18 @@ describe('HandleCallbackPipeline', () => {
     await createPendingTransaction();
 
     const context = await pipeline.run(new CallbackContext(signedCallback({ posID: '99999' })));
+
+    expect(context.failureReason).toBe('callback_details_mismatch');
+  });
+
+  it.each([
+    'posID',
+    'currency',
+    'transactionCode',
+  ])('rejects callbacks missing %s', async (field) => {
+    await createPendingTransaction();
+
+    const context = await pipeline.run(new CallbackContext(signedCallback({}, [field])));
 
     expect(context.failureReason).toBe('callback_details_mismatch');
   });

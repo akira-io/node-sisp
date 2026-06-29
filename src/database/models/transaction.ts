@@ -1,7 +1,7 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../config';
 import type { TransactionStatus } from '../../enums/transaction-status';
-import { toCents } from '../../support/sisp-amount';
+import { fromCents, toCents } from '../../support/sisp-amount';
 import type { PayloadCipher } from '../encryption';
 import { lockForUpdate } from '../locking';
 import { currentLogSource } from '../log-context';
@@ -57,7 +57,6 @@ export class Transaction {
       {
         merchant_ref: data.merchantRef,
         merchant_session: data.merchantSession,
-        amount: Number(data.amount),
         amount_cents: toCents(data.amount),
         currency: data.currency ?? '132',
         status: 'pending',
@@ -136,7 +135,11 @@ export class Transaction {
   }
 
   async update(id: number, changes: TransactionChanges): Promise<TransactionRecord> {
-    const current = await this.findOrFail(id);
+    return this.db.transaction((trx) => this.withConnection(trx).updateLocked(id, changes));
+  }
+
+  private async updateLocked(id: number, changes: TransactionChanges): Promise<TransactionRecord> {
+    const current = await this.findOrFailForUpdate(id);
     const normalizedChanges = this.normalizeChanges(changes);
     const diff = this.diff(current, normalizedChanges);
 
@@ -178,8 +181,10 @@ export class Transaction {
     const normalized: Record<string, unknown> = { ...changes };
 
     if ('amount' in normalized) {
-      normalized.amount = Number(changes.amount);
-      normalized.amount_cents = toCents(changes.amount ?? 0);
+      const amountCents = toCents(changes.amount ?? 0);
+
+      normalized.amount = fromCents(amountCents);
+      normalized.amount_cents = amountCents;
     }
 
     return normalized;
@@ -216,6 +221,10 @@ export class Transaction {
     const values: Record<string, unknown> = {};
 
     for (const attribute of changed) {
+      if (attribute === 'amount') {
+        continue;
+      }
+
       values[attribute] =
         attribute === 'payload'
           ? this.cipher.store(normalizedChanges[attribute])
@@ -235,12 +244,24 @@ export class Transaction {
     return record;
   }
 
+  private async findOrFailForUpdate(id: number): Promise<TransactionRecord> {
+    const record = await this.findByIdForUpdate(id);
+
+    if (record === null) {
+      throw new Error(`Transaction ${id} not found.`);
+    }
+
+    return record;
+  }
+
   private map(row: Record<string, unknown>): TransactionRecord {
+    const amountCents = amountCentsFromRow(row);
+
     return {
       ...(row as unknown as TransactionRecord),
       id: Number(row.id),
-      amount: Number(row.amount),
-      amount_cents: Number(row.amount_cents),
+      amount: fromCents(amountCents),
+      amount_cents: amountCents,
       payload: this.cipher.read(row.payload),
     };
   }
@@ -260,4 +281,18 @@ function extractId(value: unknown): number {
 
 function stableStringify(value: unknown): string {
   return JSON.stringify(value) ?? 'undefined';
+}
+
+function amountCentsFromRow(row: Record<string, unknown>): number {
+  const amountCents = Number(row.amount_cents);
+
+  if (row.amount_cents !== null && row.amount_cents !== undefined && Number.isFinite(amountCents)) {
+    return amountCents;
+  }
+
+  if (typeof row.amount === 'number' || typeof row.amount === 'string') {
+    return toCents(row.amount);
+  }
+
+  return 0;
 }

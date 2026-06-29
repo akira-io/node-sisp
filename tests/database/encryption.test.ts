@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isEncrypted, PayloadCipher } from '../../src/database/encryption';
+import { deriveSispKey } from '../../src/support/key-derivation';
 
 const cipher = new PayloadCipher('base64:test-app-key');
 
@@ -34,10 +35,10 @@ describe('PayloadCipher', () => {
     expect(cipher.read('{"a":1}')).toEqual({ a: 1 });
   });
 
-  it('returns the raw value when decryption fails', () => {
+  it('fails closed when decryption fails', () => {
     const tampered = 'sisp.v1:AAAA:BBBB:CCCC';
 
-    expect(cipher.read(tampered)).toBe(tampered);
+    expect(() => cipher.read(tampered)).toThrow('Unable to decrypt SISP payload.');
   });
 
   it('stores null as null', () => {
@@ -45,19 +46,25 @@ describe('PayloadCipher', () => {
     expect(cipher.store(undefined)).toBeNull();
   });
 
-  it('stores plaintext JSON when no app key is configured', () => {
+  it('refuses to store encrypted payloads when no app key is configured', () => {
     const plaintextCipher = new PayloadCipher(null);
 
-    const stored = plaintextCipher.store({ a: 1 });
-
-    expect(stored).toBe('{"a":1}');
-    expect(plaintextCipher.read(stored)).toEqual({ a: 1 });
+    expect(() => plaintextCipher.store({ a: 1 })).toThrow(
+      'SISP payload encryption requires an appKey in the configuration.',
+    );
+    expect(plaintextCipher.read('{"a":1}')).toEqual({ a: 1 });
   });
 
   it('cannot read payloads encrypted with another key', () => {
     const other = new PayloadCipher('another-key');
     const stored = cipher.store({ secret: true }) as string;
 
-    expect(other.read(stored)).toBe(stored);
+    expect(() => other.read(stored)).toThrow('Unable to decrypt SISP payload.');
+  });
+
+  it('derives separate keys for payload encryption and URL signing', () => {
+    expect(deriveSispKey('app-key', 'payload-encryption')).not.toEqual(
+      deriveSispKey('app-key', 'url-signing'),
+    );
   });
 });

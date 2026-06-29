@@ -1,14 +1,18 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { deriveSispKey } from '../support/key-derivation';
 
 const PREFIX = 'sisp.v1';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
+const AAD = Buffer.from(PREFIX, 'utf8');
+const MISSING_KEY_MESSAGE = 'SISP payload encryption requires an appKey in the configuration.';
 
 export class PayloadCipher {
   private readonly key: Buffer | null;
 
   constructor(appKey: string | null) {
-    this.key = appKey === null || appKey === '' ? null : sha256(appKey);
+    this.key =
+      appKey === null || appKey === '' ? null : deriveSispKey(appKey, 'payload-encryption');
   }
 
   store(value: unknown): string | null {
@@ -18,8 +22,12 @@ export class PayloadCipher {
 
     const serialized = typeof value === 'string' ? value : JSON.stringify(value);
 
-    if (this.key === null || isEncrypted(serialized)) {
+    if (isEncrypted(serialized)) {
       return serialized;
+    }
+
+    if (this.key === null) {
+      throw new Error(MISSING_KEY_MESSAGE);
     }
 
     return this.encrypt(serialized, this.key);
@@ -30,19 +38,21 @@ export class PayloadCipher {
       return stored;
     }
 
-    const plain =
-      this.key !== null && isEncrypted(stored) ? this.decrypt(stored, this.key) : stored;
-
-    if (plain === null) {
-      return stored;
+    if (!isEncrypted(stored)) {
+      return parseJson(stored);
     }
 
-    return parseJson(plain);
+    if (this.key === null) {
+      throw new Error(MISSING_KEY_MESSAGE);
+    }
+
+    return parseJson(this.decrypt(stored, this.key));
   }
 
   private encrypt(plain: string, key: Buffer): string {
     const iv = randomBytes(IV_LENGTH);
     const cipher = createCipheriv(ALGORITHM, key, iv);
+    cipher.setAAD(AAD);
     const encrypted = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
 
@@ -54,15 +64,16 @@ export class PayloadCipher {
     ].join(':');
   }
 
-  private decrypt(stored: string, key: Buffer): string | null {
+  private decrypt(stored: string, key: Buffer): string {
     const [, iv, tag, encrypted] = stored.split(':');
 
     if (!iv || !tag || !encrypted) {
-      return null;
+      throw new Error('Unable to decrypt SISP payload.');
     }
 
     try {
       const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(iv, 'base64'));
+      decipher.setAAD(AAD);
       decipher.setAuthTag(Buffer.from(tag, 'base64'));
 
       return Buffer.concat([
@@ -70,7 +81,7 @@ export class PayloadCipher {
         decipher.final(),
       ]).toString('utf8');
     } catch {
-      return null;
+      throw new Error('Unable to decrypt SISP payload.');
     }
   }
 }
@@ -85,8 +96,4 @@ function parseJson(value: string): unknown {
   } catch {
     return value;
   }
-}
-
-function sha256(value: string): Buffer {
-  return createHash('sha256').update(value, 'utf8').digest();
 }

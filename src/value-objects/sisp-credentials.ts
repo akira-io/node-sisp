@@ -1,3 +1,10 @@
+export interface SispTransactionStatusCredentials {
+  url: string;
+  portalId: string;
+  portalPassword: string;
+  timeoutSeconds: number;
+}
+
 export interface SispCredentials {
   posId: string;
   posAutCode: string;
@@ -9,6 +16,7 @@ export interface SispCredentials {
   is3DSec: string;
   sandbox: boolean;
   urlMerchantResponse: string | null;
+  transactionStatus?: Partial<SispTransactionStatusCredentials>;
 }
 
 export function sispCredentials(data: Partial<SispCredentials>): SispCredentials {
@@ -23,5 +31,6 @@ export function sispCredentials(data: Partial<SispCredentials>): SispCredentials
     is3DSec: data.is3DSec ?? '0',
     sandbox: data.sandbox ?? false,
     urlMerchantResponse: data.urlMerchantResponse ?? null,
+    transactionStatus: data.transactionStatus,
   };
 }

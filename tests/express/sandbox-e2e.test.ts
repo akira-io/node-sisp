@@ -66,7 +66,10 @@ async function runSandboxPayment(status?: string) {
 
   const location = callbackResponse.headers.location as string;
 
-  expect(location).toMatch(/^\/sisp\/callback\?ref=R/);
+  expect(location).toMatch(/^\/sisp\/callback\?/);
+  expect(location).toContain('transaction=');
+  expect(location).toContain('signature=');
+  expect(location).not.toContain('ref=');
 
   return request(app).get(location).expect(200);
 }
@@ -146,6 +149,21 @@ describe('sandbox end-to-end payment flow', () => {
 
     expect(replay.headers.location).toBe('/');
     expect(completed).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not expose callback results by merchant reference alone', async () => {
+    const completed = vi.fn();
+    sisp.on('payment:completed', completed);
+
+    await runSandboxPayment();
+
+    const transaction = completed.mock.calls[0]?.[0]?.transaction;
+
+    const response = await request(app)
+      .get(`/sisp/callback?ref=${transaction.merchant_ref}`)
+      .expect(302);
+
+    expect(response.headers.location).toBe('/');
   });
 
   it('serves the SISP country catalog', async () => {
