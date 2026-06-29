@@ -35,3 +35,12 @@ export class MissingThreeDSecureDataError extends SispError {
     );
   }
 }
+
+export class TransactionStatusTransportError extends SispError {
+  constructor(
+    message: string,
+    readonly retryable = true,
+  ) {
+    super(message);
+  }
+}

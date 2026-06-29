@@ -67,6 +67,8 @@ export interface TransactionStatusConfig {
   portalId: string;
   portalPassword: string;
   timeoutSeconds: number;
+  retryAttempts: number;
+  retryDelayMs: number;
   reconciliationEnabled: boolean;
   reconcileAfterMinutes: number;
   reconcileLimit: number;
@@ -143,7 +145,6 @@ export interface ResolvedSispConfig {
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
-
 export const DEFAULT_TABLES: SispTables = {
   transactions: 'sisp_transactions',
   transactionItems: 'sisp_transaction_items',
@@ -155,17 +156,17 @@ export const DEFAULT_TABLES: SispTables = {
   blacklist: 'sisp_blacklist',
   transactionLogs: 'sisp_transaction_logs',
 };
-
 const DEFAULT_TRANSACTION_STATUS: TransactionStatusConfig = {
   url: 'https://comerciante.vinti4.cv/pos/transaction-status',
   portalId: '',
   portalPassword: '',
   timeoutSeconds: 10,
+  retryAttempts: 2,
+  retryDelayMs: 100,
   reconciliationEnabled: false,
   reconcileAfterMinutes: 5,
   reconcileLimit: 50,
 };
-
 const DEFAULT_RATE_LIMITING: RateLimiting = {
   enabled: true,
   perIp: { enabled: true, limit: 100, windowSeconds: 3600 },

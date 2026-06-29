@@ -28,6 +28,7 @@ beforeEach(async () => {
     transactionStatus: {
       portalId: 'portal-id',
       portalPassword: 'portal-pass',
+      retryDelayMs: 0,
       reconciliationEnabled: true,
       reconcileAfterMinutes: 5,
     },
@@ -80,13 +81,29 @@ describe('queryTransactionStatus', () => {
     });
   });
 
-  it('maps HTTP failures to an unsuccessful result', async () => {
-    gatewayResponds({}, 500);
+  it('retries retryable transport failures before returning the gateway response', async () => {
+    fetchMock
+      .mockRejectedValueOnce(Object.assign(new Error('timeout'), { name: 'TimeoutError' }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ result: true, transactionSuccess: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
 
     const response = await sisp.queryTransactionStatus('R1');
 
-    expect(response.result).toBe(false);
-    expect(response.message).toBe('SISP transaction status request failed with HTTP 500.');
+    expect(response.result).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws HTTP failures as transport errors instead of pending responses', async () => {
+    gatewayResponds({}, 500);
+
+    await expect(sisp.queryTransactionStatus('R1')).rejects.toThrow(
+      'SISP transaction status request failed with HTTP 500.',
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('requires portal credentials', async () => {
@@ -134,7 +151,7 @@ describe('reconcileTransactionStatus', () => {
     expect(reconciled.merchant_response).toBe('Declined');
   });
 
-  it('keeps the transaction untouched when result is false or the request fails', async () => {
+  it('keeps the transaction untouched when result is false or transport fails', async () => {
     const transaction = await createPendingTransaction();
     gatewayResponds({ result: false });
 
@@ -143,6 +160,7 @@ describe('reconcileTransactionStatus', () => {
     fetchMock.mockRejectedValue(new Error('network down'));
 
     expect((await sisp.reconcileTransactionStatus(transaction)).status).toBe('pending');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it('ignores transactions that are not pending', async () => {
