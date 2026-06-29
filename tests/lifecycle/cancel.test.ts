@@ -1,10 +1,10 @@
 import express from 'express';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSisp } from '../../src/create-sisp';
-import { TransactionStateError } from '../../src/exceptions';
-import { sispRoutes } from '../../src/express';
-import type { Sisp } from '../../src/sisp';
+import { createSisp } from '../../src/application/create-sisp';
+import type { Sisp } from '../../src/application/sisp';
+import { TransactionStateError } from '../../src/domain/errors/exceptions';
+import { sispRoutes } from '../../src/presentation/express';
 
 let sisp: Sisp;
 let app: express.Express;

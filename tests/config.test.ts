@@ -5,7 +5,7 @@ import {
   resolveConfig,
   routeUrl,
   type SispConfig,
-} from '../src/config';
+} from '../src/application/config';
 
 const minimalConfig: SispConfig = {
   posId: '90051',

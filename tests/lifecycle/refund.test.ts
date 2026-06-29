@@ -1,12 +1,12 @@
 import express from 'express';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSisp } from '../../src/create-sisp';
-import { SispError, TransactionStateError } from '../../src/exceptions';
-import { sispRoutes } from '../../src/express';
-import { generateRefundFingerprint } from '../../src/fingerprints/refund-fingerprint';
-import { computeToken } from '../../src/fingerprints/token';
-import type { Sisp } from '../../src/sisp';
+import { createSisp } from '../../src/application/create-sisp';
+import type { Sisp } from '../../src/application/sisp';
+import { SispError, TransactionStateError } from '../../src/domain/errors/exceptions';
+import { generateRefundFingerprint } from '../../src/infrastructure/fingerprints/refund-fingerprint';
+import { computeToken } from '../../src/infrastructure/fingerprints/token';
+import { sispRoutes } from '../../src/presentation/express';
 
 let sisp: Sisp;
 

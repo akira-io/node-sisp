@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { createSisp } from '../../src/create-sisp';
-import type { HttpRequestInfo } from '../../src/http/request-info';
-import type { Sisp } from '../../src/sisp';
+import { createSisp } from '../../src/application/create-sisp';
+import type { Sisp } from '../../src/application/sisp';
+import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
 
 let sisp: Sisp | null = null;
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatAmountEcv } from '../../src/http/payment-response';
+import { resolvePaymentValidation } from '../../src/domain/policies/payment-validation';
+import { formatAmountEcv } from '../../src/infrastructure/http/payment-response';
 import {
   DEFAULT_MAX_PAYMENT_AMOUNT,
   validatePaymentInput,
-} from '../../src/http/validate-payment-input';
-import { resolvePaymentValidation } from '../../src/payment-validation';
+} from '../../src/infrastructure/http/validate-payment-input';
 
 const validBody = {
   amount: 1500,

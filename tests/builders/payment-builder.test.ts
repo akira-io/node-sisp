@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { BuildRequestPayloadAction } from '../../src/actions/build-request-payload';
-import { PaymentBuilder } from '../../src/builders/payment-builder';
-import { credentialsFromConfig, resolveConfig, type SispConfig } from '../../src/config';
-import { StaticCredentialsResolver } from '../../src/contracts/credentials-resolver';
-import { MissingThreeDSecureDataError } from '../../src/exceptions';
-import { generatePaymentFingerprint } from '../../src/fingerprints/payment-fingerprint';
-import { computeToken } from '../../src/fingerprints/token';
+import { BuildRequestPayloadAction } from '../../src/application/actions/build-request-payload';
+import { PaymentBuilder } from '../../src/application/builders/payment-builder';
+import {
+  credentialsFromConfig,
+  resolveConfig,
+  type SispConfig,
+} from '../../src/application/config';
+import { StaticCredentialsResolver } from '../../src/core/contracts/credentials-resolver';
+import { MissingThreeDSecureDataError } from '../../src/domain/errors/exceptions';
+import { generatePaymentFingerprint } from '../../src/infrastructure/fingerprints/payment-fingerprint';
+import { computeToken } from '../../src/infrastructure/fingerprints/token';
 
 function builderFor(overrides: Partial<SispConfig> = {}) {
   const config = resolveConfig({

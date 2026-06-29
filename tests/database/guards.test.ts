@@ -1,10 +1,10 @@
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_TABLES } from '../../src/config';
-import { runMigrations } from '../../src/database/auto-migrate';
-import { createKnexInstance } from '../../src/database/create-knex';
-import { Blacklist } from '../../src/database/models/blacklist';
-import { RateLimit } from '../../src/database/models/rate-limit';
+import { DEFAULT_TABLES } from '../../src/application/config';
+import { runMigrations } from '../../src/infrastructure/database/auto-migrate';
+import { createKnexInstance } from '../../src/infrastructure/database/create-knex';
+import { Blacklist } from '../../src/infrastructure/database/models/blacklist';
+import { RateLimit } from '../../src/infrastructure/database/models/rate-limit';
 
 let db: Knex;
 let blacklist: Blacklist;

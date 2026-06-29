@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { TransactionRecord } from '../src/database/records';
-import { type PaymentEvent, SispEventEmitter } from '../src/events';
-import { callbackPayloadFrom } from '../src/value-objects/callback-payload';
+import { type PaymentEvent, SispEventEmitter } from '../src/application/events';
+import { callbackPayloadFrom } from '../src/domain/value-objects/callback-payload';
+import type { TransactionRecord } from '../src/infrastructure/database/records';
 
 const event: PaymentEvent = {
   transaction: { id: 1, status: 'completed' } as TransactionRecord,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { generateCallbackFingerprint } from '../../src/fingerprints/callback-fingerprint';
-import { generatePaymentFingerprint } from '../../src/fingerprints/payment-fingerprint';
-import { generateRefundFingerprint } from '../../src/fingerprints/refund-fingerprint';
-import { computeToken } from '../../src/fingerprints/token';
+import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
+import { generateCallbackFingerprint } from '../../src/infrastructure/fingerprints/callback-fingerprint';
+import { generatePaymentFingerprint } from '../../src/infrastructure/fingerprints/payment-fingerprint';
+import { generateRefundFingerprint } from '../../src/infrastructure/fingerprints/refund-fingerprint';
+import { computeToken } from '../../src/infrastructure/fingerprints/token';
 import { toCents, toThousandths } from '../../src/support/sisp-amount';
-import { callbackPayloadFrom } from '../../src/value-objects/callback-payload';
 import vectors from '../fixtures/golden-vectors.json';
 
 const invalidLegacyAmountValues = new Set(['', 'abc', '12abc', '1e3']);

@@ -3,18 +3,18 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
-    'express/index': 'src/express/index.ts',
-    'fastify/index': 'src/fastify/index.ts',
-    'nest/index': 'src/nest/index.ts',
-    cli: 'src/cli.ts',
+    'express/index': 'src/presentation/express/index.ts',
+    'fastify/index': 'src/presentation/fastify/index.ts',
+    'nest/index': 'src/presentation/nest/index.ts',
+    cli: 'src/presentation/cli/cli.ts',
   },
   format: ['esm', 'cjs'],
   dts: {
     entry: {
       index: 'src/index.ts',
-      'express/index': 'src/express/index.ts',
-      'fastify/index': 'src/fastify/index.ts',
-      'nest/index': 'src/nest/index.ts',
+      'express/index': 'src/presentation/express/index.ts',
+      'fastify/index': 'src/presentation/fastify/index.ts',
+      'nest/index': 'src/presentation/nest/index.ts',
     },
   },
   sourcemap: true,

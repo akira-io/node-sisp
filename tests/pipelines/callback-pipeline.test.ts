@@ -1,26 +1,30 @@
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { FailTransactionAction } from '../../src/actions/fail-transaction';
-import { credentialsFromConfig, type ResolvedSispConfig, resolveConfig } from '../../src/config';
-import { StaticCredentialsResolver } from '../../src/contracts/credentials-resolver';
-import { runMigrations } from '../../src/database/auto-migrate';
-import { createKnexInstance } from '../../src/database/create-knex';
-import { PayloadCipher } from '../../src/database/encryption';
-import { Transaction } from '../../src/database/models/transaction';
-import { TransactionAttempt } from '../../src/database/models/transaction-attempt';
-import { TransactionLog } from '../../src/database/models/transaction-log';
-import { SispEventEmitter } from '../../src/events';
-import { TransactionNotFoundError } from '../../src/exceptions';
-import { generateCallbackFingerprint } from '../../src/fingerprints/callback-fingerprint';
-import { computeToken } from '../../src/fingerprints/token';
-import { CallbackContext } from '../../src/pipelines/callback/callback-context';
-import { HandleCallbackPipeline } from '../../src/pipelines/callback/handle-callback-pipeline';
-import { ApplyTransactionStatus } from '../../src/pipelines/callback/pipes/apply-transaction-status';
-import { DispatchPaymentEvents } from '../../src/pipelines/callback/pipes/dispatch-payment-events';
-import { EnsureCallbackMatchesTransaction } from '../../src/pipelines/callback/pipes/ensure-callback-matches-transaction';
-import { ResolveTransaction } from '../../src/pipelines/callback/pipes/resolve-transaction';
-import { ValidateFingerprint } from '../../src/pipelines/callback/pipes/validate-fingerprint';
-import { callbackPayloadFrom } from '../../src/value-objects/callback-payload';
+import { FailTransactionAction } from '../../src/application/actions/fail-transaction';
+import {
+  credentialsFromConfig,
+  type ResolvedSispConfig,
+  resolveConfig,
+} from '../../src/application/config';
+import { SispEventEmitter } from '../../src/application/events';
+import { CallbackContext } from '../../src/application/pipelines/callback/callback-context';
+import { HandleCallbackPipeline } from '../../src/application/pipelines/callback/handle-callback-pipeline';
+import { ApplyTransactionStatus } from '../../src/application/pipelines/callback/pipes/apply-transaction-status';
+import { DispatchPaymentEvents } from '../../src/application/pipelines/callback/pipes/dispatch-payment-events';
+import { EnsureCallbackMatchesTransaction } from '../../src/application/pipelines/callback/pipes/ensure-callback-matches-transaction';
+import { ResolveTransaction } from '../../src/application/pipelines/callback/pipes/resolve-transaction';
+import { ValidateFingerprint } from '../../src/application/pipelines/callback/pipes/validate-fingerprint';
+import { StaticCredentialsResolver } from '../../src/core/contracts/credentials-resolver';
+import { TransactionNotFoundError } from '../../src/domain/errors/exceptions';
+import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
+import { runMigrations } from '../../src/infrastructure/database/auto-migrate';
+import { createKnexInstance } from '../../src/infrastructure/database/create-knex';
+import { PayloadCipher } from '../../src/infrastructure/database/encryption';
+import { Transaction } from '../../src/infrastructure/database/models/transaction';
+import { TransactionAttempt } from '../../src/infrastructure/database/models/transaction-attempt';
+import { TransactionLog } from '../../src/infrastructure/database/models/transaction-log';
+import { generateCallbackFingerprint } from '../../src/infrastructure/fingerprints/callback-fingerprint';
+import { computeToken } from '../../src/infrastructure/fingerprints/token';
 
 const token = computeToken('TEST_POS_AUT_CODE');
 

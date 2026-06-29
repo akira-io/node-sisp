@@ -1,8 +1,8 @@
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_TABLES, type SispTables } from '../../src/config';
-import { MIGRATIONS_TABLE, runMigrations } from '../../src/database/auto-migrate';
-import { createKnexInstance } from '../../src/database/create-knex';
+import { DEFAULT_TABLES, type SispTables } from '../../src/application/config';
+import { MIGRATIONS_TABLE, runMigrations } from '../../src/infrastructure/database/auto-migrate';
+import { createKnexInstance } from '../../src/infrastructure/database/create-knex';
 
 let db: Knex;
 

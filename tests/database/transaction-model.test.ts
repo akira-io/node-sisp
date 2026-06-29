@@ -1,12 +1,12 @@
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_TABLES } from '../../src/config';
-import { runMigrations } from '../../src/database/auto-migrate';
-import { createKnexInstance } from '../../src/database/create-knex';
-import { isEncrypted, PayloadCipher } from '../../src/database/encryption';
-import { runWithLogSource } from '../../src/database/log-context';
-import { Transaction } from '../../src/database/models/transaction';
-import { TransactionLog } from '../../src/database/models/transaction-log';
+import { DEFAULT_TABLES } from '../../src/application/config';
+import { runMigrations } from '../../src/infrastructure/database/auto-migrate';
+import { createKnexInstance } from '../../src/infrastructure/database/create-knex';
+import { isEncrypted, PayloadCipher } from '../../src/infrastructure/database/encryption';
+import { runWithLogSource } from '../../src/infrastructure/database/log-context';
+import { Transaction } from '../../src/infrastructure/database/models/transaction';
+import { TransactionLog } from '../../src/infrastructure/database/models/transaction-log';
 
 let db: Knex;
 let transactions: Transaction;

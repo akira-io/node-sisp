@@ -1,5 +1,5 @@
-export { mapTransactionStatus } from './actions/map-transaction-status';
-export { PaymentBuilder } from './builders/payment-builder';
+export { mapTransactionStatus } from './application/actions/map-transaction-status';
+export { PaymentBuilder } from './application/builders/payment-builder';
 export type {
   IdempotencyConfig,
   RateLimiting,
@@ -11,42 +11,14 @@ export type {
   SispGenerators,
   SispPipelineCustomizers,
   SispTables,
-} from './config';
-export { credentialsFromConfig, DEFAULT_TABLES, resolveConfig, routeUrl } from './config';
-export type { CredentialsResolver } from './contracts/credentials-resolver';
-export { StaticCredentialsResolver } from './contracts/credentials-resolver';
-export type { CallbackPipe, PaymentPipe } from './contracts/pipes';
-export type { SispDriver } from './contracts/sisp-driver';
-export { createSisp } from './create-sisp';
-export { MIGRATIONS_TABLE, runMigrations } from './database/auto-migrate';
-export { createKnexInstance } from './database/create-knex';
-export { PayloadCipher } from './database/encryption';
-export { runWithLogSource } from './database/log-context';
-export type {
-  BlacklistRecord,
-  InvoiceRecord,
-  PaymentIntentRecord,
-  RequestMetadataRecord,
-  TransactionItemRecord,
-  TransactionLogRecord,
-  TransactionRecord,
-} from './database/records';
-export { SispManager } from './drivers/sisp-manager';
+} from './application/config';
 export {
-  type ErrorMessageType,
-  errorActionLabel,
-  errorCategoryLabel,
-  errorMessageTypeFromValue,
-  errorMessageTypeLabel,
-} from './enums/error-message-type';
-export { InvoiceStatus } from './enums/invoice-status';
-export {
-  type SuccessMessageType,
-  successMessageTypeFromValue,
-  successMessageTypeLabel,
-} from './enums/success-message-type';
-export { RefundTransactionCode, TransactionCode } from './enums/transaction-code';
-export { TransactionStatus } from './enums/transaction-status';
+  credentialsFromConfig,
+  DEFAULT_TABLES,
+  resolveConfig,
+  routeUrl,
+} from './application/config';
+export { createSisp } from './application/create-sisp';
 export {
   type EventErrorHandler,
   type PaymentEvent,
@@ -55,7 +27,28 @@ export {
   type SispEventName,
   type TransactionCancelledEvent,
   type TransactionRefundedEvent,
-} from './events';
+} from './application/events';
+export { BuildSandboxPayloadAction, type SandboxStatus } from './application/sandbox';
+export { Sisp, type SispModels } from './application/sisp';
+export type { CredentialsResolver } from './core/contracts/credentials-resolver';
+export { StaticCredentialsResolver } from './core/contracts/credentials-resolver';
+export type { CallbackPipe, PaymentPipe } from './core/contracts/pipes';
+export type { SispDriver } from './core/contracts/sisp-driver';
+export {
+  type ErrorMessageType,
+  errorActionLabel,
+  errorCategoryLabel,
+  errorMessageTypeFromValue,
+  errorMessageTypeLabel,
+} from './domain/enums/error-message-type';
+export { InvoiceStatus } from './domain/enums/invoice-status';
+export {
+  type SuccessMessageType,
+  successMessageTypeFromValue,
+  successMessageTypeLabel,
+} from './domain/enums/success-message-type';
+export { RefundTransactionCode, TransactionCode } from './domain/enums/transaction-code';
+export { TransactionStatus } from './domain/enums/transaction-status';
 export {
   BlacklistedIdentifierError,
   MissingThreeDSecureDataError,
@@ -63,26 +56,52 @@ export {
   RateLimitExceededError,
   SispError,
   TransactionNotFoundError,
-} from './exceptions';
+} from './domain/errors/exceptions';
+export {
+  type CallbackPayload,
+  callbackPayloadFrom,
+  callbackPayloadToFormFields,
+} from './domain/value-objects/callback-payload';
+export {
+  type PaymentRequest,
+  paymentRequestToFormFields,
+} from './domain/value-objects/payment-request';
+export {
+  type PaymentRequestData,
+  paymentRequestDataFrom,
+} from './domain/value-objects/payment-request-data';
+export { type SispCredentials, sispCredentials } from './domain/value-objects/sisp-credentials';
+export { MIGRATIONS_TABLE, runMigrations } from './infrastructure/database/auto-migrate';
+export { createKnexInstance } from './infrastructure/database/create-knex';
+export { PayloadCipher } from './infrastructure/database/encryption';
+export { runWithLogSource } from './infrastructure/database/log-context';
+export type {
+  BlacklistRecord,
+  InvoiceRecord,
+  PaymentIntentRecord,
+  RequestMetadataRecord,
+  TransactionItemRecord,
+  TransactionLogRecord,
+  TransactionRecord,
+} from './infrastructure/database/records';
+export { SispManager } from './infrastructure/drivers/sisp-manager';
 export {
   generateCallbackFingerprint,
   validateCallbackFingerprint,
-} from './fingerprints/callback-fingerprint';
+} from './infrastructure/fingerprints/callback-fingerprint';
 export {
   generatePaymentFingerprint,
   type PaymentFingerprintData,
-} from './fingerprints/payment-fingerprint';
+} from './infrastructure/fingerprints/payment-fingerprint';
 export {
   generateRefundFingerprint,
   type RefundFingerprintData,
-} from './fingerprints/refund-fingerprint';
-export { computeToken } from './fingerprints/token';
-export { SispHttpHandlers } from './http/handlers';
-export type { HttpRequestInfo } from './http/request-info';
-export type { HttpResult } from './http/results';
-export { validatePaymentInput } from './http/validate-payment-input';
-export { BuildSandboxPayloadAction, type SandboxStatus } from './sandbox';
-export { Sisp, type SispModels } from './sisp';
+} from './infrastructure/fingerprints/refund-fingerprint';
+export { computeToken } from './infrastructure/fingerprints/token';
+export { SispHttpHandlers } from './infrastructure/http/handlers';
+export type { HttpRequestInfo } from './infrastructure/http/request-info';
+export type { HttpResult } from './infrastructure/http/results';
+export { validatePaymentInput } from './infrastructure/http/validate-payment-input';
 export {
   allCountries,
   type Country,
@@ -92,17 +111,3 @@ export {
   getCountryNumericCode,
 } from './support/countries';
 export { fromCents, toCents, toThousandths } from './support/sisp-amount';
-export {
-  type CallbackPayload,
-  callbackPayloadFrom,
-  callbackPayloadToFormFields,
-} from './value-objects/callback-payload';
-export {
-  type PaymentRequest,
-  paymentRequestToFormFields,
-} from './value-objects/payment-request';
-export {
-  type PaymentRequestData,
-  paymentRequestDataFrom,
-} from './value-objects/payment-request-data';
-export { type SispCredentials, sispCredentials } from './value-objects/sisp-credentials';
