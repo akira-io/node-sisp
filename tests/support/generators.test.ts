@@ -3,17 +3,35 @@ import {
   generateMerchantReference,
   generateMerchantSession,
   generateTimeStamp,
+  MERCHANT_IDENTIFIER_MAX_LENGTH,
 } from '../../src/support/generators';
 
 const fixedDate = new Date(2024, 0, 15, 14, 30, 5);
 
 describe('generators', () => {
-  it('builds the merchant reference with timestamp and entropy', () => {
-    expect(generateMerchantReference(fixedDate)).toMatch(/^R20240115143005[0-9a-f]{12}$/);
+  it('builds a merchant reference within the SISP 15-character limit', () => {
+    const reference = generateMerchantReference(fixedDate);
+
+    expect(reference).toMatch(/^R[0-9a-z]+$/);
+    expect(reference.length).toBe(MERCHANT_IDENTIFIER_MAX_LENGTH);
   });
 
-  it('builds the merchant session with timestamp and entropy', () => {
-    expect(generateMerchantSession(fixedDate)).toMatch(/^S20240115143005[0-9a-f]{12}$/);
+  it('builds a merchant session within the SISP 15-character limit', () => {
+    const session = generateMerchantSession(fixedDate);
+
+    expect(session).toMatch(/^S[0-9a-z]+$/);
+    expect(session.length).toBe(MERCHANT_IDENTIFIER_MAX_LENGTH);
+  });
+
+  it('never exceeds the limit for far-future dates', () => {
+    const farFuture = new Date(2058, 11, 31, 23, 59, 59);
+
+    expect(generateMerchantReference(farFuture).length).toBeLessThanOrEqual(
+      MERCHANT_IDENTIFIER_MAX_LENGTH,
+    );
+    expect(generateMerchantSession(farFuture).length).toBeLessThanOrEqual(
+      MERCHANT_IDENTIFIER_MAX_LENGTH,
+    );
   });
 
   it('adds entropy for identifiers generated in the same second', () => {
@@ -31,8 +49,8 @@ describe('generators', () => {
   });
 
   it('defaults to the current clock', () => {
-    expect(generateMerchantReference()).toMatch(/^R\d{14}[0-9a-f]{12}$/);
-    expect(generateMerchantSession()).toMatch(/^S\d{14}[0-9a-f]{12}$/);
+    expect(generateMerchantReference()).toMatch(/^R[0-9a-z]+$/);
+    expect(generateMerchantSession()).toMatch(/^S[0-9a-z]+$/);
     expect(generateTimeStamp()).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   });
 });
