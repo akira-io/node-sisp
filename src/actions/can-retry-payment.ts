@@ -1,16 +1,21 @@
 import type { ResolvedSispConfig } from '../config';
 import type { TransactionRecord } from '../database/records';
 import { TransactionStatus } from '../enums/transaction-status';
+import { PaymentRetryLimitExceededError } from '../exceptions';
 
 export class CanRetryPaymentAction {
   constructor(private readonly config: ResolvedSispConfig) {}
 
-  handle(transaction: TransactionRecord): boolean {
+  handle(transaction: TransactionRecord, attemptCount = 1): boolean {
     if (!this.config.allowRetry) {
       return false;
     }
 
     if (transaction.status !== TransactionStatus.Failed) {
+      return false;
+    }
+
+    if (this.retryLimitReached(attemptCount)) {
       return false;
     }
 
@@ -21,6 +26,16 @@ export class CanRetryPaymentAction {
     return !this.isMissingRequiredThreeDSecureData(transaction);
   }
 
+  ensureRetryLimit(attemptCount: number): void {
+    if (this.retryLimitReached(attemptCount)) {
+      throw new PaymentRetryLimitExceededError(this.maxAttempts());
+    }
+  }
+
+  retryLimitReached(attemptCount: number): boolean {
+    return Math.max(0, attemptCount) >= this.maxAttempts();
+  }
+
   private isMissingRequiredThreeDSecureData(transaction: TransactionRecord): boolean {
     return [
       transaction.customer_email,
@@ -28,5 +43,9 @@ export class CanRetryPaymentAction {
       transaction.customer_city,
       transaction.customer_address,
     ].some((value) => value === null || value === '');
+  }
+
+  private maxAttempts(): number {
+    return Math.max(1, Math.floor(this.config.retry.maxAttempts));
   }
 }

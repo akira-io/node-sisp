@@ -64,11 +64,14 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   const services = wireCredentialScopedServices(db, resolved, events, models, credentialsResolver);
   const storeMetadata = new StoreRequestMetadataAction(new RequestMetadata(db, resolved.tables));
   const rateLimits = new RateLimit(db, resolved.tables);
+  const paymentPreflightPipes = [
+    new EnsureIpIsNotBlacklisted(models.blacklist),
+    new EnforceRateLimits(rateLimits, resolved.rateLimiting),
+  ];
 
   const paymentPipeline = new ProcessPaymentPipeline(
     customizePipes(resolved.pipelines.payment, [
-      new EnsureIpIsNotBlacklisted(models.blacklist),
-      new EnforceRateLimits(rateLimits, resolved.rateLimiting),
+      ...paymentPreflightPipes,
       new BuildPaymentRequest(services.buildRequestPayload),
       new PersistTransaction(
         resolved,
@@ -81,19 +84,21 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
       ),
       new CaptureRequestMetadata(storeMetadata),
     ]),
+    paymentPreflightPipes,
   );
 
   const urlSigner = new UrlSigner(resolved.appKey);
   const cancelTransaction = new CancelTransactionAction(models.transactions, events);
   const retryPayment = new RetryPaymentAction(services.buildRequestPayload);
+  const canRetryPayment = new CanRetryPaymentAction(resolved);
   const createRetryAttempt = new CreateRetryPaymentAttemptAction(
     resolved,
     db,
     models.transactions,
     models.transactionAttempts,
     retryPayment,
+    canRetryPayment,
   );
-  const canRetryPayment = new CanRetryPaymentAction(resolved);
   const refundTransaction = new RefundTransactionAction(
     models.transactions,
     new BuildRefundRequestAction(resolved, credentialsResolver),
