@@ -1,3 +1,4 @@
+import type { Knex } from 'knex';
 import { runWithLogSource } from '../database/log-context';
 import type { Transaction } from '../database/models/transaction';
 import { nowIso, type TransactionRecord, transactionPayloadRecord } from '../database/records';
@@ -10,6 +11,7 @@ import type { BuildRefundRequestAction } from './build-refund-request';
 
 export class RefundTransactionAction {
   constructor(
+    private readonly db: Knex,
     private readonly transactions: Transaction,
     private readonly buildRefundRequest: BuildRefundRequestAction,
     private readonly events: SispEventEmitter,
@@ -20,16 +22,49 @@ export class RefundTransactionAction {
     refundAmount: number,
     reason = 'user_refund',
   ): Promise<TransactionRecord> {
-    if (transaction.status !== TransactionStatus.Completed) {
-      throw new TransactionStateError(
-        `Transaction with status '${transaction.status}' cannot be refunded.`,
-      );
-    }
-
     const refundThousandths = toThousandths(refundAmount);
 
     if (refundAmount <= 0 || refundThousandths <= 0) {
       throw new SispError('Refund amount must be greater than 0.');
+    }
+
+    const refunded = await this.db.transaction(async (trx) => {
+      const transactions = this.transactions.withConnection(trx);
+      const locked = await transactions.findByIdForUpdate(transaction.id);
+
+      if (locked === null) {
+        throw new SispError(`Transaction ${transaction.id} not found.`);
+      }
+
+      return this.refundLockedTransaction(
+        transactions,
+        locked,
+        refundAmount,
+        refundThousandths,
+        reason,
+      );
+    });
+
+    this.events.emit('transaction:refunded', {
+      transaction: refunded,
+      amount: refundAmount,
+      reason,
+    });
+
+    return refunded;
+  }
+
+  private async refundLockedTransaction(
+    transactions: Transaction,
+    transaction: TransactionRecord,
+    refundAmount: number,
+    refundThousandths: number,
+    reason: string,
+  ): Promise<TransactionRecord> {
+    if (transaction.status !== TransactionStatus.Completed) {
+      throw new TransactionStateError(
+        `Transaction with status '${transaction.status}' cannot be refunded.`,
+      );
     }
 
     const refundableThousandths = this.refundableThousandths(transaction);
@@ -42,8 +77,8 @@ export class RefundTransactionAction {
     const payload = this.appendRefundPayload(transaction, refundRequestToRecord(request), reason);
     const remainingThousandths = refundableThousandths - refundThousandths;
 
-    const refunded = await runWithLogSource('refund', () =>
-      this.transactions.update(transaction.id, {
+    return runWithLogSource('refund', () =>
+      transactions.update(transaction.id, {
         status:
           remainingThousandths === 0 ? TransactionStatus.Refunded : TransactionStatus.Completed,
         merchant_response: `${reason}::${refundAmount}`,
@@ -51,14 +86,6 @@ export class RefundTransactionAction {
         refunded_at: nowIso(),
       }),
     );
-
-    this.events.emit('transaction:refunded', {
-      transaction: refunded,
-      amount: refundAmount,
-      reason,
-    });
-
-    return refunded;
   }
 
   private buildRequest(transaction: TransactionRecord, refundThousandths: number) {
