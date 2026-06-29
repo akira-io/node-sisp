@@ -79,7 +79,7 @@ async function createPendingTransaction(amount: number | string = '1500') {
   return transaction;
 }
 
-function signedCallback(overrides: Record<string, unknown> = {}) {
+function signedCallback(overrides: Record<string, unknown> = {}, omittedFields: string[] = []) {
   const post: Record<string, unknown> = {
     messageType: '8',
     merchantRespCP: '01',
@@ -94,6 +94,10 @@ function signedCallback(overrides: Record<string, unknown> = {}) {
     transactionCode: '1',
     ...overrides,
   };
+
+  for (const field of omittedFields) {
+    delete post[field];
+  }
 
   const fingerprint = generateCallbackFingerprint(token, callbackPayloadFrom(post));
 
@@ -191,6 +195,18 @@ describe('HandleCallbackPipeline', () => {
     await createPendingTransaction();
 
     const context = await pipeline.run(new CallbackContext(signedCallback({ posID: '99999' })));
+
+    expect(context.failureReason).toBe('callback_details_mismatch');
+  });
+
+  it.each([
+    'posID',
+    'currency',
+    'transactionCode',
+  ])('rejects callbacks missing %s', async (field) => {
+    await createPendingTransaction();
+
+    const context = await pipeline.run(new CallbackContext(signedCallback({}, [field])));
 
     expect(context.failureReason).toBe('callback_details_mismatch');
   });
