@@ -99,6 +99,7 @@ export interface SispConfig {
   transactionCode?: string;
   urlMerchantResponse?: string;
   redirectUrl?: string;
+  frontendResultUrl?: string;
   appKey?: string;
   baseUrl?: string;
   basePath?: string;
@@ -131,6 +132,7 @@ export interface ResolvedSispConfig {
   transactionCode: string;
   urlMerchantResponse: string | null;
   redirectUrl: string;
+  frontendResultUrl: string | null;
   appKey: string | null;
   baseUrl: string;
   basePath: string;
@@ -214,6 +216,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     transactionCode: config.transactionCode ?? '1',
     urlMerchantResponse: config.urlMerchantResponse ?? null,
     redirectUrl: config.redirectUrl ?? '/',
+    frontendResultUrl: config.frontendResultUrl ?? null,
     appKey: config.appKey ?? null,
     baseUrl: config.baseUrl ?? '',
     basePath: config.basePath ?? '/sisp',
