@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toCents, toThousandths } from '../../src/support/sisp-amount';
+import { fromCents, toCents, toThousandths } from '../../src/support/sisp-amount';
 
 describe('toThousandths', () => {
   it.each([
@@ -53,5 +53,16 @@ describe('toCents', () => {
     ['negative amount rounds away from zero', '-8.025', -803],
   ] as const)('%s', (_label, amount, expected) => {
     expect(toCents(amount)).toBe(expected);
+  });
+});
+
+describe('fromCents', () => {
+  it.each([
+    ['whole amount', 150000, 1500],
+    ['decimal amount', 803, 8.03],
+    ['numeric string', '10050', 100.5],
+    ['invalid value', 'abc', 0],
+  ] as const)('%s', (_label, cents, expected) => {
+    expect(fromCents(cents)).toBe(expected);
   });
 });
