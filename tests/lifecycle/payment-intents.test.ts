@@ -36,6 +36,21 @@ function paymentRequest(body: Record<string, unknown> = {}): HttpRequestInfo {
   };
 }
 
+async function markTransactionFailed(id: number, suffix = ''): Promise<void> {
+  if (sisp === null) {
+    throw new Error('SISP test instance is not initialized.');
+  }
+
+  await sisp.models.transactions.update(id, {
+    status: 'failed',
+    transaction_id: `FAILED-GATEWAY-ID${suffix}`,
+    message_type: '13',
+    merchant_response: 'declined',
+    response_code: '13',
+    fingerprint: `failed-fingerprint${suffix}`,
+  });
+}
+
 describe('payment intents', () => {
   it('reuses an existing pending transaction when the checkout intent is posted twice', async () => {
     sisp = await createSisp(baseConfig());
@@ -101,15 +116,7 @@ describe('payment intents', () => {
     const [created] = await sisp.db(sisp.config.tables.transactions);
     const oldSession = String(created.merchant_session);
 
-    await sisp.models.transactions.update(Number(created.id), {
-      status: 'failed',
-      transaction_id: 'FAILED-GATEWAY-ID',
-      message_type: '13',
-      merchant_response: 'declined',
-      response_code: '13',
-      fingerprint: 'failed-fingerprint',
-    });
-
+    await markTransactionFailed(Number(created.id));
     const second = await sisp.handlers.handlePayment(paymentRequest(checkoutIntent));
     const transaction = await sisp.models.transactions.findById(Number(created.id));
     const attempts = await sisp.models.transactionAttempts.listByTransaction(Number(created.id));
@@ -125,6 +132,89 @@ describe('payment intents', () => {
     expect(attempts[1]?.merchant_ref).toBe(transaction?.merchant_ref);
     expect(attempts[1]?.merchant_session).toBe(transaction?.merchant_session);
     expect(Number(intents[0]?.transaction_id)).toBe(Number(created.id));
+  });
+
+  it('runs blacklist checks before reusing an existing checkout intent', async () => {
+    sisp = await createSisp(baseConfig());
+
+    const first = await sisp.handlers.handlePayment(
+      paymentRequest({ checkout_intent_id: 'checkout-intent-blacklisted' }),
+    );
+
+    expect(first.type).toBe('html');
+
+    await sisp.models.blacklist.add({ type: 'ip', value: '10.0.0.1', reason: 'fraud' });
+
+    const second = await sisp.handlers.handlePayment(
+      paymentRequest({ checkout_intent_id: 'checkout-intent-blacklisted' }),
+    );
+
+    expect(second).toEqual({
+      type: 'json',
+      status: 403,
+      data: { message: 'This ip is blacklisted: fraud' },
+    });
+    expect(await sisp.db(sisp.config.tables.transactions)).toHaveLength(1);
+    expect(await sisp.db(sisp.config.tables.transactionAttempts)).toHaveLength(1);
+  });
+
+  it('runs rate-limit checks before reusing an existing checkout intent', async () => {
+    sisp = await createSisp({
+      ...baseConfig(),
+      rateLimiting: { perIp: { limit: 1, windowSeconds: 3600 } },
+    });
+
+    const first = await sisp.handlers.handlePayment(
+      paymentRequest({ checkout_intent_id: 'checkout-intent-rate-limited' }),
+    );
+    const second = await sisp.handlers.handlePayment(
+      paymentRequest({ checkout_intent_id: 'checkout-intent-rate-limited' }),
+    );
+
+    expect(first.type).toBe('html');
+
+    if (second.type !== 'json') {
+      throw new Error('Expected the replay response to be JSON.');
+    }
+
+    expect(second.status).toBe(429);
+    expect(await sisp.db(sisp.config.tables.transactions)).toHaveLength(1);
+    expect(await sisp.db(sisp.config.tables.transactionAttempts)).toHaveLength(1);
+  });
+
+  it('rejects checkout-intent retry replays after the retry cap is reached', async () => {
+    let session = 0;
+
+    sisp = await createSisp({
+      ...baseConfig(),
+      retry: { maxAttempts: 2 },
+      generators: {
+        merchantSession: () => `S-capped-${++session}`,
+      },
+    });
+
+    const checkoutIntent = { idempotency_key: 'checkout-intent-capped-retry' };
+    const first = await sisp.handlers.handlePayment(paymentRequest(checkoutIntent));
+
+    expect(first.type).toBe('html');
+
+    const [created] = await sisp.db(sisp.config.tables.transactions);
+
+    await markTransactionFailed(Number(created.id));
+    const second = await sisp.handlers.handlePayment(paymentRequest(checkoutIntent));
+
+    expect(second.type).toBe('html');
+
+    await markTransactionFailed(Number(created.id), '-2');
+    const third = await sisp.handlers.handlePayment(paymentRequest(checkoutIntent));
+    const attempts = await sisp.models.transactionAttempts.listByTransaction(Number(created.id));
+
+    expect(third).toEqual({
+      type: 'json',
+      status: 409,
+      data: { message: 'Payment retry limit exceeded after 2 attempts.' },
+    });
+    expect(attempts).toHaveLength(2);
   });
 
   it('rejects a duplicate checkout intent while the first request is still being reserved', async () => {

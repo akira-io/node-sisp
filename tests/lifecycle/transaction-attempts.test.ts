@@ -149,6 +149,20 @@ describe('transaction attempts', () => {
     expect(attempts[1]?.superseded_at).toBeNull();
   });
 
+  it('rejects retry attempts after the configured cap is reached', async () => {
+    sisp = await createSisp({ ...baseConfig(), retry: { maxAttempts: 1 } });
+
+    const transaction = await createFailedTransaction();
+
+    await expect(
+      sisp.handlers.handleRetryPayment(retryRequest(sisp.signedRetryUrl(transaction.id))),
+    ).resolves.toEqual({
+      type: 'json',
+      status: 409,
+      data: { message: 'Payment retry limit exceeded after 1 attempts.' },
+    });
+  });
+
   it('continues retry when legacy attempt backfill collides with another request', async () => {
     sisp = await createSisp(baseConfig());
 

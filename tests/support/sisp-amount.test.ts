@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toCents, toThousandths } from '../../src/support/sisp-amount';
+import { fromCents, toCents, toThousandths } from '../../src/support/sisp-amount';
 
 describe('toThousandths', () => {
   it.each([
@@ -8,9 +8,8 @@ describe('toThousandths', () => {
     ['already whole amount', 1000, 1000000],
     ['two decimals', '100.50', 100500],
     ['three decimals', '0.001', 1],
+    ['half cent precision', '1.005', 1005],
     ['rounds fourth decimal up', '8.0295', 8030],
-    ['half-cent precision', '1.005', 1005],
-    ['comma decimal falls back to leading number', '1,005', 1000],
     ['keeps fourth decimal below half down', '8.0294', 8029],
     ['ignores digits beyond the fourth decimal', '8.03001', 8030],
     ['bare fraction', '.5', 500],
@@ -19,14 +18,27 @@ describe('toThousandths', () => {
     ['negative float', -7.0005, -7001],
     ['padded units', '0012', 12000],
     ['whitespace around the value', ' 25 ', 25000],
-    ['empty string', '', 0],
-    ['non-numeric string', 'abc', 0],
-    ['leading numeric prefix', '12abc', 12000],
-    ['scientific notation falls back to float parsing', '1e3', 1000000],
     ['zero', 0, 0],
-    ['large value near safe integer boundary', '90071992547409.91', 90071992547409900],
   ] as const)('%s', (_label, amount, expected) => {
     expect(toThousandths(amount)).toBe(expected);
+  });
+
+  it.each([
+    ['comma decimal separator', '1,50'],
+    ['empty string', ''],
+    ['non-numeric string', 'abc'],
+    ['leading numeric prefix', '12abc'],
+    ['scientific notation', '1e3'],
+  ] as const)('rejects %s', (_label, amount) => {
+    expect(() => toThousandths(amount)).toThrow(
+      'Invalid SISP amount. Use a dot as the decimal separator.',
+    );
+  });
+
+  it('rejects amounts beyond the safe integer range', () => {
+    expect(() => toThousandths('9007199254740992')).toThrow(
+      'SISP amount exceeds the supported range.',
+    );
   });
 });
 
@@ -35,13 +47,34 @@ describe('toCents', () => {
     ['decimal string', '8.03', 803],
     ['decimal float', 8.03, 803],
     ['whole amount', 1000, 100000],
+    ['rounds half cent at one escudo', '1.005', 101],
     ['rounds half cent up', '8.025', 803],
     ['rounds 1.005 to the nearest cent', '1.005', 101],
-    ['comma decimal falls back to leading number', '1,005', 100],
     ['keeps below half cent down', '8.024', 802],
     ['negative amount rounds away from zero', '-8.025', -803],
-    ['large value near safe integer boundary', '90071992547409.91', 9007199254740990],
   ] as const)('%s', (_label, amount, expected) => {
     expect(toCents(amount)).toBe(expected);
+  });
+
+  it.each([
+    [
+      'comma decimal separator',
+      '1,005',
+      'Invalid SISP amount. Use a dot as the decimal separator.',
+    ],
+    ['amount beyond safe range', '90071992547409.91', 'SISP amount exceeds the supported range.'],
+  ] as const)('rejects %s', (_label, amount, message) => {
+    expect(() => toCents(amount)).toThrow(message);
+  });
+});
+
+describe('fromCents', () => {
+  it.each([
+    ['whole amount', 150000, 1500],
+    ['decimal amount', 803, 8.03],
+    ['numeric string', '10050', 100.5],
+    ['invalid value', 'abc', 0],
+  ] as const)('%s', (_label, cents, expected) => {
+    expect(fromCents(cents)).toBe(expected);
   });
 });

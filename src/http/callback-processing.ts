@@ -1,5 +1,17 @@
+import type { ResolvedSispConfig } from '../config';
 import type { Transaction } from '../database/models/transaction';
 import type { TransactionAttempt } from '../database/models/transaction-attempt';
+import type { UrlSigner } from '../support/signed-url';
+
+export function signedCallbackResultUrl(
+  config: ResolvedSispConfig,
+  urlSigner: UrlSigner,
+  transactionId: number,
+): string {
+  const signedPath = urlSigner.sign(`${config.basePath}/callback`, { transaction: transactionId });
+
+  return `${config.baseUrl}${signedPath}`;
+}
 
 export async function isAlreadyProcessed(
   transactions: Transaction,
