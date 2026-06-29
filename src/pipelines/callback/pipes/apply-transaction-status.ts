@@ -8,6 +8,10 @@ import {
   shouldPropagateAttemptToTransaction,
   type TransactionAttempt,
 } from '../../../database/models/transaction-attempt';
+import type { TransactionAttemptRecord } from '../../../database/records';
+import { TransactionStatus } from '../../../enums/transaction-status';
+import { TransactionNotFoundError } from '../../../exceptions';
+import type { CallbackPayload } from '../../../value-objects/callback-payload';
 import type { CallbackContext } from '../callback-context';
 
 export class ApplyTransactionStatus implements CallbackPipe {
@@ -18,25 +22,48 @@ export class ApplyTransactionStatus implements CallbackPipe {
   ) {}
 
   async handle(context: CallbackContext, next: () => Promise<void>): Promise<void> {
-    const transaction = context.requireTransaction();
-    const attempt = context.requireAttempt();
     const payload = context.payload;
     const status = mapTransactionStatus(payload.messageType);
 
     const result = await this.db.transaction(async (trx) => {
       const attempts = this.attempts.withConnection(trx);
       const transactions = this.transactions.withConnection(trx);
+      const lockedAttempt = await attempts.findByRefAndSessionForUpdate(
+        payload.merchantRef,
+        payload.merchantSession,
+      );
+
+      if (lockedAttempt === null) {
+        return {
+          attempt: context.requireAttempt(),
+          transaction: context.requireTransaction(),
+          propagated: false,
+        };
+      }
+
+      const lockedTransaction = await transactions.findByIdForUpdate(lockedAttempt.transaction_id);
+
+      if (lockedTransaction === null) {
+        throw new TransactionNotFoundError(
+          `No transaction found for merchantRef ${payload.merchantRef}.`,
+        );
+      }
+
+      if (isReplayCallback(lockedAttempt, payload, status)) {
+        return { attempt: lockedAttempt, transaction: lockedTransaction, propagated: false };
+      }
+
       const updatedAttempt = await attempts.update(
-        attempt.id,
+        lockedAttempt.id,
         attemptChangesFromCallback(payload, status),
       );
 
       if (!shouldPropagateAttemptToTransaction(updatedAttempt, status)) {
-        return { attempt: updatedAttempt, transaction, propagated: false };
+        return { attempt: updatedAttempt, transaction: lockedTransaction, propagated: false };
       }
 
       const updatedTransaction = await runWithLogSource('callback', () =>
-        transactions.update(transaction.id, {
+        transactions.update(lockedTransaction.id, {
           merchant_session: updatedAttempt.merchant_session,
           transaction_id: String(payload.transactionID),
           message_type: payload.messageType,
@@ -51,17 +78,38 @@ export class ApplyTransactionStatus implements CallbackPipe {
     });
 
     context.attempt = result.attempt;
+    context.transaction = result.transaction;
+    context.transactionStatusPropagated = result.propagated;
 
     if (!result.propagated) {
-      context.transactionStatusPropagated = false;
-
       await next();
 
       return;
     }
 
-    context.transaction = result.transaction;
-
     await next();
   }
+}
+
+function isReplayCallback(
+  attempt: TransactionAttemptRecord,
+  payload: CallbackPayload,
+  status: TransactionStatus,
+): boolean {
+  if (attempt.gateway_transaction_id === null) {
+    return false;
+  }
+
+  if (attempt.status === TransactionStatus.Completed) {
+    return true;
+  }
+
+  return attempt.status === status || sameGatewayCallback(attempt, payload);
+}
+
+function sameGatewayCallback(attempt: TransactionAttemptRecord, payload: CallbackPayload): boolean {
+  return (
+    attempt.gateway_transaction_id === String(payload.transactionID) &&
+    attempt.message_type === payload.messageType
+  );
 }

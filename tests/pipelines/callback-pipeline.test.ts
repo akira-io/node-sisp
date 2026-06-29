@@ -126,6 +126,41 @@ describe('HandleCallbackPipeline', () => {
     expect(entries.at(-1)?.source).toBe('callback');
   });
 
+  it('ignores a replayed programmatic callback without dispatching another event', async () => {
+    await createPendingTransaction();
+    const completed = vi.fn();
+    events.on('payment:completed', completed);
+
+    const payload = signedCallback();
+    const first = await pipeline.run(new CallbackContext(payload));
+    const replay = await pipeline.run(new CallbackContext(payload));
+    const entries = await logs.listByTransaction(first.requireTransaction().id);
+
+    expect(first.transactionStatusPropagated).toBe(true);
+    expect(replay.transactionStatusPropagated).toBe(false);
+    expect(replay.requireTransaction().status).toBe('completed');
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(entries).toHaveLength(1);
+  });
+
+  it('deduplicates concurrent callback replays inside the pipeline', async () => {
+    await createPendingTransaction();
+    const completed = vi.fn();
+    events.on('payment:completed', completed);
+
+    const payload = signedCallback();
+    const [first, second] = await Promise.all([
+      pipeline.run(new CallbackContext(payload)),
+      pipeline.run(new CallbackContext(payload)),
+    ]);
+    const entries = await logs.listByTransaction(first.requireTransaction().id);
+    const propagated = [first, second].filter((context) => context.transactionStatusPropagated);
+
+    expect(propagated).toHaveLength(1);
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(entries).toHaveLength(1);
+  });
+
   it('ignores invalid fingerprints without changing transaction state', async () => {
     const pending = await createPendingTransaction();
     const failed = vi.fn();
