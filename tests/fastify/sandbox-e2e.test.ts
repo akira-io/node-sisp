@@ -67,7 +67,10 @@ describe('fastify sandbox end-to-end payment flow', () => {
 
     const location = callbackResponse.headers.location as string;
 
-    expect(location).toMatch(/^\/sisp\/callback\?ref=R/);
+    expect(location).toMatch(/^\/sisp\/callback\?/);
+    expect(location).toContain('transaction=');
+    expect(location).toContain('signature=');
+    expect(location).not.toContain('ref=');
 
     const resultResponse = await app.inject({ method: 'GET', url: location });
 

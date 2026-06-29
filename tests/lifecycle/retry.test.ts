@@ -112,10 +112,11 @@ describe('retry payment', () => {
 
   it('exposes the retry URL in the callback result for failed payments', async () => {
     const transaction = await createFailedTransaction();
+    const resultUrl = new UrlSigner('app-key').sign('/sisp/callback', {
+      transaction: transaction.id,
+    });
 
-    const response = await request(app)
-      .get(`/sisp/callback?ref=${transaction.merchant_ref}`)
-      .expect(200);
+    const response = await request(app).get(resultUrl).expect(200);
 
     expect(response.body.allowRetry).toBe(true);
     expect(response.body.retryUrl).toContain('/sisp/retry-payment?');

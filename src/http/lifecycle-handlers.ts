@@ -4,7 +4,7 @@ import type { CancelTransactionAction } from '../actions/cancel-transaction';
 import type { CreateRetryPaymentAttemptAction } from '../actions/create-retry-payment-attempt';
 import type { RefundTransactionAction } from '../actions/refund-transaction';
 import type { RetryPaymentAction } from '../actions/retry-payment';
-import { type ResolvedSispConfig, routeUrl } from '../config';
+import type { ResolvedSispConfig } from '../config';
 import type { RateLimit } from '../database/models/rate-limit';
 import type { Transaction } from '../database/models/transaction';
 import type { TransactionAttempt } from '../database/models/transaction-attempt';
@@ -14,6 +14,7 @@ import { SispError, TransactionStateError } from '../exceptions';
 import type { UrlSigner } from '../support/signed-url';
 import { type PaymentRequest, paymentRequestToFormFields } from '../value-objects/payment-request';
 import { renderAutoSubmitForm } from './auto-submit-form';
+import { signedCallbackResultUrl } from './callback-processing';
 import { buildGatewayFormAction } from './gateway-form-action';
 import type { RetryAvailability } from './payment-response';
 import type { HttpRequestInfo } from './request-info';
@@ -89,9 +90,7 @@ export class LifecycleHandlers {
     try {
       const cancelled = await cancelTransaction.handle(transaction, reason);
 
-      return redirect(
-        `${routeUrl(config, 'callback')}?ref=${encodeURIComponent(cancelled.merchant_ref)}`,
-      );
+      return redirect(signedCallbackResultUrl(config, urlSigner, cancelled.id));
     } catch (error) {
       if (error instanceof TransactionStateError) {
         return json({ message: error.message }, 400);
