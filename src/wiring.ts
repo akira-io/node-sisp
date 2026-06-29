@@ -46,7 +46,7 @@ export function wireCredentialScopedServices(
   const callbackPipeline = new HandleCallbackPipeline(
     customizePipes(config.pipelines.callback, [
       new ResolveTransaction(db, models.transactions, models.transactionAttempts),
-      new ValidateFingerprint(credentialsResolver, failTransaction, events),
+      new ValidateFingerprint(credentialsResolver),
       new EnsureCallbackMatchesTransaction(config, credentialsResolver, failTransaction, events),
       new ApplyTransactionStatus(db, models.transactions, models.transactionAttempts),
       new DispatchPaymentEvents(events),

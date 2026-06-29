@@ -1,8 +1,13 @@
 import { createHmac } from 'node:crypto';
 import { constantTimeEquals } from '../fingerprints/hash';
+import { deriveSispKey } from './key-derivation';
 
 export class UrlSigner {
-  constructor(private readonly key: string | null) {}
+  private readonly key: Buffer | null;
+
+  constructor(appKey: string | null) {
+    this.key = appKey === null || appKey === '' ? null : deriveSispKey(appKey, 'url-signing');
+  }
 
   sign(path: string, params: Record<string, string | number>, expiresAt?: Date): string {
     const query: Record<string, string> = {};
@@ -53,7 +58,7 @@ export class UrlSigner {
   }
 
   private signature(path: string, params: Record<string, string>): string {
-    if (this.key === null || this.key === '') {
+    if (this.key === null) {
       throw new Error('Signed SISP URLs require an appKey in the configuration.');
     }
 

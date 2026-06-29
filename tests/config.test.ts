@@ -27,7 +27,7 @@ describe('resolveConfig', () => {
     expect(resolved.driver).toBeNull();
     expect(resolved.allowRetry).toBe(true);
     expect(resolved.tables).toEqual(DEFAULT_TABLES);
-    expect(resolved.database.autoMigrate).toBe(true);
+    expect(resolved.database.autoMigrate).toBe(false);
     expect(resolved.rateLimiting.enabled).toBe(true);
     expect(resolved.rateLimiting.perIp).toEqual({ enabled: true, limit: 100, windowSeconds: 3600 });
     expect(resolved.rateLimiting.perMerchant.limit).toBe(500);
@@ -37,6 +37,7 @@ describe('resolveConfig', () => {
       maxAttempts: 5,
       collisionRetrySleepMs: 1000,
     });
+    expect(resolved.retry).toEqual({ maxAttempts: 3 });
     expect(resolved.idempotency).toEqual({
       enabled: true,
       requestKeys: ['idempotency_key', 'checkout_intent_id'],
@@ -51,6 +52,7 @@ describe('resolveConfig', () => {
       tables: { transactions: 'custom_transactions' },
       rateLimiting: { perIp: { limit: 5 } },
       identifierGeneration: { maxAttempts: 2, collisionRetrySleepMs: 0 },
+      retry: { maxAttempts: 2 },
       idempotency: { enabled: false, requestKeys: ['payment_key'] },
       database: { client: 'better-sqlite3', connection: ':memory:', autoMigrate: false },
     });
@@ -63,6 +65,7 @@ describe('resolveConfig', () => {
     expect(resolved.rateLimiting.perIp.windowSeconds).toBe(3600);
     expect(resolved.identifierGeneration.maxAttempts).toBe(2);
     expect(resolved.identifierGeneration.collisionRetrySleepMs).toBe(0);
+    expect(resolved.retry.maxAttempts).toBe(2);
     expect(resolved.idempotency.enabled).toBe(false);
     expect(resolved.idempotency.requestKeys).toEqual(['payment_key']);
     expect(resolved.database.autoMigrate).toBe(false);
@@ -78,20 +81,28 @@ describe('resolveConfig', () => {
         perIp: { enabled: 'false' },
       },
       security: { collectMetadata: 'false' },
+      database: { ...minimalConfig.database, autoMigrate: 'false' },
     } as unknown as SispConfig);
 
     expect(resolved.sandbox).toBe(true);
+    expect(resolved.database.autoMigrate).toBe(false);
     expect(resolved.allowRetry).toBe(false);
     expect(resolved.rateLimiting.enabled).toBe(false);
     expect(resolved.rateLimiting.perIp.enabled).toBe(false);
     expect(resolved.security.collectMetadata).toBe(false);
   });
 
+  it('defaults auto-migrate on for sandbox databases', () => {
+    const resolved = resolveConfig({ ...minimalConfig, sandbox: true });
+
+    expect(resolved.database.autoMigrate).toBe(true);
+  });
+
   it('provides default generators matching the SISP formats', () => {
     const resolved = resolveConfig(minimalConfig);
 
-    expect(resolved.generators.merchantReference()).toMatch(/^R\d{14}$/);
-    expect(resolved.generators.merchantSession()).toMatch(/^S\d{14}$/);
+    expect(resolved.generators.merchantReference()).toMatch(/^R\d{14}[0-9a-f]{12}$/);
+    expect(resolved.generators.merchantSession()).toMatch(/^S\d{14}[0-9a-f]{12}$/);
     expect(resolved.generators.timeStamp()).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   });
 
@@ -102,7 +113,7 @@ describe('resolveConfig', () => {
     });
 
     expect(resolved.generators.merchantReference()).toBe('R-fixed');
-    expect(resolved.generators.merchantSession()).toMatch(/^S\d{14}$/);
+    expect(resolved.generators.merchantSession()).toMatch(/^S\d{14}[0-9a-f]{12}$/);
   });
 });
 

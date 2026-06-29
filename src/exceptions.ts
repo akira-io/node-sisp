@@ -22,6 +22,12 @@ export class UnableToGenerateUniquePaymentIdentifiersError extends SispError {
   }
 }
 
+export class PaymentRetryLimitExceededError extends SispError {
+  constructor(readonly attempts: number) {
+    super(`Payment retry limit exceeded after ${attempts} attempts.`);
+  }
+}
+
 export class MissingThreeDSecureDataError extends SispError {
   constructor(readonly missingFields: readonly string[]) {
     super(

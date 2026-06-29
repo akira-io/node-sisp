@@ -13,14 +13,16 @@ export class TransactionStatusClient {
   ) {}
 
   async query(merchantRef: string): Promise<TransactionStatusResponse> {
-    const settings = this.config.transactionStatus;
+    const credentials = this.credentialsResolver.resolve();
+    const settings = {
+      ...this.config.transactionStatus,
+      ...credentials.transactionStatus,
+    };
     const { url, portalId, portalPassword, timeoutSeconds, retryAttempts, retryDelayMs } = settings;
 
     if (portalId === '' || portalPassword === '') {
       throw new SispError('SISP transaction status portal credentials are not configured.');
     }
-
-    const credentials = this.credentialsResolver.resolve();
 
     return this.withRetries(
       () =>
