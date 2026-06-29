@@ -1,3 +1,5 @@
+import { toCents } from '../support/sisp-amount';
+
 export interface PaymentValidationResult {
   valid: boolean;
   errors: Record<string, string[]>;
@@ -138,7 +140,11 @@ function validateTotals(body: Record<string, unknown>, errors: Record<string, st
 }
 
 function minorUnits(amount: unknown): number {
-  return Math.round(Number(amount ?? 0) * 100);
+  if (typeof amount === 'number' || typeof amount === 'string') {
+    return toCents(amount);
+  }
+
+  return 0;
 }
 
 function addError(errors: Record<string, string[]>, field: string, message: string): void {

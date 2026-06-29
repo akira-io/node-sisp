@@ -1,37 +1,29 @@
 const DECIMAL_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
+const MAX_SAFE_THOUSANDTHS = BigInt(Number.MAX_SAFE_INTEGER);
+const MIN_SAFE_THOUSANDTHS = BigInt(Number.MIN_SAFE_INTEGER);
 
 export function toThousandths(amount: number | string): number {
-  const decimal = decimalString(amount);
-
-  if (decimal === null) {
-    return phpRound(floatValue(amount) * 1000);
-  }
-
-  return decimalStringToThousandths(decimal);
+  return decimalStringToThousandths(decimalString(amount));
 }
 
 export function toCents(amount: number | string): number {
   return phpRound(toThousandths(amount) / 10);
 }
 
+export function fromCents(cents: number | string): number {
+  const parsed = Number(cents);
+
+  return Number.isFinite(parsed) ? parsed / 100 : 0;
+}
+
 function phpRound(value: number): number {
   return value < 0 ? -Math.round(-value) : Math.round(value);
 }
 
-function floatValue(amount: number | string): number {
-  if (typeof amount === 'number') {
-    return amount;
-  }
-
-  const parsed = Number.parseFloat(amount);
-
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function decimalString(amount: number | string): string | null {
+function decimalString(amount: number | string): string {
   if (typeof amount === 'number') {
     if (!Number.isFinite(amount)) {
-      return null;
+      throw invalidAmountError();
     }
 
     return Number.isInteger(amount) ? String(amount) : amount.toFixed(10);
@@ -39,11 +31,11 @@ function decimalString(amount: number | string): string | null {
 
   const decimal = amount.trim();
 
-  if (decimal === '') {
-    return null;
+  if (decimal === '' || !DECIMAL_PATTERN.test(decimal)) {
+    throw invalidAmountError();
   }
 
-  return DECIMAL_PATTERN.test(decimal) ? decimal : null;
+  return decimal;
 }
 
 function decimalStringToThousandths(decimal: string): number {
@@ -66,11 +58,21 @@ function decimalStringToThousandths(decimal: string): number {
   const units = unitsPart === '' ? '0' : unitsPart;
   const fraction = fractionPart.padEnd(4, '0');
 
-  let thousandths = Number.parseInt(units, 10) * 1000 + Number.parseInt(fraction.slice(0, 3), 10);
+  let thousandths = BigInt(units) * 1000n + BigInt(fraction.slice(0, 3));
 
   if (Number.parseInt(fraction.charAt(3), 10) >= 5) {
-    thousandths += 1;
+    thousandths += 1n;
   }
 
-  return sign * thousandths;
+  const signedThousandths = sign === -1 ? -thousandths : thousandths;
+
+  if (signedThousandths > MAX_SAFE_THOUSANDTHS || signedThousandths < MIN_SAFE_THOUSANDTHS) {
+    throw new RangeError('SISP amount exceeds the supported range.');
+  }
+
+  return Number(signedThousandths);
+}
+
+function invalidAmountError(): TypeError {
+  return new TypeError('Invalid SISP amount. Use a dot as the decimal separator.');
 }

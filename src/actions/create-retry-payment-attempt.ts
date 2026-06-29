@@ -3,11 +3,15 @@ import type { ResolvedSispConfig } from '../config';
 import { runWithLogSource } from '../database/log-context';
 import type { Transaction } from '../database/models/transaction';
 import type { TransactionAttempt } from '../database/models/transaction-attempt';
-import type { TransactionRecord } from '../database/records';
+import type { TransactionAttemptRecord, TransactionRecord } from '../database/records';
 import { TransactionStatus } from '../enums/transaction-status';
-import { UnableToGenerateUniquePaymentIdentifiersError } from '../exceptions';
+import {
+  TransactionStateError,
+  UnableToGenerateUniquePaymentIdentifiersError,
+} from '../exceptions';
 import { isUniqueConstraintError, sleep } from '../support/database-errors';
 import type { PaymentRequest } from '../value-objects/payment-request';
+import type { CanRetryPaymentAction } from './can-retry-payment';
 import type { RetryPaymentAction } from './retry-payment';
 
 export class CreateRetryPaymentAttemptAction {
@@ -17,12 +21,18 @@ export class CreateRetryPaymentAttemptAction {
     private readonly transactions: Transaction,
     private readonly attempts: TransactionAttempt,
     private readonly retryPayment: RetryPaymentAction,
+    private readonly canRetryPayment: CanRetryPaymentAction,
   ) {}
 
   async handle(transaction: TransactionRecord): Promise<PaymentRequest> {
     const maxAttempts = Math.max(1, this.config.identifierGeneration.maxAttempts);
+    const currentAttempts = await this.ensureInitialAttempt(transaction);
 
-    await this.ensureInitialAttempt(transaction);
+    this.canRetryPayment.ensureRetryLimit(currentAttempts.length);
+
+    if (!this.canRetryPayment.handle(transaction, currentAttempts.length)) {
+      throw new TransactionStateError('This payment cannot be retried.');
+    }
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const paymentRequest = this.retryPayment.handle(transaction);
@@ -64,9 +74,13 @@ export class CreateRetryPaymentAttemptAction {
     throw new UnableToGenerateUniquePaymentIdentifiersError(maxAttempts);
   }
 
-  private async ensureInitialAttempt(transaction: TransactionRecord): Promise<void> {
-    if (await this.attempts.existsByTransaction(transaction.id)) {
-      return;
+  private async ensureInitialAttempt(
+    transaction: TransactionRecord,
+  ): Promise<TransactionAttemptRecord[]> {
+    const currentAttempts = await this.attempts.listByTransaction(transaction.id);
+
+    if (currentAttempts.length > 0) {
+      return currentAttempts;
     }
 
     try {
@@ -80,5 +94,7 @@ export class CreateRetryPaymentAttemptAction {
         throw error;
       }
     }
+
+    return this.attempts.listByTransaction(transaction.id);
   }
 }

@@ -36,6 +36,10 @@ export interface IdentifierGenerationConfig {
   collisionRetrySleepMs: number;
 }
 
+export interface RetryConfig {
+  maxAttempts: number;
+}
+
 export interface IdempotencyConfig {
   enabled: boolean;
   requestKeys: string[];
@@ -98,6 +102,7 @@ export interface SispConfig {
   security?: Partial<SecuritySettings>;
   generators?: Partial<SispGenerators>;
   identifierGeneration?: Partial<IdentifierGenerationConfig>;
+  retry?: Partial<RetryConfig>;
   idempotency?: Partial<IdempotencyConfig>;
   pipelines?: SispPipelineCustomizers;
   onEventListenerError?: EventErrorHandler;
@@ -128,6 +133,7 @@ export interface ResolvedSispConfig {
   security: SecuritySettings;
   generators: SispGenerators;
   identifierGeneration: IdentifierGenerationConfig;
+  retry: RetryConfig;
   idempotency: IdempotencyConfig;
   pipelines: SispPipelineCustomizers;
   onEventListenerError: EventErrorHandler | null;
@@ -172,24 +178,28 @@ const DEFAULT_IDENTIFIER_GENERATION: IdentifierGenerationConfig = {
   collisionRetrySleepMs: 1000,
 };
 
+const DEFAULT_RETRY: RetryConfig = { maxAttempts: 3 };
+
 const DEFAULT_IDEMPOTENCY: IdempotencyConfig = {
   enabled: true,
   requestKeys: ['idempotency_key', 'checkout_intent_id'],
 };
 
 export function resolveConfig(config: SispConfig): ResolvedSispConfig {
+  const sandbox = booleanSetting(config.sandbox, false);
+
   return {
     posId: config.posId,
     posAutCode: config.posAutCode,
     database: {
       client: config.database.client,
       connection: config.database.connection,
-      autoMigrate: config.database.autoMigrate ?? true,
+      autoMigrate: booleanSetting(config.database.autoMigrate, sandbox),
     },
     url: config.url ?? '',
     merchantId: config.merchantId ?? '',
     driver: config.driver ?? null,
-    sandbox: booleanSetting(config.sandbox, false),
+    sandbox,
     currency: config.currency ?? '132',
     languageMessages: config.languageMessages ?? 'EN',
     fingerprintVersion: config.fingerprintVersion ?? '1',
@@ -214,6 +224,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
       ...DEFAULT_IDENTIFIER_GENERATION,
       ...config.identifierGeneration,
     },
+    retry: { ...DEFAULT_RETRY, ...config.retry },
     idempotency: {
       ...DEFAULT_IDEMPOTENCY,
       ...config.idempotency,

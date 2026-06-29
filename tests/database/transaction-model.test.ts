@@ -47,6 +47,18 @@ describe('Transaction', () => {
     const raw = await db(DEFAULT_TABLES.transactions).where('id', transaction.id).first();
 
     expect(isEncrypted(raw.payload)).toBe(true);
+    expect(raw.amount).toBeUndefined();
+  });
+
+  it('derives the public amount from canonical cents', async () => {
+    const transaction = await transactions.create({
+      merchantRef: 'R20260612100001',
+      merchantSession: 'S20260612100001',
+      amount: '8.0295',
+    });
+
+    expect(transaction.amount_cents).toBe(803);
+    expect(transaction.amount).toBe(8.03);
   });
 
   it('finds transactions by ref and session', async () => {
@@ -79,6 +91,30 @@ describe('Transaction', () => {
     );
     expect(entries[0]?.old_values).toMatchObject({ status: 'pending', transaction_id: null });
     expect(entries[0]?.new_values).toMatchObject({ status: 'completed', transaction_id: 'TID-1' });
+  });
+
+  it('serializes concurrent updates before diffing transaction logs', async () => {
+    const transaction = await createTransaction();
+
+    await Promise.all([
+      transactions.update(transaction.id, { status: 'completed' }),
+      transactions.update(transaction.id, { status: 'failed' }),
+    ]);
+
+    const entries = await logs.listByTransaction(transaction.id);
+
+    expect(entries).toHaveLength(2);
+
+    const firstNewValues = entries[0]?.new_values;
+
+    if (firstNewValues === null || typeof firstNewValues !== 'object') {
+      throw new Error('Expected the first transaction log to have new values.');
+    }
+
+    expect(entries[0]?.old_values).toMatchObject({ status: 'pending' });
+    expect(entries[1]?.old_values).toMatchObject({
+      status: firstNewValues.status,
+    });
   });
 
   it('defaults the log source to model outside a context', async () => {
