@@ -81,7 +81,7 @@ describe('forCredentials', () => {
     expect(transaction.status).toBe('completed');
   });
 
-  it('queries the transaction status with the scoped credentials', async () => {
+  it('queries the transaction status with the scoped portal credentials', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
@@ -93,14 +93,31 @@ describe('forCredentials', () => {
       posId: '90051',
       posAutCode: 'TEST_POS_AUT_CODE',
       sandbox: true,
-      transactionStatus: { portalId: 'portal', portalPassword: 'pass' },
+      transactionStatus: {
+        url: 'https://status.merchant-one.test',
+        portalId: 'portal-one',
+        portalPassword: 'pass-one',
+      },
       database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
     });
 
-    await withPortal.forCredentials(merchantCredentials).queryTransactionStatus('R1');
+    await withPortal
+      .forCredentials({
+        ...merchantCredentials,
+        transactionStatus: {
+          url: 'https://status.merchant-two.test',
+          portalId: 'portal-two',
+          portalPassword: 'pass-two',
+        },
+      })
+      .queryTransactionStatus('R1');
 
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
 
+    expect(url).toBe('https://status.merchant-two.test');
+    expect((init.headers as Record<string, string>).authorization).toBe(
+      `Basic ${Buffer.from('portal-two:pass-two').toString('base64')}`,
+    );
     expect(JSON.parse(init.body as string)).toMatchObject({
       posID: '70001',
       posAuthCode: 'MERCHANT_TWO_CODE',
