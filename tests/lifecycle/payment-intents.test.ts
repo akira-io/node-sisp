@@ -36,6 +36,21 @@ function paymentRequest(body: Record<string, unknown> = {}): HttpRequestInfo {
   };
 }
 
+async function markTransactionFailed(id: number, suffix = ''): Promise<void> {
+  if (sisp === null) {
+    throw new Error('SISP test instance is not initialized.');
+  }
+
+  await sisp.models.transactions.update(id, {
+    status: 'failed',
+    transaction_id: `FAILED-GATEWAY-ID${suffix}`,
+    message_type: '13',
+    merchant_response: 'declined',
+    response_code: '13',
+    fingerprint: `failed-fingerprint${suffix}`,
+  });
+}
+
 describe('payment intents', () => {
   it('reuses an existing pending transaction when the checkout intent is posted twice', async () => {
     sisp = await createSisp(baseConfig());
@@ -64,6 +79,25 @@ describe('payment intents', () => {
     expect(Number(intents[0]?.transaction_id)).toBe(Number(transaction.id));
   });
 
+  it('persists one transaction for concurrent duplicate checkout intents', async () => {
+    sisp = await createSisp(baseConfig());
+
+    const responses = await Promise.all([
+      sisp.handlers.handlePayment(paymentRequest({ checkout_intent_id: 'checkout-intent-race' })),
+      sisp.handlers.handlePayment(paymentRequest({ checkout_intent_id: 'checkout-intent-race' })),
+    ]);
+    const transactions = await sisp.db(sisp.config.tables.transactions);
+    const attempts = await sisp.db(sisp.config.tables.transactionAttempts);
+    const intents = await sisp.db(sisp.config.tables.paymentIntents);
+
+    expect(responses.some((response) => response.type === 'html')).toBe(true);
+    expect(transactions).toHaveLength(1);
+    expect(attempts).toHaveLength(1);
+    expect(intents).toHaveLength(1);
+    expect(intents[0]?.status).toBe('submitted');
+    expect(Number(intents[0]?.transaction_id)).toBe(Number(transactions[0]?.id));
+  });
+
   it('creates a retry attempt for the same transaction when a failed checkout intent is posted again', async () => {
     let session = 0;
 
@@ -82,15 +116,7 @@ describe('payment intents', () => {
     const [created] = await sisp.db(sisp.config.tables.transactions);
     const oldSession = String(created.merchant_session);
 
-    await sisp.models.transactions.update(Number(created.id), {
-      status: 'failed',
-      transaction_id: 'FAILED-GATEWAY-ID',
-      message_type: '13',
-      merchant_response: 'declined',
-      response_code: '13',
-      fingerprint: 'failed-fingerprint',
-    });
-
+    await markTransactionFailed(Number(created.id));
     const second = await sisp.handlers.handlePayment(paymentRequest(checkoutIntent));
     const transaction = await sisp.models.transactions.findById(Number(created.id));
     const attempts = await sisp.models.transactionAttempts.listByTransaction(Number(created.id));
@@ -174,28 +200,12 @@ describe('payment intents', () => {
 
     const [created] = await sisp.db(sisp.config.tables.transactions);
 
-    await sisp.models.transactions.update(Number(created.id), {
-      status: 'failed',
-      transaction_id: 'FAILED-GATEWAY-ID',
-      message_type: '13',
-      merchant_response: 'declined',
-      response_code: '13',
-      fingerprint: 'failed-fingerprint',
-    });
-
+    await markTransactionFailed(Number(created.id));
     const second = await sisp.handlers.handlePayment(paymentRequest(checkoutIntent));
 
     expect(second.type).toBe('html');
 
-    await sisp.models.transactions.update(Number(created.id), {
-      status: 'failed',
-      transaction_id: 'FAILED-GATEWAY-ID-2',
-      message_type: '13',
-      merchant_response: 'declined',
-      response_code: '13',
-      fingerprint: 'failed-fingerprint-2',
-    });
-
+    await markTransactionFailed(Number(created.id), '-2');
     const third = await sisp.handlers.handlePayment(paymentRequest(checkoutIntent));
     const attempts = await sisp.models.transactionAttempts.listByTransaction(Number(created.id));
 

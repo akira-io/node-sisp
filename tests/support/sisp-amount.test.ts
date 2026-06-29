@@ -49,10 +49,22 @@ describe('toCents', () => {
     ['whole amount', 1000, 100000],
     ['rounds half cent at one escudo', '1.005', 101],
     ['rounds half cent up', '8.025', 803],
+    ['rounds 1.005 to the nearest cent', '1.005', 101],
     ['keeps below half cent down', '8.024', 802],
     ['negative amount rounds away from zero', '-8.025', -803],
   ] as const)('%s', (_label, amount, expected) => {
     expect(toCents(amount)).toBe(expected);
+  });
+
+  it.each([
+    [
+      'comma decimal separator',
+      '1,005',
+      'Invalid SISP amount. Use a dot as the decimal separator.',
+    ],
+    ['amount beyond safe range', '90071992547409.91', 'SISP amount exceeds the supported range.'],
+  ] as const)('rejects %s', (_label, amount, message) => {
+    expect(() => toCents(amount)).toThrow(message);
   });
 });
 
