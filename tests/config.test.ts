@@ -27,7 +27,7 @@ describe('resolveConfig', () => {
     expect(resolved.driver).toBeNull();
     expect(resolved.allowRetry).toBe(true);
     expect(resolved.tables).toEqual(DEFAULT_TABLES);
-    expect(resolved.database.autoMigrate).toBe(true);
+    expect(resolved.database.autoMigrate).toBe(false);
     expect(resolved.rateLimiting.enabled).toBe(true);
     expect(resolved.rateLimiting.perIp).toEqual({ enabled: true, limit: 100, windowSeconds: 3600 });
     expect(resolved.rateLimiting.perMerchant.limit).toBe(500);
@@ -81,13 +81,21 @@ describe('resolveConfig', () => {
         perIp: { enabled: 'false' },
       },
       security: { collectMetadata: 'false' },
+      database: { ...minimalConfig.database, autoMigrate: 'false' },
     } as unknown as SispConfig);
 
     expect(resolved.sandbox).toBe(true);
+    expect(resolved.database.autoMigrate).toBe(false);
     expect(resolved.allowRetry).toBe(false);
     expect(resolved.rateLimiting.enabled).toBe(false);
     expect(resolved.rateLimiting.perIp.enabled).toBe(false);
     expect(resolved.security.collectMetadata).toBe(false);
+  });
+
+  it('defaults auto-migrate on for sandbox databases', () => {
+    const resolved = resolveConfig({ ...minimalConfig, sandbox: true });
+
+    expect(resolved.database.autoMigrate).toBe(true);
   });
 
   it('provides default generators matching the SISP formats', () => {
