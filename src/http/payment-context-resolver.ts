@@ -4,7 +4,12 @@ import type { ResolvedSispConfig } from '../config';
 import type { PaymentIntent } from '../database/models/payment-intent';
 import type { Transaction } from '../database/models/transaction';
 import type { TransactionAttempt } from '../database/models/transaction-attempt';
-import { type TransactionRecord, transactionPayloadRecord } from '../database/records';
+import {
+  type TransactionAttemptRecord,
+  type TransactionRecord,
+  transactionPayloadRecord,
+} from '../database/records';
+import { TransactionStatus } from '../enums/transaction-status';
 import { PaymentIntentAlreadyProcessingError } from '../exceptions';
 import { PaymentContext } from '../pipelines/payment/payment-context';
 import type { ProcessPaymentPipeline } from '../pipelines/payment/process-payment-pipeline';
@@ -26,17 +31,19 @@ export class PaymentContextResolver {
   constructor(private readonly deps: PaymentContextResolverDeps) {}
 
   async resolve(request: HttpRequestInfo): Promise<PaymentContext> {
+    const context = this.emptyPaymentContext(request);
+
+    await this.deps.paymentPipeline.runPreflight(context);
+
     const idempotencyKey = this.idempotencyKey(request.body);
 
     if (idempotencyKey === null) {
-      return this.newPaymentContext(request);
+      return this.newPaymentContext(context);
     }
 
     if (!(await this.deps.paymentIntents.reserve(idempotencyKey))) {
-      return this.existingPaymentContext(request, idempotencyKey);
+      return this.existingPaymentContext(context, idempotencyKey);
     }
-
-    const context = this.emptyPaymentContext(request);
 
     try {
       await this.deps.paymentPipeline.run(context);
@@ -54,8 +61,8 @@ export class PaymentContextResolver {
     }
   }
 
-  private async newPaymentContext(request: HttpRequestInfo): Promise<PaymentContext> {
-    return this.deps.paymentPipeline.run(this.emptyPaymentContext(request));
+  private async newPaymentContext(context: PaymentContext): Promise<PaymentContext> {
+    return this.deps.paymentPipeline.run(context);
   }
 
   private emptyPaymentContext(request: HttpRequestInfo): PaymentContext {
@@ -63,7 +70,7 @@ export class PaymentContextResolver {
   }
 
   private async existingPaymentContext(
-    request: HttpRequestInfo,
+    context: PaymentContext,
     idempotencyKey: string,
   ): Promise<PaymentContext> {
     const intent = await this.deps.paymentIntents.findByKey(idempotencyKey);
@@ -78,10 +85,15 @@ export class PaymentContextResolver {
       throw new PaymentIntentAlreadyProcessingError(idempotencyKey);
     }
 
-    const context = this.emptyPaymentContext(request);
     context.transaction = transaction;
+    const attempts = await this.deps.attempts.listByTransaction(transaction.id);
+    const attemptCount = Math.max(1, attempts.length);
 
-    if (this.deps.canRetryPayment.handle(transaction)) {
+    if (transaction.status === TransactionStatus.Failed) {
+      this.deps.canRetryPayment.ensureRetryLimit(attemptCount);
+    }
+
+    if (this.deps.canRetryPayment.handle(transaction, attemptCount)) {
       context.paymentRequest = await this.deps.createRetryAttempt.handle(transaction);
       context.transaction = (await this.deps.transactions.findById(transaction.id)) ?? transaction;
       await this.deps.paymentIntents.submit(idempotencyKey, transaction.id);
@@ -89,7 +101,7 @@ export class PaymentContextResolver {
       return context;
     }
 
-    context.paymentRequest = await this.paymentRequestFrom(transaction, idempotencyKey);
+    context.paymentRequest = await this.paymentRequestFrom(transaction, idempotencyKey, attempts);
     await this.deps.paymentIntents.submit(idempotencyKey, transaction.id);
 
     return context;
@@ -114,8 +126,8 @@ export class PaymentContextResolver {
   private async paymentRequestFrom(
     transaction: TransactionRecord,
     idempotencyKey: string,
+    attempts: readonly TransactionAttemptRecord[],
   ): Promise<PaymentRequest> {
-    const attempts = await this.deps.attempts.listByTransaction(transaction.id);
     const currentAttempt =
       attempts.find((attempt) => attempt.superseded_at === null) ?? attempts.at(-1);
 

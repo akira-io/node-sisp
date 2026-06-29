@@ -131,6 +131,20 @@ describe('validatePaymentInput', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('rejects half-cent item values before total comparison', () => {
+    const result = validatePaymentInput({
+      amount: '1.00',
+      items: [{ product_name: 'A', quantity: 1, unit_price: '1.005', total_price: '1.005' }],
+    });
+
+    expect(result.errors['items.0.unit_price']).toEqual([
+      'The unit price must be a number of at least 0.',
+    ]);
+    expect(result.errors['items.0.total_price']).toEqual([
+      'The total price must be a number of at least 0.',
+    ]);
+  });
+
   it.each([
     ['kid@akira.cv', true],
     ['a@b.co', true],

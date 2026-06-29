@@ -16,6 +16,7 @@ import type { SispManager } from '../drivers/sisp-manager';
 import {
   BlacklistedIdentifierError,
   PaymentIntentAlreadyProcessingError,
+  PaymentRetryLimitExceededError,
   RateLimitExceededError,
   TransactionNotFoundError,
 } from '../exceptions';
@@ -32,7 +33,11 @@ import {
 import { type PaymentRequest, paymentRequestToFormFields } from '../value-objects/payment-request';
 import { paymentRequestDataFrom } from '../value-objects/payment-request-data';
 import { renderAutoSubmitForm } from './auto-submit-form';
-import { booleanFromInput, isAlreadyProcessed } from './callback-processing';
+import {
+  booleanFromInput,
+  isAlreadyProcessed,
+  signedCallbackResultUrl,
+} from './callback-processing';
 import { buildGatewayFormAction } from './gateway-form-action';
 import { LifecycleHandlers } from './lifecycle-handlers';
 import { PaymentContextResolver } from './payment-context-resolver';
@@ -75,6 +80,7 @@ export class SispHttpHandlers {
   private readonly buildSandboxPayload: BuildSandboxPayloadAction;
   private readonly lifecycle: LifecycleHandlers;
   private readonly paymentContexts: PaymentContextResolver;
+  private readonly urlSigner: UrlSigner;
 
   constructor(deps: SispHandlersDeps) {
     this.config = deps.config;
@@ -86,6 +92,7 @@ export class SispHttpHandlers {
     this.storeMetadata = deps.storeMetadata;
     this.updateInvoiceStatus = deps.updateInvoiceStatus;
     this.buildSandboxPayload = deps.buildSandboxPayload;
+    this.urlSigner = deps.urlSigner;
     this.paymentContexts = new PaymentContextResolver({
       config: deps.config,
       paymentPipeline: deps.paymentPipeline,
@@ -114,15 +121,12 @@ export class SispHttpHandlers {
   async handleRefund(request: HttpRequestInfo, transactionId: number): Promise<HttpResult> {
     return this.lifecycle.handleRefund(request, transactionId);
   }
-
   async handleRetryPayment(request: HttpRequestInfo): Promise<HttpResult> {
     return this.lifecycle.handleRetryPayment(request);
   }
-
   async handleCancel(request: HttpRequestInfo): Promise<HttpResult> {
     return this.lifecycle.handleCancel(request);
   }
-
   signedRetryUrl(transactionId: number): string {
     return this.lifecycle.signedRetryUrl(transactionId);
   }
@@ -139,9 +143,9 @@ export class SispHttpHandlers {
     }
 
     try {
-      const context = await this.paymentContexts.resolve(request);
-
-      return this.renderPaymentForm(context.requirePaymentRequest());
+      return this.renderPaymentForm(
+        (await this.paymentContexts.resolve(request)).requirePaymentRequest(),
+      );
     } catch (error) {
       return this.guardErrorResult(error);
     }
@@ -186,23 +190,26 @@ export class SispHttpHandlers {
   }
 
   private async handleCallbackResult(request: HttpRequestInfo): Promise<HttpResult> {
-    const merchantRef = request.query.ref;
-
-    if (typeof merchantRef !== 'string' || merchantRef === '') {
+    if (!this.urlSigner.validate(`${this.config.basePath}/callback`, request.query)) {
       return redirect(this.config.redirectUrl);
     }
 
-    const transaction = await this.transactions.findByRef(merchantRef);
+    const transactionId = Number(request.query.transaction);
+
+    if (!Number.isInteger(transactionId)) {
+      return redirect(this.config.redirectUrl);
+    }
+
+    const transaction = await this.transactions.findById(transactionId);
 
     if (transaction === null) {
       return redirect(this.config.redirectUrl);
     }
 
     const invoice = await this.invoices.findByTransaction(transaction.id);
+    const retry = await this.lifecycle.retryAvailability(transaction);
 
-    return json(
-      paymentResponseData(transaction, invoice, this.lifecycle.retryAvailability(transaction)),
-    );
+    return json(paymentResponseData(transaction, invoice, retry));
   }
 
   private async handleCallbackNotification(request: HttpRequestInfo): Promise<HttpResult> {
@@ -240,9 +247,7 @@ export class SispHttpHandlers {
     await this.runQuietly(() => this.storeMetadata.handle(request, transaction.id));
     await this.runQuietly(() => this.updateInvoiceStatus.handle(transaction));
 
-    return redirect(
-      `${routeUrl(this.config, 'callback')}?ref=${encodeURIComponent(transaction.merchant_ref)}`,
-    );
+    return redirect(signedCallbackResultUrl(this.config, this.urlSigner, transaction.id));
   }
 
   private async isDuplicateSubmission(body: Record<string, unknown>): Promise<boolean> {
@@ -274,15 +279,15 @@ export class SispHttpHandlers {
     if (error instanceof BlacklistedIdentifierError) {
       return json({ message: error.message }, 403);
     }
-
     if (error instanceof RateLimitExceededError) {
       return json({ message: error.message }, 429);
     }
-
     if (error instanceof PaymentIntentAlreadyProcessingError) {
       return json({ message: error.message }, 409);
     }
-
+    if (error instanceof PaymentRetryLimitExceededError) {
+      return json({ message: error.message }, 409);
+    }
     throw error;
   }
 

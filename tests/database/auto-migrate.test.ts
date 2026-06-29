@@ -43,6 +43,22 @@ describe('runMigrations', () => {
     expect(rows).toHaveLength(4);
   });
 
+  it('serializes concurrent migration runs', async () => {
+    const runs = await Promise.all([
+      runMigrations(db, DEFAULT_TABLES),
+      runMigrations(db, DEFAULT_TABLES),
+    ]);
+    const ran = runs.flat();
+
+    expect(ran.sort()).toEqual([
+      '0001_create_sisp_tables',
+      '0002_create_transaction_logs_table',
+      '0003_create_transaction_attempts_table',
+      '0004_create_payment_intents_table',
+    ]);
+    expect(await db(MIGRATIONS_TABLE).select('name')).toHaveLength(4);
+  });
+
   it('survives a lost control table when the schema already exists', async () => {
     await runMigrations(db, DEFAULT_TABLES);
     await db.schema.dropTable(MIGRATIONS_TABLE);
@@ -78,7 +94,6 @@ describe('runMigrations', () => {
     for (const column of [
       'merchant_ref',
       'merchant_session',
-      'amount',
       'amount_cents',
       'currency',
       'status',
@@ -98,5 +113,7 @@ describe('runMigrations', () => {
     ]) {
       expect(await db.schema.hasColumn(DEFAULT_TABLES.transactions, column)).toBe(true);
     }
+
+    expect(await db.schema.hasColumn(DEFAULT_TABLES.transactions, 'amount')).toBe(false);
   });
 });

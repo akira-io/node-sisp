@@ -91,7 +91,7 @@ export {
   getCountryName,
   getCountryNumericCode,
 } from './support/countries';
-export { toCents, toThousandths } from './support/sisp-amount';
+export { fromCents, toCents, toThousandths } from './support/sisp-amount';
 export {
   type CallbackPayload,
   callbackPayloadFrom,

@@ -3,6 +3,7 @@ import {
   type PaymentValidationConfig,
   resolvePaymentValidation,
 } from '../payment-validation';
+import { toCents } from '../support/sisp-amount';
 
 export interface PaymentValidationResult {
   valid: boolean;
@@ -202,7 +203,9 @@ function validateTotals(body: Record<string, unknown>, errors: Record<string, st
 }
 
 function minorUnits(amount: unknown): number {
-  return Math.round((parseDecimalAmount(amount) ?? 0) * 100);
+  const parsed = parseDecimalAmount(amount);
+
+  return parsed === null ? 0 : toCents(parsed);
 }
 
 function addError(errors: Record<string, string[]>, field: string, message: string): void {
