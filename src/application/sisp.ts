@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import type { CredentialsResolver } from '../core/contracts/credentials-resolver';
 import type { SispDriver } from '../core/contracts/sisp-driver';
+import type { SispStorage } from '../core/contracts/storage';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
 import type { PaymentRequest } from '../domain/value-objects/payment-request';
 import type { PaymentRequestData } from '../domain/value-objects/payment-request-data';
@@ -58,6 +59,7 @@ export class Sisp {
   constructor(
     readonly config: ResolvedSispConfig,
     readonly db: Knex,
+    private readonly _storage: SispStorage,
     readonly events: SispEventEmitter,
     readonly manager: SispManager,
     readonly models: SispModels,
@@ -71,6 +73,10 @@ export class Sisp {
     private readonly reconcileTransaction: ReconcileTransactionStatusAction,
     private readonly urlSigner: UrlSigner,
   ) {}
+
+  get storage(): SispStorage {
+    return this._storage;
+  }
 
   forCredentials(credentials: Partial<SispCredentials>): ScopedSisp {
     return new ScopedSisp(
@@ -187,6 +193,6 @@ export class Sisp {
   }
 
   async destroy(): Promise<void> {
-    await this.db.destroy();
+    await this._storage.destroy();
   }
 }

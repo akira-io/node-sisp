@@ -3,18 +3,7 @@ import {
   StaticCredentialsResolver,
 } from '../core/contracts/credentials-resolver';
 import { SispHttpHandlers } from '../infrastructure/http/handlers';
-import { runMigrations } from '../infrastructure/storage/knex/auto-migrate';
-import { createKnexInstance } from '../infrastructure/storage/knex/create-knex';
-import { PayloadCipher } from '../infrastructure/storage/knex/encryption';
-import { Blacklist } from '../infrastructure/storage/knex/models/blacklist';
-import { Invoice } from '../infrastructure/storage/knex/models/invoice';
-import { PaymentIntent } from '../infrastructure/storage/knex/models/payment-intent';
-import { RateLimit } from '../infrastructure/storage/knex/models/rate-limit';
-import { RequestMetadata } from '../infrastructure/storage/knex/models/request-metadata';
-import { Transaction } from '../infrastructure/storage/knex/models/transaction';
-import { TransactionAttempt } from '../infrastructure/storage/knex/models/transaction-attempt';
-import { TransactionItem } from '../infrastructure/storage/knex/models/transaction-item';
-import { TransactionLog } from '../infrastructure/storage/knex/models/transaction-log';
+import { KnexStorage } from '../infrastructure/storage/knex/knex-storage';
 import { UrlSigner } from '../support/signed-url';
 import { BuildRefundRequestAction } from './actions/build-refund-request';
 import { CanRetryPaymentAction } from './actions/can-retry-payment';
@@ -41,29 +30,29 @@ import { customizePipes, wireCredentialScopedServices } from './wiring';
 
 export async function createSisp(config: SispConfig): Promise<Sisp> {
   const resolved = resolveConfig(config);
-  const db = createKnexInstance(resolved.database);
+  const storage = KnexStorage.create(resolved.database, resolved.tables, resolved.appKey);
 
   if (resolved.database.autoMigrate) {
-    await runMigrations(db, resolved.tables);
+    await storage.migrate();
   }
 
-  const cipher = new PayloadCipher(resolved.appKey);
+  const db = storage.raw;
   const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(resolved));
   const events = new SispEventEmitter(resolved.onEventListenerError ?? undefined);
 
   const models: SispModels = {
-    transactions: new Transaction(db, resolved.tables, cipher),
-    transactionItems: new TransactionItem(db, resolved.tables),
-    transactionAttempts: new TransactionAttempt(db, resolved.tables, cipher),
-    paymentIntents: new PaymentIntent(db, resolved.tables),
-    invoices: new Invoice(db, resolved.tables),
-    transactionLogs: new TransactionLog(db, resolved.tables),
-    blacklist: new Blacklist(db, resolved.tables),
+    transactions: storage.transactions,
+    transactionItems: storage.transactionItems,
+    transactionAttempts: storage.transactionAttempts,
+    paymentIntents: storage.paymentIntents,
+    invoices: storage.invoices,
+    transactionLogs: storage.transactionLogs,
+    blacklist: storage.blacklist,
   };
 
   const services = wireCredentialScopedServices(db, resolved, events, models, credentialsResolver);
-  const storeMetadata = new StoreRequestMetadataAction(new RequestMetadata(db, resolved.tables));
-  const rateLimits = new RateLimit(db, resolved.tables);
+  const storeMetadata = new StoreRequestMetadataAction(storage.requestMetadata);
+  const rateLimits = storage.rateLimits;
   const paymentPreflightPipes = [
     new EnsureIpIsNotBlacklisted(models.blacklist),
     new EnforceRateLimits(rateLimits, resolved.rateLimiting),
@@ -131,6 +120,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   return new Sisp(
     resolved,
     db,
+    storage,
     events,
     services.manager,
     models,

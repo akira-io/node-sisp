@@ -6,3 +6,4 @@
 Task 1: complete (commit bb54ad7..be62dfe, review clean)
 Task 2: complete (commit be62dfe..70b0253, review clean)
   - Minor (final review): contract afterEach calls storage.destroy() when makeStorage throws -> use await storage?.destroy()
+Task 3: complete (commit 70b0253..46e18d5, review clean — files moved, KnexStorage, 390 tests)

@@ -1,18 +1,6 @@
 import type { Knex } from 'knex';
 import type { SispDatabaseConfig, SispTables } from '../../../application/config';
-import type {
-  BlacklistRepository,
-  InvoiceRepository,
-  PaymentIntentRepository,
-  RateLimitRepository,
-  RequestMetadataRepository,
-  SispStorage,
-  SispStorageTx,
-  TransactionAttemptRepository,
-  TransactionItemRepository,
-  TransactionLogRepository,
-  TransactionRepository,
-} from '../../../core/contracts/storage';
+import type { SispStorage, SispStorageTx } from '../../../core/contracts/storage';
 import { runMigrations } from './auto-migrate';
 import { createKnexInstance } from './create-knex';
 import { PayloadCipher } from './encryption';
@@ -27,25 +15,15 @@ import { TransactionItem } from './models/transaction-item';
 import { TransactionLog } from './models/transaction-log';
 
 export class KnexStorage implements SispStorage {
-  readonly transactions: TransactionRepository;
-  readonly transactionItems: TransactionItemRepository;
-  readonly transactionAttempts: TransactionAttemptRepository;
-  readonly paymentIntents: PaymentIntentRepository;
-  readonly invoices: InvoiceRepository;
-  readonly transactionLogs: TransactionLogRepository;
-  readonly blacklist: BlacklistRepository;
-  readonly rateLimits: RateLimitRepository;
-  readonly requestMetadata: RequestMetadataRepository;
-
-  private readonly transactionsModel: Transaction;
-  private readonly transactionItemsModel: TransactionItem;
-  private readonly transactionAttemptsModel: TransactionAttempt;
-  private readonly paymentIntentsModel: PaymentIntent;
-  private readonly invoicesModel: Invoice;
-  private readonly transactionLogsModel: TransactionLog;
-  private readonly blacklistModel: Blacklist;
-  private readonly rateLimitsModel: RateLimit;
-  private readonly requestMetadataModel: RequestMetadata;
+  readonly transactions: Transaction;
+  readonly transactionItems: TransactionItem;
+  readonly transactionAttempts: TransactionAttempt;
+  readonly paymentIntents: PaymentIntent;
+  readonly invoices: Invoice;
+  readonly transactionLogs: TransactionLog;
+  readonly blacklist: Blacklist;
+  readonly rateLimits: RateLimit;
+  readonly requestMetadata: RequestMetadata;
 
   private constructor(
     private readonly db: Knex,
@@ -53,25 +31,15 @@ export class KnexStorage implements SispStorage {
     private readonly tables: SispTables,
     cipher: PayloadCipher,
   ) {
-    this.transactionsModel = new Transaction(db, tables, cipher);
-    this.transactionItemsModel = new TransactionItem(db, tables);
-    this.transactionAttemptsModel = new TransactionAttempt(db, tables, cipher);
-    this.paymentIntentsModel = new PaymentIntent(db, tables);
-    this.invoicesModel = new Invoice(db, tables);
-    this.transactionLogsModel = new TransactionLog(db, tables);
-    this.blacklistModel = new Blacklist(db, tables);
-    this.rateLimitsModel = new RateLimit(db, tables);
-    this.requestMetadataModel = new RequestMetadata(db, tables);
-
-    this.transactions = this.transactionsModel;
-    this.transactionItems = this.transactionItemsModel;
-    this.transactionAttempts = this.transactionAttemptsModel;
-    this.paymentIntents = this.paymentIntentsModel;
-    this.invoices = this.invoicesModel;
-    this.transactionLogs = this.transactionLogsModel;
-    this.blacklist = this.blacklistModel;
-    this.rateLimits = this.rateLimitsModel;
-    this.requestMetadata = this.requestMetadataModel;
+    this.transactions = new Transaction(db, tables, cipher);
+    this.transactionItems = new TransactionItem(db, tables);
+    this.transactionAttempts = new TransactionAttempt(db, tables, cipher);
+    this.paymentIntents = new PaymentIntent(db, tables);
+    this.invoices = new Invoice(db, tables);
+    this.transactionLogs = new TransactionLog(db, tables);
+    this.blacklist = new Blacklist(db, tables);
+    this.rateLimits = new RateLimit(db, tables);
+    this.requestMetadata = new RequestMetadata(db, tables);
   }
 
   static create(
@@ -107,15 +75,15 @@ export class KnexStorage implements SispStorage {
 
   private scoped(trx: Knex.Transaction): SispStorageTx {
     return {
-      transactions: this.transactionsModel.withConnection(trx),
-      transactionItems: this.transactionItemsModel.withConnection(trx),
-      transactionAttempts: this.transactionAttemptsModel.withConnection(trx),
-      paymentIntents: this.paymentIntentsModel.withConnection(trx),
-      invoices: this.invoicesModel.withConnection(trx),
-      transactionLogs: this.transactionLogsModel.withConnection(trx),
-      blacklist: this.blacklistModel.withConnection(trx),
-      rateLimits: this.rateLimitsModel.withConnection(trx),
-      requestMetadata: this.requestMetadataModel.withConnection(trx),
+      transactions: this.transactions.withConnection(trx),
+      transactionItems: this.transactionItems.withConnection(trx),
+      transactionAttempts: this.transactionAttempts.withConnection(trx),
+      paymentIntents: this.paymentIntents.withConnection(trx),
+      invoices: this.invoices.withConnection(trx),
+      transactionLogs: this.transactionLogs.withConnection(trx),
+      blacklist: this.blacklist.withConnection(trx),
+      rateLimits: this.rateLimits.withConnection(trx),
+      requestMetadata: this.requestMetadata.withConnection(trx),
     };
   }
 }
