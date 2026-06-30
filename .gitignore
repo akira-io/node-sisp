@@ -10,3 +10,4 @@ sisp.config.*
 
 # subagent-driven scratch (never commit)
 .superpowers/
+docs/superpowers/
