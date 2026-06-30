@@ -62,12 +62,10 @@ export class EnsureCallbackMatchesTransaction implements CallbackPipe {
       attempt.merchant_ref === payload.merchantRef &&
       attempt.merchant_session === payload.merchantSession &&
       toThousandths(transaction.amount) === toThousandths(payload.amount) &&
-      payload.currencyProvided &&
-      transaction.currency === payload.currency &&
-      payload.transactionCodeProvided &&
-      this.transactionCode(transaction) === payload.transactionCode &&
-      payload.posIDProvided &&
-      this.credentialsResolver.resolve().posId === payload.posID
+      (!payload.currencyProvided || transaction.currency === payload.currency) &&
+      (!payload.transactionCodeProvided ||
+        this.transactionCode(transaction) === payload.transactionCode) &&
+      (!payload.posIDProvided || this.credentialsResolver.resolve().posId === payload.posID)
     );
   }
 
