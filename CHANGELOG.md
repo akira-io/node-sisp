@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.3](https://github.com/akira-io/node-sisp/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2026-06-30)
+
+### Bug Fixes
+
+- **payments:** Deduplicate callback replays ([a874fc4](https://github.com/akira-io/node-sisp/commit/a874fc4d094f62962fc607ea6d3415b30aff131f))
+- **payments:** Ignore invalid callback fingerprints ([9987ec9](https://github.com/akira-io/node-sisp/commit/9987ec929fd501f5a28129003a7c7d4313ae94e4))
+- **payments:** Reject invalid money amounts ([b09c273](https://github.com/akira-io/node-sisp/commit/b09c2737633746dada4500d5c6c07cec07bbb2a9))
+- **payments:** Unify money quantization ([d32ecea](https://github.com/akira-io/node-sisp/commit/d32eceaa4d63627ada5a4f8be082c337fff9adf8))
+- **http:** Sign callback result links ([f898a54](https://github.com/akira-io/node-sisp/commit/f898a545e3ce0d3acb1affd1c4d4ee5692364428))
+- **payments:** Randomize merchant identifiers ([4330903](https://github.com/akira-io/node-sisp/commit/4330903ffa98afb2a9f4c0cac1adb004b0a68d90))
+- **payments:** Guard idempotent retry replays ([9dc4757](https://github.com/akira-io/node-sisp/commit/9dc4757f8912cfc3e8d0b8fdbc90e559b42c0ec8))
+- **refunds:** Lock transaction before refunding ([37bb093](https://github.com/akira-io/node-sisp/commit/37bb0937781651477ca52d270f252e9310a7b6e6))
+- **transactions:** Lock updates before diffing ([aa32ad2](https://github.com/akira-io/node-sisp/commit/aa32ad2d438f9174719964874466bf2d5ea2e4cf))
+- **status:** Scope portal credentials per merchant ([508976f](https://github.com/akira-io/node-sisp/commit/508976f25a533f206b339db92dcba10265df57e3))
+- **database:** Guard automatic migrations ([b6f49db](https://github.com/akira-io/node-sisp/commit/b6f49dba19a1147c5d34b992723c3493f827160f))
+- **driver:** Validate production gateway URL ([353d7be](https://github.com/akira-io/node-sisp/commit/353d7bee54a5ca63475cb43633b503cb5c052f55))
+- **security:** Harden payload encryption at rest ([9ab8b21](https://github.com/akira-io/node-sisp/commit/9ab8b210cc6ebcd1f8b6ed3a6b2230086a5f2549))
+- **database:** Derive transaction amounts from cents ([790b013](https://github.com/akira-io/node-sisp/commit/790b0133b741d4785fc126f9c737d7342bf91658))
+- **security:** Require callback identity fields ([7461608](https://github.com/akira-io/node-sisp/commit/7461608763fb0cd03e2c9e181b437e8c4216bf63))
+- **gitignore:** Ignore local secret files ([3d3af33](https://github.com/akira-io/node-sisp/commit/3d3af33bee86247df8ac0aa6b16de1b24eaf3f6b))
+- **status:** Surface transport failures ([2364fc1](https://github.com/akira-io/node-sisp/commit/2364fc1d39715fd8f57ef45a21f01fea03c52b2f))
+- **database:** Bound transaction history queries ([a882042](https://github.com/akira-io/node-sisp/commit/a882042b2ebf66f722c8ed34485d78f955a32d6d))
+- **http:** Harden payment input validation ([3389d0c](https://github.com/akira-io/node-sisp/commit/3389d0c6d0d8b7786be18b011b06d9d1d89c8b1b))
+- **database:** Import knex via default export so ESM bundle loads ([4865563](https://github.com/akira-io/node-sisp/commit/4865563f1970c9449d3f54f4921df0c99284d992))
+- **payments:** Cap merchantRef/merchantSession at SISP 15-char limit ([a4207b3](https://github.com/akira-io/node-sisp/commit/a4207b337f3c4c1eee10380d2654692623f01184))
+- **payments:** Use unbiased randomInt for identifier entropy ([80d4ecf](https://github.com/akira-io/node-sisp/commit/80d4ecfffe94bc95cbb41a9df03e1afe74d30d42))
+- **payments:** Fail transaction and emit payment:failed on invalid callback fingerprint ([9a617f7](https://github.com/akira-io/node-sisp/commit/9a617f7639e4668f5ba1ebb1e1c4309f4a041493))
+
+
+### Code Refactoring
+
+- **architecture:** Restructure into hexagonal layers ([790b94d](https://github.com/akira-io/node-sisp/commit/790b94d3668952019574c31879e584ed075b2619))
+
+
+### Features
+
+- **http:** Support frontendResultUrl to hand callbacks back to a SPA ([1c20ad3](https://github.com/akira-io/node-sisp/commit/1c20ad3a8f90d8367de4ce7208ed995e48cc8141))
+- **database:** Add Transaction.list() for paginated transaction listing ([fb904e4](https://github.com/akira-io/node-sisp/commit/fb904e4a1a38163ee205b8f6794e2d8146a4f4cb))
+- **payments:** Cancel transaction and emit event on UserCancelled callback ([44f1621](https://github.com/akira-io/node-sisp/commit/44f1621af6d7823ea156f1d4edee8d762caa21a9))
+- **http:** Add JSON payment-intent endpoint for SPAs ([ff880e1](https://github.com/akira-io/node-sisp/commit/ff880e1f258394e2e06f37e17b7ec52cc1e4664a))
+
 ## [1.0.0-beta.2](https://github.com/akira-io/node-sisp/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2026-06-20)
 
 ### Bug Fixes
