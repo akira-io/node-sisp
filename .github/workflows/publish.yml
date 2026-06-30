@@ -52,6 +52,18 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Resolve npm dist-tag
+        id: dist_tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" == *-* ]]; then
+            TAG="${VERSION#*-}"
+            TAG="${TAG%%.*}"
+          else
+            TAG="latest"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Publish to npm
         if: steps.version_check.outputs.skip != 'true'
-        run: npx -y npm@11 publish --access public --provenance
+        run: npx -y npm@11 publish --access public --provenance --tag "${{ steps.dist_tag.outputs.tag }}"
