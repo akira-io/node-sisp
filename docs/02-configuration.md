@@ -13,7 +13,7 @@
 | `currency` | `'132'` | ISO 4217 numeric code, Cabo Verde Escudo |
 | `languageMessages` | `'EN'` | Language for gateway response messages |
 | `fingerprintVersion` | `'1'` | Payment request fingerprint version |
-| `is3DSec` | `'0'` | Set `'1'` to require 3-D Secure customer data |
+| `is3DSec` | `'0'` | Set `'1'` to require 3D Secure customer data |
 | `transactionCode` | `'1'` | Default transaction type (purchase) |
 
 ## Application wiring

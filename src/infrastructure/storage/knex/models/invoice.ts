@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../../application/config';
-import type { InvoiceStatus } from '../../../domain/enums/invoice-status';
+import type { SispTables } from '../../../../application/config';
+import type { InvoiceStatus } from '../../../../domain/enums/invoice-status';
 import { type InvoiceRecord, nowIso, type TransactionRecord } from '../records';
 
 const DUE_DAYS = 7;
@@ -11,6 +11,10 @@ export class Invoice {
     private readonly tables: SispTables,
     private readonly numberPrefix: string = 'INV',
   ) {}
+
+  withConnection(connection: Knex): Invoice {
+    return new Invoice(connection, this.tables, this.numberPrefix);
+  }
 
   async createForTransaction(transaction: TransactionRecord): Promise<InvoiceRecord> {
     const timestamp = nowIso();

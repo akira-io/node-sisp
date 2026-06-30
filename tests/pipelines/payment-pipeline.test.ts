@@ -19,30 +19,24 @@ import {
   BlacklistedIdentifierError,
   RateLimitExceededError,
 } from '../../src/domain/errors/exceptions';
-import { runMigrations } from '../../src/infrastructure/database/auto-migrate';
-import { createKnexInstance } from '../../src/infrastructure/database/create-knex';
-import { PayloadCipher } from '../../src/infrastructure/database/encryption';
-import { Blacklist } from '../../src/infrastructure/database/models/blacklist';
-import { Invoice } from '../../src/infrastructure/database/models/invoice';
-import { RateLimit } from '../../src/infrastructure/database/models/rate-limit';
-import { RequestMetadata } from '../../src/infrastructure/database/models/request-metadata';
-import { Transaction } from '../../src/infrastructure/database/models/transaction';
-import { TransactionAttempt } from '../../src/infrastructure/database/models/transaction-attempt';
-import { TransactionItem } from '../../src/infrastructure/database/models/transaction-item';
 import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
+import { runMigrations } from '../../src/infrastructure/storage/knex/auto-migrate';
+import { KnexStorage } from '../../src/infrastructure/storage/knex/knex-storage';
+import type { Invoice } from '../../src/infrastructure/storage/knex/models/invoice';
+import { RequestMetadata } from '../../src/infrastructure/storage/knex/models/request-metadata';
+import type { TransactionAttempt } from '../../src/infrastructure/storage/knex/models/transaction-attempt';
+import type { TransactionItem } from '../../src/infrastructure/storage/knex/models/transaction-item';
 
 let db: Knex;
 let config: ResolvedSispConfig;
 let pipeline: ProcessPaymentPipeline;
-let transactions: Transaction;
+let storage: KnexStorage;
 let attempts: TransactionAttempt;
 let items: TransactionItem;
 let invoices: Invoice;
 let metadata: RequestMetadata;
-let blacklist: Blacklist;
 
 beforeEach(async () => {
-  db = createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
   config = resolveConfig({
     posId: '90051',
     posAutCode: 'TEST_POS_AUT_CODE',
@@ -52,16 +46,14 @@ beforeEach(async () => {
     rateLimiting: { perIp: { limit: 3, windowSeconds: 3600 } },
     database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
   });
+  storage = KnexStorage.create(config.database, config.tables, config.appKey);
+  db = storage.raw;
   await runMigrations(db, config.tables);
 
-  const cipher = new PayloadCipher(config.appKey);
-
-  transactions = new Transaction(db, config.tables, cipher);
-  attempts = new TransactionAttempt(db, config.tables, cipher);
-  items = new TransactionItem(db, config.tables);
-  invoices = new Invoice(db, config.tables);
+  attempts = storage.transactionAttempts;
+  items = storage.transactionItems;
+  invoices = storage.invoices;
   metadata = new RequestMetadata(db, config.tables);
-  blacklist = new Blacklist(db, config.tables);
 
   const buildRequestPayload = new BuildRequestPayloadAction(
     config,
@@ -69,24 +61,16 @@ beforeEach(async () => {
   );
 
   pipeline = new ProcessPaymentPipeline([
-    new EnsureIpIsNotBlacklisted(blacklist),
-    new EnforceRateLimits(new RateLimit(db, config.tables), config.rateLimiting),
+    new EnsureIpIsNotBlacklisted(storage.blacklist),
+    new EnforceRateLimits(storage.rateLimits, config.rateLimiting),
     new BuildPaymentRequest(buildRequestPayload),
-    new PersistTransaction(
-      config,
-      db,
-      transactions,
-      attempts,
-      items,
-      invoices,
-      buildRequestPayload,
-    ),
+    new PersistTransaction(config, storage, buildRequestPayload),
     new CaptureRequestMetadata(new StoreRequestMetadataAction(metadata)),
   ]);
 });
 
 afterEach(async () => {
-  await db.destroy();
+  await storage.destroy();
 });
 
 function paymentRequest(): HttpRequestInfo {
@@ -164,7 +148,7 @@ describe('ProcessPaymentPipeline', () => {
   });
 
   it('rejects blacklisted IPs before any work happens', async () => {
-    await blacklist.add({ type: 'ip', value: '10.0.0.1', reason: 'fraud' });
+    await storage.blacklist.add({ type: 'ip', value: '10.0.0.1', reason: 'fraud' });
 
     await expect(pipeline.run(contextFor())).rejects.toThrow(BlacklistedIdentifierError);
     expect(await db(config.tables.transactions).first()).toBeUndefined();

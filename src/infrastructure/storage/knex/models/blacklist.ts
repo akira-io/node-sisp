@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../../application/config';
+import type { SispTables } from '../../../../application/config';
 import { type BlacklistRecord, nowIso } from '../records';
 
 export interface BlacklistEntry {
@@ -17,6 +17,10 @@ export class Blacklist {
     private readonly db: Knex,
     private readonly tables: SispTables,
   ) {}
+
+  withConnection(connection: Knex): Blacklist {
+    return new Blacklist(connection, this.tables);
+  }
 
   async find(type: string, value: string): Promise<BlacklistRecord | null> {
     const row = await this.db(this.tables.blacklist)

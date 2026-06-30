@@ -1,23 +1,24 @@
 import type { Knex } from 'knex';
 import type { CredentialsResolver } from '../core/contracts/credentials-resolver';
 import type { SispDriver } from '../core/contracts/sisp-driver';
+import type { SispStorage } from '../core/contracts/storage';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
 import type { PaymentRequest } from '../domain/value-objects/payment-request';
 import type { PaymentRequestData } from '../domain/value-objects/payment-request-data';
 import { type SispCredentials, sispCredentials } from '../domain/value-objects/sisp-credentials';
 import type { TransactionStatusResponse } from '../domain/value-objects/transaction-status-response';
-import type { Blacklist } from '../infrastructure/database/models/blacklist';
-import type { Invoice } from '../infrastructure/database/models/invoice';
-import type { PaymentIntent } from '../infrastructure/database/models/payment-intent';
-import type { Transaction } from '../infrastructure/database/models/transaction';
-import type { TransactionAttempt } from '../infrastructure/database/models/transaction-attempt';
-import type { TransactionItem } from '../infrastructure/database/models/transaction-item';
-import type { TransactionLog } from '../infrastructure/database/models/transaction-log';
-import type { TransactionRecord } from '../infrastructure/database/records';
 import type { SispManager } from '../infrastructure/drivers/sisp-manager';
 import { validateCallbackFingerprint } from '../infrastructure/fingerprints/callback-fingerprint';
 import { computeToken } from '../infrastructure/fingerprints/token';
 import type { SispHttpHandlers } from '../infrastructure/http/handlers';
+import type { Blacklist } from '../infrastructure/storage/knex/models/blacklist';
+import type { Invoice } from '../infrastructure/storage/knex/models/invoice';
+import type { PaymentIntent } from '../infrastructure/storage/knex/models/payment-intent';
+import type { Transaction } from '../infrastructure/storage/knex/models/transaction';
+import type { TransactionAttempt } from '../infrastructure/storage/knex/models/transaction-attempt';
+import type { TransactionItem } from '../infrastructure/storage/knex/models/transaction-item';
+import type { TransactionLog } from '../infrastructure/storage/knex/models/transaction-log';
+import type { TransactionRecord } from '../infrastructure/storage/knex/records';
 import type { UrlSigner } from '../support/signed-url';
 import type { BuildRequestPayloadAction } from './actions/build-request-payload';
 import type { CancelTransactionAction } from './actions/cancel-transaction';
@@ -58,6 +59,7 @@ export class Sisp {
   constructor(
     readonly config: ResolvedSispConfig,
     readonly db: Knex,
+    private readonly _storage: SispStorage,
     readonly events: SispEventEmitter,
     readonly manager: SispManager,
     readonly models: SispModels,
@@ -72,9 +74,13 @@ export class Sisp {
     private readonly urlSigner: UrlSigner,
   ) {}
 
+  get storage(): SispStorage {
+    return this._storage;
+  }
+
   forCredentials(credentials: Partial<SispCredentials>): ScopedSisp {
     return new ScopedSisp(
-      this.db,
+      this._storage,
       this.config,
       this.events,
       this.models,
@@ -187,6 +193,6 @@ export class Sisp {
   }
 
   async destroy(): Promise<void> {
-    await this.db.destroy();
+    await this._storage.destroy();
   }
 }

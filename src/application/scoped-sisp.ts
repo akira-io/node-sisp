@@ -1,13 +1,13 @@
-import type { Knex } from 'knex';
 import { StaticCredentialsResolver } from '../core/contracts/credentials-resolver';
+import type { SispStorage } from '../core/contracts/storage';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
 import type { PaymentRequest } from '../domain/value-objects/payment-request';
 import type { PaymentRequestData } from '../domain/value-objects/payment-request-data';
 import type { SispCredentials } from '../domain/value-objects/sisp-credentials';
 import type { TransactionStatusResponse } from '../domain/value-objects/transaction-status-response';
-import type { TransactionRecord } from '../infrastructure/database/records';
 import { validateCallbackFingerprint } from '../infrastructure/fingerprints/callback-fingerprint';
 import { computeToken } from '../infrastructure/fingerprints/token';
+import type { TransactionRecord } from '../infrastructure/storage/knex/records';
 import { PaymentBuilder } from './builders/payment-builder';
 import type { ResolvedSispConfig } from './config';
 import type { SispEventEmitter } from './events';
@@ -20,14 +20,14 @@ export class ScopedSisp {
   private readonly services: CredentialScopedServices;
 
   constructor(
-    db: Knex,
+    storage: SispStorage,
     config: ResolvedSispConfig,
     events: SispEventEmitter,
     models: SispModels,
     readonly credentials: SispCredentials,
   ) {
     this.services = wireCredentialScopedServices(
-      db,
+      storage,
       config,
       events,
       models,

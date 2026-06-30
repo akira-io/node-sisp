@@ -4,7 +4,7 @@ import {
   errorMessageTypeFromValue,
   errorMessageTypeLabel,
 } from '../../domain/enums/error-message-type';
-import type { InvoiceRecord, TransactionRecord } from '../database/records';
+import type { InvoiceRecord, TransactionRecord } from '../storage/knex/records';
 
 export interface PaymentResponseData {
   transaction: {

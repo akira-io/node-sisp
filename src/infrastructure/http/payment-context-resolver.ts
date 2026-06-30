@@ -7,14 +7,14 @@ import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { PaymentIntentAlreadyProcessingError } from '../../domain/errors/exceptions';
 import type { PaymentRequest } from '../../domain/value-objects/payment-request';
 import { paymentRequestDataFrom } from '../../domain/value-objects/payment-request-data';
-import type { PaymentIntent } from '../database/models/payment-intent';
-import type { Transaction } from '../database/models/transaction';
-import type { TransactionAttempt } from '../database/models/transaction-attempt';
+import type { PaymentIntent } from '../storage/knex/models/payment-intent';
+import type { Transaction } from '../storage/knex/models/transaction';
+import type { TransactionAttempt } from '../storage/knex/models/transaction-attempt';
 import {
   type TransactionAttemptRecord,
   type TransactionRecord,
   transactionPayloadRecord,
-} from '../database/records';
+} from '../storage/knex/records';
 import type { HttpRequestInfo } from './request-info';
 
 export interface PaymentContextResolverDeps {

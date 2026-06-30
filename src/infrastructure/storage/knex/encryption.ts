@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { deriveSispKey } from '../../support/key-derivation';
+import { deriveSispKey } from '../../../support/key-derivation';
 
 const PREFIX = 'sisp.v1';
 const ALGORITHM = 'aes-256-gcm';

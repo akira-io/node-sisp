@@ -4,8 +4,8 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { resolveConfig, type SispConfig } from '../../application/config';
 import { createSisp } from '../../application/create-sisp';
-import { runMigrations } from '../../infrastructure/database/auto-migrate';
-import { createKnexInstance } from '../../infrastructure/database/create-knex';
+import { runMigrations } from '../../infrastructure/storage/knex/auto-migrate';
+import { createKnexInstance } from '../../infrastructure/storage/knex/create-knex';
 
 export interface CliOptions {
   loadConfig?: () => Promise<SispConfig>;

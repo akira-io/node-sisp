@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../application/config';
+import type { SispTables } from '../../../application/config';
 
 const MAX_TRANSACTION_LOGS_PER_TRANSACTION = 100;
 const LOG_RETENTION_PRUNE_BATCH = 100;

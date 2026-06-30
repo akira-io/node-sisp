@@ -1,17 +1,15 @@
-import type { Knex } from 'knex';
+import type { SispStorage } from '../../core/contracts/storage';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import type { CallbackPayload } from '../../domain/value-objects/callback-payload';
-import { runWithLogSource } from '../../infrastructure/database/log-context';
-import type { Transaction } from '../../infrastructure/database/models/transaction';
+import { runWithLogSource } from '../../infrastructure/storage/knex/log-context';
 import {
   attemptChangesFromCallback,
   shouldPropagateAttemptToTransaction,
-  type TransactionAttempt,
-} from '../../infrastructure/database/models/transaction-attempt';
+} from '../../infrastructure/storage/knex/models/transaction-attempt';
 import type {
   TransactionAttemptRecord,
   TransactionRecord,
-} from '../../infrastructure/database/records';
+} from '../../infrastructure/storage/knex/records';
 
 export interface FailedTransactionResult {
   transaction: TransactionRecord;
@@ -19,11 +17,7 @@ export interface FailedTransactionResult {
 }
 
 export class FailTransactionAction {
-  constructor(
-    private readonly db: Knex,
-    private readonly transactions: Transaction,
-    private readonly attempts: TransactionAttempt,
-  ) {}
+  constructor(private readonly storage: SispStorage) {}
 
   async handle(
     transaction: TransactionRecord,
@@ -31,12 +25,9 @@ export class FailTransactionAction {
     merchantResponse: string,
     attempt: TransactionAttemptRecord | null = null,
   ): Promise<FailedTransactionResult> {
-    return this.db.transaction(async (trx) => {
-      const transactions = this.transactions.withConnection(trx);
-      const attempts = this.attempts.withConnection(trx);
-
+    return this.storage.transaction(async (tx) => {
       if (attempt !== null) {
-        const updatedAttempt = await attempts.update(
+        const updatedAttempt = await tx.transactionAttempts.update(
           attempt.id,
           attemptChangesFromCallback(payload, TransactionStatus.Failed, merchantResponse),
         );
@@ -49,7 +40,7 @@ export class FailTransactionAction {
       }
 
       const failed = await runWithLogSource('callback', () =>
-        transactions.update(transaction.id, {
+        tx.transactions.update(transaction.id, {
           merchant_session: transaction.merchant_session,
           transaction_id: String(payload.transactionID),
           message_type: payload.messageType,

@@ -71,19 +71,6 @@ export {
   paymentRequestDataFrom,
 } from './domain/value-objects/payment-request-data';
 export { type SispCredentials, sispCredentials } from './domain/value-objects/sisp-credentials';
-export { MIGRATIONS_TABLE, runMigrations } from './infrastructure/database/auto-migrate';
-export { createKnexInstance } from './infrastructure/database/create-knex';
-export { PayloadCipher } from './infrastructure/database/encryption';
-export { runWithLogSource } from './infrastructure/database/log-context';
-export type {
-  BlacklistRecord,
-  InvoiceRecord,
-  PaymentIntentRecord,
-  RequestMetadataRecord,
-  TransactionItemRecord,
-  TransactionLogRecord,
-  TransactionRecord,
-} from './infrastructure/database/records';
 export { SispManager } from './infrastructure/drivers/sisp-manager';
 export {
   generateCallbackFingerprint,
@@ -102,6 +89,19 @@ export { SispHttpHandlers } from './infrastructure/http/handlers';
 export type { HttpRequestInfo } from './infrastructure/http/request-info';
 export type { HttpResult } from './infrastructure/http/results';
 export { validatePaymentInput } from './infrastructure/http/validate-payment-input';
+export { MIGRATIONS_TABLE, runMigrations } from './infrastructure/storage/knex/auto-migrate';
+export { createKnexInstance } from './infrastructure/storage/knex/create-knex';
+export { PayloadCipher } from './infrastructure/storage/knex/encryption';
+export { runWithLogSource } from './infrastructure/storage/knex/log-context';
+export type {
+  BlacklistRecord,
+  InvoiceRecord,
+  PaymentIntentRecord,
+  RequestMetadataRecord,
+  TransactionItemRecord,
+  TransactionLogRecord,
+  TransactionRecord,
+} from './infrastructure/storage/knex/records';
 export {
   allCountries,
   type Country,

@@ -1,34 +1,26 @@
-import type { Knex } from 'knex';
 import type { CallbackPipe } from '../../../../core/contracts/pipes';
+import type { SispStorage } from '../../../../core/contracts/storage';
 import { TransactionStatus } from '../../../../domain/enums/transaction-status';
 import { TransactionNotFoundError } from '../../../../domain/errors/exceptions';
 import type { CallbackPayload } from '../../../../domain/value-objects/callback-payload';
-import { runWithLogSource } from '../../../../infrastructure/database/log-context';
-import type { Transaction } from '../../../../infrastructure/database/models/transaction';
+import { runWithLogSource } from '../../../../infrastructure/storage/knex/log-context';
 import {
   attemptChangesFromCallback,
   shouldPropagateAttemptToTransaction,
-  type TransactionAttempt,
-} from '../../../../infrastructure/database/models/transaction-attempt';
-import type { TransactionAttemptRecord } from '../../../../infrastructure/database/records';
+} from '../../../../infrastructure/storage/knex/models/transaction-attempt';
+import type { TransactionAttemptRecord } from '../../../../infrastructure/storage/knex/records';
 import { mapTransactionStatus } from '../../../actions/map-transaction-status';
 import type { CallbackContext } from '../callback-context';
 
 export class ApplyTransactionStatus implements CallbackPipe {
-  constructor(
-    private readonly db: Knex,
-    private readonly transactions: Transaction,
-    private readonly attempts: TransactionAttempt,
-  ) {}
+  constructor(private readonly storage: SispStorage) {}
 
   async handle(context: CallbackContext, next: () => Promise<void>): Promise<void> {
     const payload = context.payload;
     const status = mapTransactionStatus(payload.messageType);
 
-    const result = await this.db.transaction(async (trx) => {
-      const attempts = this.attempts.withConnection(trx);
-      const transactions = this.transactions.withConnection(trx);
-      const lockedAttempt = await attempts.findByRefAndSessionForUpdate(
+    const result = await this.storage.transaction(async (tx) => {
+      const lockedAttempt = await tx.transactionAttempts.findByRefAndSessionForUpdate(
         payload.merchantRef,
         payload.merchantSession,
       );
@@ -41,7 +33,9 @@ export class ApplyTransactionStatus implements CallbackPipe {
         };
       }
 
-      const lockedTransaction = await transactions.findByIdForUpdate(lockedAttempt.transaction_id);
+      const lockedTransaction = await tx.transactions.findByIdForUpdate(
+        lockedAttempt.transaction_id,
+      );
 
       if (lockedTransaction === null) {
         throw new TransactionNotFoundError(
@@ -53,7 +47,7 @@ export class ApplyTransactionStatus implements CallbackPipe {
         return { attempt: lockedAttempt, transaction: lockedTransaction, propagated: false };
       }
 
-      const updatedAttempt = await attempts.update(
+      const updatedAttempt = await tx.transactionAttempts.update(
         lockedAttempt.id,
         attemptChangesFromCallback(payload, status),
       );
@@ -63,7 +57,7 @@ export class ApplyTransactionStatus implements CallbackPipe {
       }
 
       const updatedTransaction = await runWithLogSource('callback', () =>
-        transactions.update(lockedTransaction.id, {
+        tx.transactions.update(lockedTransaction.id, {
           merchant_session: updatedAttempt.merchant_session,
           transaction_id: String(payload.transactionID),
           message_type: payload.messageType,

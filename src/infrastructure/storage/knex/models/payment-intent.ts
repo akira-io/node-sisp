@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../../application/config';
-import { isUniqueConstraintError } from '../../../support/database-errors';
+import type { SispTables } from '../../../../application/config';
+import { isUniqueConstraintError } from '../../../../support/database-errors';
 import { nowIso, type PaymentIntentRecord } from '../records';
 
 export class PaymentIntent {

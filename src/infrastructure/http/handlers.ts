@@ -29,12 +29,12 @@ import {
 import { paymentRequestDataFrom } from '../../domain/value-objects/payment-request-data';
 import { allCountries } from '../../support/countries';
 import type { UrlSigner } from '../../support/signed-url';
-import type { Invoice } from '../database/models/invoice';
-import type { PaymentIntent } from '../database/models/payment-intent';
-import type { RateLimit } from '../database/models/rate-limit';
-import type { Transaction } from '../database/models/transaction';
-import type { TransactionAttempt } from '../database/models/transaction-attempt';
 import type { SispManager } from '../drivers/sisp-manager';
+import type { Invoice } from '../storage/knex/models/invoice';
+import type { PaymentIntent } from '../storage/knex/models/payment-intent';
+import type { RateLimit } from '../storage/knex/models/rate-limit';
+import type { Transaction } from '../storage/knex/models/transaction';
+import type { TransactionAttempt } from '../storage/knex/models/transaction-attempt';
 import { renderAutoSubmitForm } from './auto-submit-form';
 import {
   booleanFromInput,

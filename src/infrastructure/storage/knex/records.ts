@@ -1,5 +1,5 @@
-import type { InvoiceStatus } from '../../domain/enums/invoice-status';
-import type { TransactionStatus } from '../../domain/enums/transaction-status';
+import type { InvoiceStatus } from '../../../domain/enums/invoice-status';
+import type { TransactionStatus } from '../../../domain/enums/transaction-status';
 
 export interface TransactionRecord {
   id: number;

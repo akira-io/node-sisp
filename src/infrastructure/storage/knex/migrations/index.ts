@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../../application/config';
+import type { SispTables } from '../../../../application/config';
 import { createPaymentIntentsTable } from './create-payment-intents-table';
 import { createSispTables } from './create-sisp-tables';
 import { createTransactionAttemptsTable } from './create-transaction-attempts-table';

@@ -1,7 +1,7 @@
 import type { PaymentRequest } from '../../../domain/value-objects/payment-request';
 import type { PaymentRequestData } from '../../../domain/value-objects/payment-request-data';
-import type { TransactionRecord } from '../../../infrastructure/database/records';
 import type { HttpRequestInfo } from '../../../infrastructure/http/request-info';
+import type { TransactionRecord } from '../../../infrastructure/storage/knex/records';
 
 export class PaymentContext {
   paymentRequest: PaymentRequest | null = null;

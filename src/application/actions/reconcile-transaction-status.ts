@@ -3,13 +3,13 @@ import {
   paymentStatusOf,
   type TransactionStatusResponse,
 } from '../../domain/value-objects/transaction-status-response';
-import { runWithLogSource } from '../../infrastructure/database/log-context';
-import type { Transaction } from '../../infrastructure/database/models/transaction';
+import type { SispManager } from '../../infrastructure/drivers/sisp-manager';
+import { runWithLogSource } from '../../infrastructure/storage/knex/log-context';
+import type { Transaction } from '../../infrastructure/storage/knex/models/transaction';
 import {
   type TransactionRecord,
   transactionPayloadRecord,
-} from '../../infrastructure/database/records';
-import type { SispManager } from '../../infrastructure/drivers/sisp-manager';
+} from '../../infrastructure/storage/knex/records';
 import type { UpdateInvoiceStatusAction } from './update-invoice-status';
 
 export class ReconcileTransactionStatusAction {

@@ -1,6 +1,6 @@
 import type { PaymentRequest } from '../../domain/value-objects/payment-request';
 import type { PaymentRequestData } from '../../domain/value-objects/payment-request-data';
-import type { TransactionRecord } from '../../infrastructure/database/records';
+import type { TransactionRecord } from '../../infrastructure/storage/knex/records';
 import type { BuildRequestPayloadAction } from './build-request-payload';
 
 const FALLBACK_POSTAL_CODE = '0000';

@@ -1,5 +1,5 @@
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
-import type { TransactionRecord } from '../infrastructure/database/records';
+import type { TransactionRecord } from '../infrastructure/storage/knex/records';
 
 export interface PaymentEvent {
   transaction: TransactionRecord;

@@ -15,11 +15,11 @@ import {
   paymentRequestToFormFields,
 } from '../../domain/value-objects/payment-request';
 import type { UrlSigner } from '../../support/signed-url';
-import type { RateLimit } from '../database/models/rate-limit';
-import type { Transaction } from '../database/models/transaction';
-import type { TransactionAttempt } from '../database/models/transaction-attempt';
-import type { TransactionRecord } from '../database/records';
 import type { SispManager } from '../drivers/sisp-manager';
+import type { RateLimit } from '../storage/knex/models/rate-limit';
+import type { Transaction } from '../storage/knex/models/transaction';
+import type { TransactionAttempt } from '../storage/knex/models/transaction-attempt';
+import type { TransactionRecord } from '../storage/knex/records';
 import { renderAutoSubmitForm } from './auto-submit-form';
 import { signedCallbackResultUrl } from './callback-processing';
 import { buildGatewayFormAction } from './gateway-form-action';

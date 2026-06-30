@@ -2,7 +2,7 @@ import type { CallbackPayload } from '../../../domain/value-objects/callback-pay
 import type {
   TransactionAttemptRecord,
   TransactionRecord,
-} from '../../../infrastructure/database/records';
+} from '../../../infrastructure/storage/knex/records';
 
 export class CallbackContext {
   transaction: TransactionRecord | null = null;

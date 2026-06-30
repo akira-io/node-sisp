@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../../application/config';
+import type { SispTables } from '../../../../application/config';
 import {
   type ListByTransactionOptions,
   normalizeListLimit,
@@ -13,6 +13,10 @@ export class TransactionLog {
     private readonly db: Knex,
     private readonly tables: SispTables,
   ) {}
+
+  withConnection(connection: Knex): TransactionLog {
+    return new TransactionLog(connection, this.tables);
+  }
 
   async listByTransaction(
     transactionId: number,

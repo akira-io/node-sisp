@@ -2,9 +2,9 @@ import type { CredentialsResolver } from '../../core/contracts/credentials-resol
 import { RefundTransactionCode } from '../../domain/enums/transaction-code';
 import { SispError } from '../../domain/errors/exceptions';
 import type { RefundRequest } from '../../domain/value-objects/refund-request';
-import type { TransactionRecord } from '../../infrastructure/database/records';
 import { generateRefundFingerprint } from '../../infrastructure/fingerprints/refund-fingerprint';
 import { computeToken } from '../../infrastructure/fingerprints/token';
+import type { TransactionRecord } from '../../infrastructure/storage/knex/records';
 import type { ResolvedSispConfig } from '../config';
 
 export class BuildRefundRequestAction {

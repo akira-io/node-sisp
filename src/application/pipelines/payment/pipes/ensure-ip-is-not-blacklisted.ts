@@ -1,6 +1,6 @@
 import type { PaymentPipe } from '../../../../core/contracts/pipes';
 import { BlacklistedIdentifierError } from '../../../../domain/errors/exceptions';
-import type { Blacklist } from '../../../../infrastructure/database/models/blacklist';
+import type { Blacklist } from '../../../../infrastructure/storage/knex/models/blacklist';
 import type { PaymentContext } from '../payment-context';
 
 export class EnsureIpIsNotBlacklisted implements PaymentPipe {

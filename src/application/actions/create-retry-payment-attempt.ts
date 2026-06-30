@@ -1,17 +1,15 @@
-import type { Knex } from 'knex';
+import type { SispStorage } from '../../core/contracts/storage';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import {
   TransactionStateError,
   UnableToGenerateUniquePaymentIdentifiersError,
 } from '../../domain/errors/exceptions';
 import type { PaymentRequest } from '../../domain/value-objects/payment-request';
-import { runWithLogSource } from '../../infrastructure/database/log-context';
-import type { Transaction } from '../../infrastructure/database/models/transaction';
-import type { TransactionAttempt } from '../../infrastructure/database/models/transaction-attempt';
+import { runWithLogSource } from '../../infrastructure/storage/knex/log-context';
 import type {
   TransactionAttemptRecord,
   TransactionRecord,
-} from '../../infrastructure/database/records';
+} from '../../infrastructure/storage/knex/records';
 import { isUniqueConstraintError, sleep } from '../../support/database-errors';
 import type { ResolvedSispConfig } from '../config';
 import type { CanRetryPaymentAction } from './can-retry-payment';
@@ -20,9 +18,7 @@ import type { RetryPaymentAction } from './retry-payment';
 export class CreateRetryPaymentAttemptAction {
   constructor(
     private readonly config: ResolvedSispConfig,
-    private readonly db: Knex,
-    private readonly transactions: Transaction,
-    private readonly attempts: TransactionAttempt,
+    private readonly storage: SispStorage,
     private readonly retryPayment: RetryPaymentAction,
     private readonly canRetryPayment: CanRetryPaymentAction,
   ) {}
@@ -41,14 +37,11 @@ export class CreateRetryPaymentAttemptAction {
       const paymentRequest = this.retryPayment.handle(transaction);
 
       try {
-        await this.db.transaction(async (trx) => {
-          const trxAttempts = this.attempts.withConnection(trx);
-          const trxTransactions = this.transactions.withConnection(trx);
-
-          await trxAttempts.createForPayment(transaction, paymentRequest, true);
+        await this.storage.transaction(async (tx) => {
+          await tx.transactionAttempts.createForPayment(transaction, paymentRequest, true);
 
           await runWithLogSource('retry', () =>
-            trxTransactions.update(transaction.id, {
+            tx.transactions.update(transaction.id, {
               merchant_session: paymentRequest.merchantSession,
               transaction_id: null,
               message_type: null,
@@ -80,24 +73,26 @@ export class CreateRetryPaymentAttemptAction {
   private async ensureInitialAttempt(
     transaction: TransactionRecord,
   ): Promise<TransactionAttemptRecord[]> {
-    const currentAttempts = await this.attempts.listByTransaction(transaction.id);
+    const currentAttempts = await this.storage.transactionAttempts.listByTransaction(
+      transaction.id,
+    );
 
     if (currentAttempts.length > 0) {
       return currentAttempts;
     }
 
     try {
-      await this.attempts.createFromTransaction(transaction);
+      await this.storage.transactionAttempts.createFromTransaction(transaction);
     } catch (error) {
       if (!isUniqueConstraintError(error)) {
         throw error;
       }
 
-      if (!(await this.attempts.existsByTransaction(transaction.id))) {
+      if (!(await this.storage.transactionAttempts.existsByTransaction(transaction.id))) {
         throw error;
       }
     }
 
-    return this.attempts.listByTransaction(transaction.id);
+    return this.storage.transactionAttempts.listByTransaction(transaction.id);
   }
 }

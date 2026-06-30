@@ -1,5 +1,5 @@
 import knexFactory, { type Knex } from 'knex';
-import type { SispDatabaseConfig } from '../../application/config';
+import type { SispDatabaseConfig } from '../../../application/config';
 
 export function createKnexInstance(config: SispDatabaseConfig): Knex {
   const sqlite = config.client === 'better-sqlite3';
