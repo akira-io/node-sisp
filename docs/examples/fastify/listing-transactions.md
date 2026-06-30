@@ -26,4 +26,4 @@ const oldestFirst = await sisp.models.transactions.list({ order: 'asc' });
 
 For a single transaction, use `findByRef`, `findById`, or `findByRefAndSession`. Prefer `list()` over raw queries: a raw `select('*')` returns `amount_cents` without the hydrated `amount` and keeps the payload encrypted.
 
-**Next:** [Decoupled SPA: Vue and Svelte](06-spa-frameworks.md)
+**Next:** [Examples index](../00-index.md)

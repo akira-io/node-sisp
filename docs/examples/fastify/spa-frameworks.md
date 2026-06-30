@@ -1,6 +1,6 @@
 # Decoupled SPA: Vue and Svelte
 
-The package is framework-agnostic. The [React example](02-spa-react.md) backend and flow are unchanged for any SPA; only the view layer differs. The contract is plain HTTP plus a full-page form submit:
+The package is framework-agnostic. The [React example](spa-react.md) backend and flow are unchanged for any SPA; only the view layer differs. The contract is plain HTTP plus a full-page form submit:
 
 1. `POST /sisp/payment/intent` returns `{ action, fields, ref }`.
 2. Build a `<form>` and submit it full-page to the gateway.
@@ -163,6 +163,6 @@ Result route:
 {/if}
 ```
 
-The backend (API + CORS + `frontendResultUrl`) is exactly the one from the [React example](02-spa-react.md). Only the SPA router and components change per framework.
+The backend (API + CORS + `frontendResultUrl`) is exactly the one from the [React example](spa-react.md). Only the SPA router and components change per framework.
 
-**Next:** [Documentation index](../00-index.md)
+**Next:** [Handling cancellation](cancellation.md)

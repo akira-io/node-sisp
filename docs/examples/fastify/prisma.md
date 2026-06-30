@@ -61,4 +61,4 @@ The payment form, the auto-submitting gateway hop, the callback flow, and the li
 - `sisp.db` (the raw knex instance) is unavailable when a non-knex storage is injected; use `sisp.models` / `sisp.storage` instead.
 - Other ORMs (Drizzle, Sequelize, TypeORM) can implement the same `SispStorage` port. See [Storage adapters](../../12-storage-adapters.md).
 
-**Next:** [Decoupled SPA (React)](../02-spa-react.md)
+**Next:** [Decoupled SPA (React)](spa-react.md)
