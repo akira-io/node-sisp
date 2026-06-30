@@ -9,12 +9,21 @@ Every example here runs on the Fastify adapter, validated against the live SISP/
 | knex | [Fastify with knex storage](knex.md) |
 | Prisma | [Fastify with Prisma storage](prisma.md) |
 
-## Decoupled SPA frontend
+## Rendering
 
 | Example | What it shows |
 |---------|---------------|
-| [Decoupled SPA (React)](spa-react.md) | API-only backend (knex and Prisma), JSON payment intent, full-page gateway hop, frontend result redirect |
-| [Decoupled SPA: Vue and Svelte](spa-frameworks.md) | The same SPA flow in Vue and Svelte |
+| [Server-side rendering](ssr.md) | Server-rendered pages, full-page HTML form to `POST /sisp/payment`, no client framework |
+
+## Decoupled SPA frontend
+
+Same API-only backend (knex or Prisma), one file per view layer:
+
+| Example | What it shows |
+|---------|---------------|
+| [React](react.md) | JSON payment intent, full-page gateway hop, frontend result redirect; shows both knex and Prisma backends |
+| [Vue](vue.md) | The same SPA flow in Vue |
+| [Svelte](svelte.md) | The same SPA flow in Svelte |
 
 ## Behavior
 

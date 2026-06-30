@@ -142,4 +142,4 @@ SPA --GET /api/transactions/:ref--> backend: authoritative status
 
 `/sisp/payment` (HTML) and `/sisp/payment/intent` (JSON) run the same pipeline; a `fetch`-driven SPA must use the JSON one. See [Adapters](../../06-adapters.md).
 
-**Next:** [Decoupled SPA: Vue and Svelte](spa-frameworks.md)
+**Next:** [Decoupled SPA (Vue)](vue.md)
