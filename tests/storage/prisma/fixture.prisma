@@ -1,0 +1,189 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("PRISMA_TEST_DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/sisp-test"
+}
+
+model SispTransaction {
+  id                 BigInt    @id @default(autoincrement())
+  merchantRef        String    @map("merchant_ref")
+  merchantSession    String    @map("merchant_session")
+  amountCents        BigInt    @default(0) @map("amount_cents")
+  currency           String    @default("132")
+  status             String    @default("pending")
+  transactionCode    String?   @map("transaction_code")
+  transactionId      String?   @map("transaction_id")
+  messageType        String?   @map("message_type")
+  responseCode       String?   @map("response_code")
+  merchantResponse   String?   @map("merchant_response")
+  fingerprint        String?
+  payload            String?
+  customerName       String?   @map("customer_name")
+  customerEmail      String?   @map("customer_email")
+  customerPhone      String?   @map("customer_phone")
+  customerCountry    String?   @map("customer_country")
+  customerCity       String?   @map("customer_city")
+  customerAddress    String?   @map("customer_address")
+  customerPostalCode String?   @map("customer_postal_code")
+  locale             String    @default("pt")
+  cancelledAt        DateTime? @map("cancelled_at")
+  refundedAt         DateTime? @map("refunded_at")
+  createdAt          DateTime? @map("created_at")
+  updatedAt          DateTime? @map("updated_at")
+
+  @@map("sisp_transactions")
+}
+
+model SispTransactionItem {
+  id              BigInt    @id @default(autoincrement())
+  transactionId   BigInt    @map("transaction_id")
+  productId       String?   @map("product_id")
+  productName     String    @map("product_name")
+  quantity        Int       @default(1)
+  unitPriceCents  BigInt    @map("unit_price_cents")
+  totalPriceCents BigInt    @map("total_price_cents")
+  description     String?
+  metadata        String?
+  createdAt       DateTime? @map("created_at")
+  updatedAt       DateTime? @map("updated_at")
+
+  @@map("sisp_transaction_items")
+}
+
+model SispTransactionAttempt {
+  id                   BigInt    @id @default(autoincrement())
+  transactionId        BigInt    @map("transaction_id")
+  attemptNumber        Int       @map("attempt_number")
+  merchantRef          String    @map("merchant_ref")
+  merchantSession      String    @map("merchant_session")
+  status               String    @default("pending")
+  gatewayTransactionId String?   @map("gateway_transaction_id")
+  messageType          String?   @map("message_type")
+  responseCode         String?   @map("response_code")
+  merchantResponse     String?   @map("merchant_response")
+  fingerprint          String?
+  payload              String?
+  callbackPayload      String?   @map("callback_payload")
+  failureReason        String?   @map("failure_reason")
+  submittedAt          DateTime? @map("submitted_at")
+  callbackReceivedAt   DateTime? @map("callback_received_at")
+  supersededAt         DateTime? @map("superseded_at")
+  createdAt            DateTime? @map("created_at")
+  updatedAt            DateTime? @map("updated_at")
+
+  @@map("sisp_transaction_attempts")
+}
+
+model SispPaymentIntent {
+  id             BigInt    @id @default(autoincrement())
+  idempotencyKey String    @unique @map("idempotency_key")
+  transactionId  BigInt?   @map("transaction_id")
+  status         String    @default("processing")
+  failureReason  String?   @map("failure_reason")
+  createdAt      DateTime? @map("created_at")
+  updatedAt      DateTime? @map("updated_at")
+
+  @@map("sisp_payment_intents")
+}
+
+model SispInvoice {
+  id              BigInt    @id @default(autoincrement())
+  transactionId   BigInt    @unique @map("transaction_id")
+  invoiceNumber   String    @unique @map("invoice_number")
+  invoiceDate     DateTime  @map("invoice_date")
+  dueDate         DateTime? @map("due_date")
+  status          String    @default("pending")
+  customerName    String?   @map("customer_name")
+  customerEmail   String?   @map("customer_email")
+  customerCity    String?   @map("customer_city")
+  customerAddress String?   @map("customer_address")
+  customerCountry String?   @map("customer_country")
+  notes           String?
+  pdfPath         String?   @map("pdf_path")
+  metadata        String?
+  createdAt       DateTime? @map("created_at")
+  updatedAt       DateTime? @map("updated_at")
+
+  @@map("sisp_invoices")
+}
+
+model SispTransactionLog {
+  id                BigInt    @id @default(autoincrement())
+  transactionId     BigInt    @map("transaction_id")
+  source            String    @default("model")
+  changedAttributes Json      @map("changed_attributes")
+  oldValues         Json?     @map("old_values")
+  newValues         Json?     @map("new_values")
+  createdAt         DateTime? @map("created_at")
+  updatedAt         DateTime? @map("updated_at")
+
+  @@map("sisp_transaction_logs")
+}
+
+model SispBlacklist {
+  id        BigInt    @id @default(autoincrement())
+  type      String
+  value     String
+  reason    String?
+  severity  String
+  notes     String?
+  addedBy   String?   @map("added_by")
+  expiresAt DateTime? @map("expires_at")
+  createdAt DateTime? @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+
+  @@unique([type, value])
+  @@map("sisp_blacklist")
+}
+
+model SispRateLimit {
+  id            BigInt    @id @default(autoincrement())
+  identifier    String
+  limitType     String    @map("limit_type")
+  context       String?
+  hits          Int       @default(1)
+  limit         Int       @default(100)
+  windowSeconds Int       @default(3600) @map("window_seconds")
+  resetAt       DateTime  @map("reset_at")
+  isBlocked     Boolean   @default(false) @map("is_blocked")
+  blockedUntil  DateTime? @map("blocked_until")
+  createdAt     DateTime? @map("created_at")
+  updatedAt     DateTime? @map("updated_at")
+
+  @@map("sisp_rate_limits")
+}
+
+model SispRequestMetadata {
+  id                BigInt    @id @default(autoincrement())
+  transactionId     BigInt?   @map("transaction_id")
+  ipAddress         String    @map("ip_address")
+  userAgent         String?   @map("user_agent")
+  referer           String?
+  countryCode       String?   @map("country_code")
+  countryName       String?   @map("country_name")
+  region            String?
+  city              String?
+  latitude          Float?
+  longitude         Float?
+  isp               String?
+  deviceType        String?   @map("device_type")
+  browser           String?
+  os                String?
+  deviceFingerprint String?   @map("device_fingerprint")
+  responseTimeMs    Int?      @map("response_time_ms")
+  apiVersion        String?   @map("api_version")
+  isVpn             Boolean   @default(false) @map("is_vpn")
+  isProxy           Boolean   @default(false) @map("is_proxy")
+  isMobile          Boolean   @default(false) @map("is_mobile")
+  riskScore         Int       @default(0) @map("risk_score")
+  riskReason        String?   @map("risk_reason")
+  customMetadata    String?   @map("custom_metadata")
+  createdAt         DateTime? @map("created_at")
+  updatedAt         DateTime? @map("updated_at")
+
+  @@map("sisp_request_metadata")
+}
