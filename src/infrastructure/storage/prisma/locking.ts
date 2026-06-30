@@ -44,13 +44,20 @@ export async function lockRowForUpdate(
   const quotedTable = quoteIdentifier(table, provider);
   const firstColumn = quoteIdentifier(first.column, provider);
   const where = columns
-    .map(({ column }) => `${quoteIdentifier(column, provider)} = ?`)
+    .map(
+      ({ column }, index) =>
+        `${quoteIdentifier(column, provider)} = ${placeholder(provider, index)}`,
+    )
     .join(' AND ');
 
   await exec(
     `SELECT ${firstColumn} FROM ${quotedTable} WHERE ${where} FOR UPDATE`,
     ...columns.map(({ value }) => value),
   );
+}
+
+function placeholder(provider: PrismaSqlProvider, index: number): string {
+  return provider === 'postgresql' ? `$${index + 1}` : '?';
 }
 
 function quoteIdentifier(identifier: string, provider: PrismaSqlProvider): string {

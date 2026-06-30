@@ -1,12 +1,12 @@
 import type { PaymentPipe } from '../../../../core/contracts/pipes';
+import type { RateLimitRepository } from '../../../../core/contracts/storage';
 import { RateLimitExceededError } from '../../../../domain/errors/exceptions';
-import type { RateLimit } from '../../../../infrastructure/storage/knex/models/rate-limit';
 import type { RateLimiting } from '../../../config';
 import type { PaymentContext } from '../payment-context';
 
 export class EnforceRateLimits implements PaymentPipe {
   constructor(
-    private readonly rateLimits: RateLimit,
+    private readonly rateLimits: RateLimitRepository,
     private readonly rateLimiting: RateLimiting,
   ) {}
 

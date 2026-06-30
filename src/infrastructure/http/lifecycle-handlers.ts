@@ -5,6 +5,11 @@ import type { CreateRetryPaymentAttemptAction } from '../../application/actions/
 import type { RefundTransactionAction } from '../../application/actions/refund-transaction';
 import type { RetryPaymentAction } from '../../application/actions/retry-payment';
 import type { ResolvedSispConfig } from '../../application/config';
+import type {
+  RateLimitRepository,
+  TransactionAttemptRepository,
+  TransactionRepository,
+} from '../../core/contracts/storage';
 import {
   PaymentRetryLimitExceededError,
   SispError,
@@ -16,9 +21,6 @@ import {
 } from '../../domain/value-objects/payment-request';
 import type { UrlSigner } from '../../support/signed-url';
 import type { SispManager } from '../drivers/sisp-manager';
-import type { RateLimit } from '../storage/knex/models/rate-limit';
-import type { Transaction } from '../storage/knex/models/transaction';
-import type { TransactionAttempt } from '../storage/knex/models/transaction-attempt';
 import type { TransactionRecord } from '../storage/knex/records';
 import { renderAutoSubmitForm } from './auto-submit-form';
 import { signedCallbackResultUrl } from './callback-processing';
@@ -31,14 +33,14 @@ export interface LifecycleHandlersDeps {
   config: ResolvedSispConfig;
   db: Knex;
   manager: SispManager;
-  transactions: Transaction;
-  attempts: TransactionAttempt;
+  transactions: TransactionRepository;
+  attempts: TransactionAttemptRepository;
   cancelTransaction: CancelTransactionAction;
   retryPayment: RetryPaymentAction;
   createRetryAttempt: CreateRetryPaymentAttemptAction;
   canRetryPayment: CanRetryPaymentAction;
   refundTransaction: RefundTransactionAction;
-  rateLimits: RateLimit;
+  rateLimits: RateLimitRepository;
   urlSigner: UrlSigner;
 }
 

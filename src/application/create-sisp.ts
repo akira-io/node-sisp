@@ -43,19 +43,18 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     await storage.migrate?.();
   }
 
-  const knex = storage as KnexStorage;
-  const db = knex.raw;
+  const db = (storage as KnexStorage).raw;
   const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(resolved));
   const events = new SispEventEmitter(resolved.onEventListenerError ?? undefined);
 
   const models: SispModels = {
-    transactions: knex.transactions,
-    transactionItems: knex.transactionItems,
-    transactionAttempts: knex.transactionAttempts,
-    paymentIntents: knex.paymentIntents,
-    invoices: knex.invoices,
-    transactionLogs: knex.transactionLogs,
-    blacklist: knex.blacklist,
+    transactions: storage.transactions,
+    transactionItems: storage.transactionItems,
+    transactionAttempts: storage.transactionAttempts,
+    paymentIntents: storage.paymentIntents,
+    invoices: storage.invoices,
+    transactionLogs: storage.transactionLogs,
+    blacklist: storage.blacklist,
   };
 
   const services = wireCredentialScopedServices(
@@ -65,8 +64,8 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     models,
     credentialsResolver,
   );
-  const storeMetadata = new StoreRequestMetadataAction(knex.requestMetadata);
-  const rateLimits = knex.rateLimits;
+  const storeMetadata = new StoreRequestMetadataAction(storage.requestMetadata);
+  const rateLimits = storage.rateLimits;
   const paymentPreflightPipes = [
     new EnsureIpIsNotBlacklisted(models.blacklist),
     new EnforceRateLimits(rateLimits, resolved.rateLimiting),

@@ -7,7 +7,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model Transaction {
+model SispTransaction {
   id                  BigInt    @id @default(autoincrement())
   merchantRef         String    @map("merchant_ref")
   merchantSession     String    @map("merchant_session")
@@ -37,7 +37,7 @@ model Transaction {
   @@map("sisp_transactions")
 }
 
-model TransactionItem {
+model SispTransactionItem {
   id              BigInt    @id @default(autoincrement())
   transactionId   BigInt    @map("transaction_id")
   productId       String?   @map("product_id")
@@ -53,7 +53,7 @@ model TransactionItem {
   @@map("sisp_transaction_items")
 }
 
-model TransactionAttempt {
+model SispTransactionAttempt {
   id                    BigInt    @id @default(autoincrement())
   transactionId         BigInt    @map("transaction_id")
   attemptNumber         Int       @map("attempt_number")
@@ -77,7 +77,7 @@ model TransactionAttempt {
   @@map("sisp_transaction_attempts")
 }
 
-model PaymentIntent {
+model SispPaymentIntent {
   id              BigInt    @id @default(autoincrement())
   idempotencyKey  String    @unique @map("idempotency_key")
   transactionId   BigInt?   @map("transaction_id")
@@ -89,7 +89,7 @@ model PaymentIntent {
   @@map("sisp_payment_intents")
 }
 
-model Invoice {
+model SispInvoice {
   id              BigInt    @id @default(autoincrement())
   transactionId   BigInt    @unique @map("transaction_id")
   invoiceNumber   String    @unique @map("invoice_number")
@@ -110,7 +110,7 @@ model Invoice {
   @@map("sisp_invoices")
 }
 
-model TransactionLog {
+model SispTransactionLog {
   id                BigInt    @id @default(autoincrement())
   transactionId     BigInt    @map("transaction_id")
   source            String    @default("model")
@@ -123,7 +123,7 @@ model TransactionLog {
   @@map("sisp_transaction_logs")
 }
 
-model Blacklist {
+model SispBlacklist {
   id        BigInt    @id @default(autoincrement())
   type      String
   value     String
@@ -139,7 +139,7 @@ model Blacklist {
   @@map("sisp_blacklist")
 }
 
-model RateLimit {
+model SispRateLimit {
   id            BigInt    @id @default(autoincrement())
   identifier    String
   limitType     String    @map("limit_type")
@@ -156,7 +156,7 @@ model RateLimit {
   @@map("sisp_rate_limits")
 }
 
-model RequestMetadata {
+model SispRequestMetadata {
   id                BigInt    @id @default(autoincrement())
   transactionId     BigInt?   @map("transaction_id")
   ipAddress         String    @map("ip_address")

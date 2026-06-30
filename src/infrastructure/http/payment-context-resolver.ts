@@ -3,13 +3,15 @@ import type { CreateRetryPaymentAttemptAction } from '../../application/actions/
 import type { ResolvedSispConfig } from '../../application/config';
 import { PaymentContext } from '../../application/pipelines/payment/payment-context';
 import type { ProcessPaymentPipeline } from '../../application/pipelines/payment/process-payment-pipeline';
+import type {
+  PaymentIntentRepository,
+  TransactionAttemptRepository,
+  TransactionRepository,
+} from '../../core/contracts/storage';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { PaymentIntentAlreadyProcessingError } from '../../domain/errors/exceptions';
 import type { PaymentRequest } from '../../domain/value-objects/payment-request';
 import { paymentRequestDataFrom } from '../../domain/value-objects/payment-request-data';
-import type { PaymentIntent } from '../storage/knex/models/payment-intent';
-import type { Transaction } from '../storage/knex/models/transaction';
-import type { TransactionAttempt } from '../storage/knex/models/transaction-attempt';
 import {
   type TransactionAttemptRecord,
   type TransactionRecord,
@@ -20,9 +22,9 @@ import type { HttpRequestInfo } from './request-info';
 export interface PaymentContextResolverDeps {
   config: ResolvedSispConfig;
   paymentPipeline: ProcessPaymentPipeline;
-  transactions: Transaction;
-  attempts: TransactionAttempt;
-  paymentIntents: PaymentIntent;
+  transactions: TransactionRepository;
+  attempts: TransactionAttemptRepository;
+  paymentIntents: PaymentIntentRepository;
   createRetryAttempt: CreateRetryPaymentAttemptAction;
   canRetryPayment: CanRetryPaymentAction;
 }

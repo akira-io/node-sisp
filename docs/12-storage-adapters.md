@@ -19,6 +19,8 @@ const sisp = await createSisp({
 
 `KnexStorage` handles migrations automatically (`autoMigrate: true` by default) and re-exports its knex instance as `sisp.db` for any raw queries your application needs.
 
+> Note: `sisp.db` (the raw knex instance) is unavailable (`undefined`) when a non-knex storage is injected; use the repositories via `sisp.models` / `sisp.storage` instead.
+
 ## Prisma adapter
 
 `PrismaStorage` is shipped at the `@akira-io/sisp/prisma` subpath. The core bundle (`@akira-io/sisp`) never imports `@prisma/client`; the dependency is optional and only loaded when you import the subpath yourself.

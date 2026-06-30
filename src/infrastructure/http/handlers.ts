@@ -11,6 +11,13 @@ import { CallbackContext } from '../../application/pipelines/callback/callback-c
 import type { HandleCallbackPipeline } from '../../application/pipelines/callback/handle-callback-pipeline';
 import type { ProcessPaymentPipeline } from '../../application/pipelines/payment/process-payment-pipeline';
 import type { BuildSandboxPayloadAction } from '../../application/sandbox';
+import type {
+  InvoiceRepository,
+  PaymentIntentRepository,
+  RateLimitRepository,
+  TransactionAttemptRepository,
+  TransactionRepository,
+} from '../../core/contracts/storage';
 import {
   BlacklistedIdentifierError,
   PaymentIntentAlreadyProcessingError,
@@ -30,11 +37,6 @@ import { paymentRequestDataFrom } from '../../domain/value-objects/payment-reque
 import { allCountries } from '../../support/countries';
 import type { UrlSigner } from '../../support/signed-url';
 import type { SispManager } from '../drivers/sisp-manager';
-import type { Invoice } from '../storage/knex/models/invoice';
-import type { PaymentIntent } from '../storage/knex/models/payment-intent';
-import type { RateLimit } from '../storage/knex/models/rate-limit';
-import type { Transaction } from '../storage/knex/models/transaction';
-import type { TransactionAttempt } from '../storage/knex/models/transaction-attempt';
 import { renderAutoSubmitForm } from './auto-submit-form';
 import {
   booleanFromInput,
@@ -57,10 +59,10 @@ export interface SispHandlersDeps {
   manager: SispManager;
   paymentPipeline: ProcessPaymentPipeline;
   callbackPipeline: HandleCallbackPipeline;
-  transactions: Transaction;
-  attempts: TransactionAttempt;
-  paymentIntents: PaymentIntent;
-  invoices: Invoice;
+  transactions: TransactionRepository;
+  attempts: TransactionAttemptRepository;
+  paymentIntents: PaymentIntentRepository;
+  invoices: InvoiceRepository;
   storeMetadata: StoreRequestMetadataAction;
   updateInvoiceStatus: UpdateInvoiceStatusAction;
   buildSandboxPayload: BuildSandboxPayloadAction;
@@ -69,7 +71,7 @@ export interface SispHandlersDeps {
   createRetryAttempt: CreateRetryPaymentAttemptAction;
   canRetryPayment: CanRetryPaymentAction;
   refundTransaction: RefundTransactionAction;
-  rateLimits: RateLimit;
+  rateLimits: RateLimitRepository;
   urlSigner: UrlSigner;
 }
 
@@ -77,9 +79,9 @@ export class SispHttpHandlers {
   private readonly config: ResolvedSispConfig;
   private readonly manager: SispManager;
   private readonly callbackPipeline: HandleCallbackPipeline;
-  private readonly transactions: Transaction;
-  private readonly attempts: TransactionAttempt;
-  private readonly invoices: Invoice;
+  private readonly transactions: TransactionRepository;
+  private readonly attempts: TransactionAttemptRepository;
+  private readonly invoices: InvoiceRepository;
   private readonly storeMetadata: StoreRequestMetadataAction;
   private readonly updateInvoiceStatus: UpdateInvoiceStatusAction;
   private readonly buildSandboxPayload: BuildSandboxPayloadAction;

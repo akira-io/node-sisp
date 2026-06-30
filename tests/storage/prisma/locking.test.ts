@@ -22,10 +22,12 @@ describe('lockRowForUpdate', () => {
     expect(sql).toContain('FOR UPDATE');
     expect(sql).toContain('"sisp_transactions"');
     expect(sql).toContain('"id"');
+    expect(sql).toContain('"id" = $1');
+    expect(sql).not.toContain('?');
     expect(value).toBe(42);
   });
 
-  it('uses backtick quoting for mysql', async () => {
+  it('uses backtick quoting and ? placeholders for mysql', async () => {
     const exec = vi.fn().mockResolvedValue([]);
 
     await lockRowForUpdate(exec, 'mysql', 'sisp_transactions', 'id', 7);
@@ -36,6 +38,8 @@ describe('lockRowForUpdate', () => {
 
     expect(sql).toContain('`sisp_transactions`');
     expect(sql).toContain('`id`');
+    expect(sql).toContain('`id` = ?');
+    expect(sql).not.toContain('$1');
     expect(sql).toContain('FOR UPDATE');
   });
 
@@ -59,7 +63,7 @@ describe('lockRowForUpdate', () => {
     expect(sql).toContain('`sisp``transactions`');
   });
 
-  it('locks on a composite WHERE across multiple columns', async () => {
+  it('locks on a composite WHERE with positional placeholders for postgresql', async () => {
     const exec = vi.fn().mockResolvedValue([]);
 
     await lockRowForUpdate(exec, 'postgresql', 'sisp_transactions', [
@@ -71,8 +75,29 @@ describe('lockRowForUpdate', () => {
 
     const [sql, ...values] = exec.mock.calls[0] as [string, ...unknown[]];
 
-    expect(sql).toContain('"merchant_ref" = ?');
-    expect(sql).toContain('"merchant_session" = ?');
+    expect(sql).toContain('"merchant_ref" = $1');
+    expect(sql).toContain('"merchant_session" = $2');
+    expect(sql).not.toContain('?');
+    expect(sql).toContain(' AND ');
+    expect(sql).toContain('FOR UPDATE');
+    expect(values).toEqual(['REF', 'SESSION']);
+  });
+
+  it('locks on a composite WHERE with ? placeholders for mysql', async () => {
+    const exec = vi.fn().mockResolvedValue([]);
+
+    await lockRowForUpdate(exec, 'mysql', 'sisp_transactions', [
+      { column: 'merchant_ref', value: 'REF' },
+      { column: 'merchant_session', value: 'SESSION' },
+    ]);
+
+    expect(exec).toHaveBeenCalledOnce();
+
+    const [sql, ...values] = exec.mock.calls[0] as [string, ...unknown[]];
+
+    expect(sql).toContain('`merchant_ref` = ?');
+    expect(sql).toContain('`merchant_session` = ?');
+    expect(sql).not.toContain('$1');
     expect(sql).toContain(' AND ');
     expect(sql).toContain('FOR UPDATE');
     expect(values).toEqual(['REF', 'SESSION']);
