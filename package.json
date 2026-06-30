@@ -46,7 +46,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "prisma"
   ],
   "scripts": {
     "build": "tsup",

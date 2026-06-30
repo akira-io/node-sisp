@@ -35,21 +35,27 @@ npm install @prisma/client
 
 **2. Copy the reference schema into your project:**
 
-The package ships a complete Prisma schema at `prisma/sisp.prisma` (nine models mapping all nine `sisp_*` tables). Copy or include it in your own `schema.prisma`:
+The package ships a complete Prisma schema covering all nine `sisp_*` tables. Use the bundled CLI command to copy it:
 
-```prisma
-// schema.prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+```bash
+# Copy the full schema (datasource + generator + models) to ./prisma/sisp.prisma
+npx @akira-io/sisp prisma
 
-generator client {
-  provider = "prisma-client-js"
-}
+# Write to a custom path
+npx @akira-io/sisp prisma --out src/prisma/sisp.prisma
 
-// paste the model blocks from node_modules/@akira-io/sisp/prisma/sisp.prisma
+# If your schema.prisma already declares a datasource and generator, copy only the
+# model blocks and append them to your existing file
+npx @akira-io/sisp prisma --models-only --print >> prisma/schema.prisma
+
+# Print to stdout without writing a file (for inspection or piping)
+npx @akira-io/sisp prisma --print
+
+# Replace an existing file
+npx @akira-io/sisp prisma --force
 ```
+
+Alternatively, copy the file manually from `node_modules/@akira-io/sisp/prisma/sisp.prisma`.
 
 **3. Migrate:**
 
