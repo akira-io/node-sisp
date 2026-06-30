@@ -1,0 +1,40 @@
+name: Deploy docs site
+
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout node-sisp
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Checkout node-sisp-docs
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          repository: kidiatoliny/node-sisp-docs
+          token: ${{ secrets.PAYABLE_DOCS_TOKEN }}
+          path: node-sisp-docs
+
+      - name: Mirror docs into _docs_src
+        run: rsync -a --delete docs/ node-sisp-docs/_docs_src/
+
+      - name: Commit and push
+        working-directory: node-sisp-docs
+        run: |
+          git config user.name "kidiatoliny"
+          git config user.email "48266788+kidiatoliny@users.noreply.github.com"
+          git add _docs_src
+          if git diff --cached --quiet; then
+            echo "no docs changes to publish"
+            exit 0
+          fi
+          git commit -m "docs: sync from node-sisp ${GITHUB_SHA::7}"
+          git push
