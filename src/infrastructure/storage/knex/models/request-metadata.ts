@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../../../application/config';
+import type { NewRequestMetadata } from '../../../../domain/storage-types';
 import {
   type ListByTransactionOptions,
   normalizeListLimit,
@@ -8,11 +9,7 @@ import {
 } from '../list-options';
 import { nowIso, type RequestMetadataRecord } from '../records';
 
-export type NewRequestMetadata = Omit<
-  Partial<RequestMetadataRecord>,
-  'id' | 'created_at' | 'updated_at'
-> &
-  Pick<RequestMetadataRecord, 'ip_address'>;
+export type { NewRequestMetadata } from '../../../../domain/storage-types';
 
 export class RequestMetadata {
   constructor(

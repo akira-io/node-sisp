@@ -1,54 +1,24 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../../../application/config';
-import type { TransactionStatus } from '../../../../domain/enums/transaction-status';
+import type {
+  ListTransactionsOptions,
+  NewTransaction,
+  TransactionChanges,
+} from '../../../../domain/storage-types';
 import { fromCents, toCents } from '../../../../support/sisp-amount';
 import type { PayloadCipher } from '../encryption';
-import {
-  type ListByTransactionOptions,
-  normalizeListLimit,
-  normalizeListOffset,
-  normalizeListOrder,
-} from '../list-options';
+import { normalizeListLimit, normalizeListOffset, normalizeListOrder } from '../list-options';
 import { lockForUpdate } from '../locking';
 import { currentLogSource } from '../log-context';
 import { nowIso, type TransactionRecord } from '../records';
 import { pruneTransactionLogs } from '../transaction-log-pruning';
 import { amountCentsFromRow, extractId, stableStringify } from './transaction-row';
 
-export interface ListTransactionsOptions extends ListByTransactionOptions {
-  status?: TransactionStatus;
-}
-export interface NewTransaction {
-  merchantRef: string;
-  merchantSession: string;
-  amount: number | string;
-  currency?: string;
-  transactionCode?: string;
-  payload?: unknown;
-  locale?: string | null;
-}
-
-export interface TransactionChanges {
-  amount?: number | string;
-  status?: TransactionStatus;
-  transaction_id?: string | null;
-  message_type?: string | null;
-  response_code?: string | null;
-  merchant_response?: string | null;
-  fingerprint?: string | null;
-  payload?: unknown;
-  merchant_session?: string;
-  customer_name?: string | null;
-  customer_email?: string | null;
-  customer_phone?: string | null;
-  customer_country?: string | null;
-  customer_city?: string | null;
-  customer_address?: string | null;
-  customer_postal_code?: string | null;
-  locale?: string;
-  cancelled_at?: string | null;
-  refunded_at?: string | null;
-}
+export type {
+  ListTransactionsOptions,
+  NewTransaction,
+  TransactionChanges,
+} from '../../../../domain/storage-types';
 
 export class Transaction {
   constructor(

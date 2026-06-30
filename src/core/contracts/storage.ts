@@ -1,16 +1,4 @@
 import type { InvoiceStatus } from '../../domain/enums/invoice-status';
-import type { PaymentRequest } from '../../domain/value-objects/payment-request';
-import type { TransactionItemData } from '../../domain/value-objects/transaction-item-data';
-import type { ListByTransactionOptions } from '../../infrastructure/storage/knex/list-options';
-import type { BlacklistEntry } from '../../infrastructure/storage/knex/models/blacklist';
-import type { RateLimitHit } from '../../infrastructure/storage/knex/models/rate-limit';
-import type { NewRequestMetadata } from '../../infrastructure/storage/knex/models/request-metadata';
-import type {
-  ListTransactionsOptions,
-  NewTransaction,
-  TransactionChanges,
-} from '../../infrastructure/storage/knex/models/transaction';
-import type { TransactionAttemptChanges } from '../../infrastructure/storage/knex/models/transaction-attempt';
 import type {
   BlacklistRecord,
   InvoiceRecord,
@@ -20,7 +8,19 @@ import type {
   TransactionItemRecord,
   TransactionLogRecord,
   TransactionRecord,
-} from '../../infrastructure/storage/knex/records';
+} from '../../domain/records';
+import type {
+  BlacklistEntry,
+  ListByTransactionOptions,
+  ListTransactionsOptions,
+  NewRequestMetadata,
+  NewTransaction,
+  RateLimitHit,
+  TransactionAttemptChanges,
+  TransactionChanges,
+} from '../../domain/storage-types';
+import type { PaymentRequest } from '../../domain/value-objects/payment-request';
+import type { TransactionItemData } from '../../domain/value-objects/transaction-item-data';
 
 export interface TransactionRepository {
   create(data: NewTransaction): Promise<TransactionRecord>;
