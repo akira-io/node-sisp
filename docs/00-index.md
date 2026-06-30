@@ -29,5 +29,6 @@ Patterns validated against the live gateway. See [examples](examples/00-index.md
 | 03 | [Handling cancellation](examples/03-cancellation.md) | Reacting to `transaction:cancelled` |
 | 04 | [Handling failed payments](examples/04-failed-payments.md) | Reacting to `payment:failed` and OTP failures |
 | 05 | [Listing transactions](examples/05-listing-transactions.md) | Paginated, hydrated listing |
+| 06 | [Decoupled SPA: Vue and Svelte](examples/06-spa-frameworks.md) | The same SPA flow in Vue and Svelte |
 
 **Next:** [Installation](01-installation.md)

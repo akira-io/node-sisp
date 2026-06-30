@@ -19,11 +19,11 @@ const oldestFirst = await sisp.models.transactions.list({ order: 'asc' });
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `status` | — | Filter by transaction status |
+| `status` | any | Filter by transaction status |
 | `limit` | 100 | Bounded by the package list limit |
 | `offset` | 0 | Pagination offset |
 | `order` | `desc` | `asc` or `desc` by id |
 
 For a single transaction, use `findByRef`, `findById`, or `findByRefAndSession`. Prefer `list()` over raw queries: a raw `select('*')` returns `amount_cents` without the hydrated `amount` and keeps the payload encrypted.
 
-**Next:** [Documentation index](../00-index.md)
+**Next:** [Decoupled SPA: Vue and Svelte](06-spa-frameworks.md)
