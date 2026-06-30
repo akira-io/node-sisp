@@ -1,6 +1,6 @@
 # Decoupled SPA (Svelte)
 
-The package is framework-agnostic. The [React example](react.md) backend and flow are unchanged for any SPA; only the view layer differs. The contract is plain HTTP plus a full-page form submit:
+The package is framework-agnostic. The [React example](04-react.md) backend and flow are unchanged for any SPA; only the view layer differs. The contract is plain HTTP plus a full-page form submit:
 
 1. `POST /sisp/payment/intent` returns `{ action, fields, ref }`.
 2. Build a `<form>` and submit it full-page to the gateway.
@@ -101,6 +101,6 @@ export async function startPayment(data: Record<string, string>) {
 {/if}
 ```
 
-The backend (API + CORS + `frontendResultUrl`) is exactly the one from the [React example](react.md), on either [knex](knex.md) or [Prisma](prisma.md) storage. Only the SPA router and components change per framework.
+The backend (API + CORS + `frontendResultUrl`) is exactly the one from the [React example](04-react.md), on either [knex](01-knex.md) or [Prisma](02-prisma.md) storage. Only the SPA router and components change per framework.
 
-**Next:** [Handling cancellation](cancellation.md)
+**Next:** [Handling cancellation](07-cancellation.md)

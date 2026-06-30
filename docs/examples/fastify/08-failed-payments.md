@@ -40,4 +40,4 @@ The customer-facing result carries the mapped error and whether a retry is allow
 
 Use `payload.additionalErrorMessage` for the specific gateway reason (e.g. the OTP failure text) and the mapped `error` for a user-facing label.
 
-**Next:** [Listing transactions](listing-transactions.md)
+**Next:** [Listing transactions](09-listing-transactions.md)

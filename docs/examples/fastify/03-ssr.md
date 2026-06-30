@@ -2,7 +2,7 @@
 
 The simplest integration: Fastify renders the pages on the server and the browser navigates full-page throughout. No client framework, no JSON intent, no CORS. The checkout page posts an HTML form straight to the adapter's `POST /sisp/payment`, which replies with an auto-submitting form to the gateway; after payment the gateway returns the customer to the callback route and you render the result from storage.
 
-Storage is either [knex](knex.md) or [Prisma](prisma.md) - the routes below are identical for both; only the `createSisp` storage wiring changes.
+Storage is either [knex](01-knex.md) or [Prisma](02-prisma.md) - the routes below are identical for both; only the `createSisp` storage wiring changes.
 
 ```ts
 import { createSisp, fromCents } from '@akira-io/sisp';
@@ -67,6 +67,12 @@ await app.listen({ port: 3000 });
 
 Point the gateway back to the server-rendered result by setting `frontendResultUrl` to your `/result` route, or rely on the package's built-in JSON result page. Use `sisp.models.transactions.findByRef` (or `list`) to render any transaction state server-side; the same models back both storage engines.
 
-With `is3DSec: '1'` the form must carry the cardholder address fields, otherwise the package throws `MissingThreeDSecureDataError`. The live-gateway gotchas are the same as the [knex example](knex.md).
+With `is3DSec: '1'` the form must carry the cardholder address fields, otherwise the package throws `MissingThreeDSecureDataError`.
 
-**Next:** [Decoupled SPA (React)](react.md)
+## Gotchas confirmed against the live gateway
+
+- The gateway caps `merchantRef` and `merchantSession` at 15 characters. The built-in generators stay within the limit; keep custom generators within it too.
+- `BizMPIOnUsSisp` is a 3D Secure (MPI) endpoint. Sending `is3DSec: '0'` makes the gateway return a blank page, so keep it `'1'` and send the address fields.
+- The customer's browser performs the callback redirect, so for single-machine manual testing `http://localhost` works without a tunnel. A public HTTPS `baseUrl` is needed only when paying from another device or when the terminal whitelists the response URL.
+
+**Next:** [Decoupled SPA (React)](04-react.md)

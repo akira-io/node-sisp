@@ -53,7 +53,7 @@ await app.listen({ port: 3000 });
 
 ### Same backend on Prisma
 
-Swap the `database` config for an injected Prisma client. The rest of the backend (CORS, the `/sisp` plugin, the status endpoint) is unchanged. Setup steps are in [Fastify with Prisma storage](prisma.md).
+Swap the `database` config for an injected Prisma client. The rest of the backend (CORS, the `/sisp` plugin, the status endpoint) is unchanged. Setup steps are in [Fastify with Prisma storage](02-prisma.md).
 
 ```ts
 import { createPrismaStorage } from '@akira-io/sisp/prisma';
@@ -142,4 +142,4 @@ SPA --GET /api/transactions/:ref--> backend: authoritative status
 
 `/sisp/payment` (HTML) and `/sisp/payment/intent` (JSON) run the same pipeline; a `fetch`-driven SPA must use the JSON one. See [Adapters](../../06-adapters.md).
 
-**Next:** [Decoupled SPA (Vue)](vue.md)
+**Next:** [Decoupled SPA (Vue)](05-vue.md)

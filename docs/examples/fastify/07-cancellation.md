@@ -18,4 +18,4 @@ Observed callback payload from the live gateway:
 { "merchantRef": "Rmqzujqavi5xf96", "merchantSession": "Smqzujqavctgcpo", "UserCancelled": "true" }
 ```
 
-**Next:** [Handling failed payments](failed-payments.md)
+**Next:** [Handling failed payments](08-failed-payments.md)

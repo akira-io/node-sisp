@@ -1,6 +1,6 @@
 # Fastify with Prisma storage
 
-The same Fastify app as [knex storage](knex.md), but persistence runs on your own Prisma client. You inject the adapter through `storage`; the package core never imports Prisma. Behavior matches the knex adapter (the shared storage contract suite runs against both).
+The same Fastify app as [knex storage](01-knex.md), but persistence runs on your own Prisma client. You inject the adapter through `storage`; the package core never imports Prisma. Behavior matches the knex adapter (the shared storage contract suite runs against both).
 
 ## Set up Prisma
 
@@ -53,7 +53,7 @@ await app.listen({ port: 3000 });
 
 `createPrismaStorage(prisma, tables, appKey, { provider })`: pass `undefined` for `tables` to use the default `sisp_*` names, or a `SispTables` map to override them. `appKey` must match the one given to `createSisp` so encrypted payloads round-trip.
 
-The payment form, the auto-submitting gateway hop, the callback flow, and the live-gateway gotchas are identical to the [knex example](knex.md) - only the `storage` wiring changes.
+The payment form, the auto-submitting gateway hop, the callback flow, and the live-gateway gotchas are identical to the [knex example](01-knex.md) - only the `storage` wiring changes.
 
 ## Notes
 
@@ -61,4 +61,4 @@ The payment form, the auto-submitting gateway hop, the callback flow, and the li
 - `sisp.db` (the raw knex instance) is unavailable when a non-knex storage is injected; use `sisp.models` / `sisp.storage` instead.
 - Other ORMs (Drizzle, Sequelize, TypeORM) can implement the same `SispStorage` port. See [Storage adapters](../../12-storage-adapters.md).
 
-**Next:** [Server-side rendering](ssr.md)
+**Next:** [Server-side rendering](03-ssr.md)
