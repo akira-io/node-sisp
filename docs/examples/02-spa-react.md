@@ -2,10 +2,12 @@
 
 Drive a payment from a separate React app with an API-only backend. Payment initiation still requires a full-page browser navigation to the gateway (3D Secure cannot run over XHR), so the pattern is: the SPA asks the API for a payment intent, submits it full-page, and the package hands the browser back to the SPA afterwards.
 
+The package does the heavy lifting. `POST /sisp/payment/intent` runs the full payment pipeline (validation, idempotency, persist transaction and first attempt, sign the request) and returns the gateway target as JSON `{ action, fields, ref }`. The SPA only submits the form.
+
 ## Backend (Fastify, API + CORS)
 
 ```ts
-import { createSisp, fromCents, paymentRequestToFormFields } from '@akira-io/sisp';
+import { createSisp, fromCents } from '@akira-io/sisp';
 import { sispFastifyPlugin } from '@akira-io/sisp/fastify';
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
@@ -28,34 +30,7 @@ const app = Fastify();
 await app.register(cors, { origin: FRONTEND_URL });
 await app.register(sispFastifyPlugin, { sisp, prefix: '/sisp' });
 
-app.post('/api/payment', async (request, reply) => {
-  const body = request.body as Record<string, string>;
-  const paymentRequest = sisp
-    .payment()
-    .amount(Number(body.amount))
-    .customerEmail(body.customer_email)
-    .customerCountry(body.customer_country)
-    .customerCity(body.customer_city)
-    .customerAddress(body.customer_address)
-    .customerPostalCode(body.customer_postal_code)
-    .build();
-
-  const transaction = await sisp.models.transactions.create({
-    merchantRef: paymentRequest.merchantRef,
-    merchantSession: paymentRequest.merchantSession,
-    amount: Number(body.amount),
-  });
-  await sisp.models.transactionAttempts.createFromTransaction(transaction);
-
-  const fields = paymentRequestToFormFields(paymentRequest);
-  const action =
-    `${sisp.driver().paymentEndpoint()}?FingerPrint=${encodeURIComponent(String(fields.fingerprint))}` +
-    `&TimeStamp=${encodeURIComponent(String(fields.timeStamp))}` +
-    `&FingerPrintVersion=${encodeURIComponent(String(fields.fingerprintversion))}`;
-
-  reply.send({ action, fields, ref: paymentRequest.merchantRef });
-});
-
+// Status endpoint the SPA polls after the gateway returns.
 app.get('/api/transactions/:ref', async (request, reply) => {
   const { ref } = request.params as { ref: string };
   const transaction = await sisp.models.transactions.findByRef(ref);
@@ -76,7 +51,7 @@ app.get('/api/transactions/:ref', async (request, reply) => {
 await app.listen({ port: 3000 });
 ```
 
-`frontendResultUrl` makes a processed callback redirect the browser to `${frontendResultUrl}?ref=...` instead of the built-in JSON result page, so the SPA regains control.
+The SPA posts straight to the adapter's `POST /sisp/payment/intent`; there is no custom payment code on the backend. `frontendResultUrl` makes a processed callback redirect the browser to `${frontendResultUrl}?ref=...` instead of the built-in JSON result page, so the SPA regains control.
 
 ## Frontend (React)
 
@@ -84,11 +59,26 @@ await app.listen({ port: 3000 });
 const API = 'http://localhost:3000';
 
 async function pay(form: HTMLFormElement) {
-  const body = Object.fromEntries(new FormData(form).entries());
-  const response = await fetch(`${API}/api/payment`, {
+  const data = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+  const response = await fetch(`${API}/sisp/payment/intent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      amount: data.amount,
+      customer_email: data.customer_email,
+      customer_country: data.customer_country,
+      customer_city: data.customer_city,
+      customer_address: data.customer_address,
+      customer_postal_code: data.customer_postal_code,
+      items: [
+        {
+          product_name: 'Plano Pro',
+          quantity: '1',
+          unit_price: data.amount,
+          total_price: data.amount,
+        },
+      ],
+    }),
   });
 
   const { action, fields } = await response.json();
@@ -118,11 +108,13 @@ const transaction = await response.json(); // { status, amount, detail }
 ## Flow summary
 
 ```
-SPA --POST /api/payment--> backend: { action, fields }
+SPA --POST /sisp/payment/intent--> backend: { action, fields, ref }
 SPA --full-page POST--> gateway (3D Secure card page)
 gateway --> backend /sisp/callback (processed, events emitted)
 backend --redirect--> SPA /result?ref=...
 SPA --GET /api/transactions/:ref--> backend: authoritative status
 ```
+
+`/sisp/payment` (HTML) and `/sisp/payment/intent` (JSON) run the same pipeline; a `fetch`-driven SPA must use the JSON one. See [Adapters](../06-adapters.md).
 
 **Next:** [Handling cancellation](03-cancellation.md)

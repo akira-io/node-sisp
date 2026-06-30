@@ -2,7 +2,7 @@
 
 The package is framework-agnostic. The [React example](02-spa-react.md) backend and flow are unchanged for any SPA; only the view layer differs. The contract is plain HTTP plus a full-page form submit:
 
-1. `POST /api/payment` returns `{ action, fields }`.
+1. `POST /sisp/payment/intent` returns `{ action, fields, ref }`.
 2. Build a `<form>` and submit it full-page to the gateway.
 3. After payment the package redirects to `${frontendResultUrl}?ref=...`.
 4. The result route reads `ref` and polls `GET /api/transactions/:ref`.
@@ -12,11 +12,16 @@ The gateway submit is plain DOM, identical everywhere:
 ```ts
 const API = 'http://localhost:3000';
 
-export async function startPayment(body: Record<string, string>) {
-  const response = await fetch(`${API}/api/payment`, {
+export async function startPayment(data: Record<string, string>) {
+  const response = await fetch(`${API}/sisp/payment/intent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      ...data,
+      items: [
+        { product_name: 'Plano Pro', quantity: '1', unit_price: data.amount, total_price: data.amount },
+      ],
+    }),
   });
 
   const { action, fields } = await response.json();
