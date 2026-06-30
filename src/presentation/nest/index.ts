@@ -35,6 +35,11 @@ export class SispController {
     send(res, await this.sisp.handlers.handlePayment(toRequestInfo(req)));
   }
 
+  @Post('payment/intent')
+  async paymentIntent(@Req() req: Request, @Res() res: Response): Promise<void> {
+    send(res, await this.sisp.handlers.handlePaymentIntent(toRequestInfo(req)));
+  }
+
   @Get('callback')
   async callbackResult(@Req() req: Request, @Res() res: Response): Promise<void> {
     send(res, await this.sisp.handlers.handleCallback(toRequestInfo(req)));
