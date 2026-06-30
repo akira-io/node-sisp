@@ -261,6 +261,16 @@ describe('HandleCallbackPipeline', () => {
     expect(context.failureReason).toBe('callback_details_mismatch');
   });
 
+  it('rejects callbacks that provide a mismatching transactionCode', async () => {
+    await createPendingTransaction();
+
+    const context = await pipeline.run(
+      new CallbackContext(signedCallback({ transactionCode: '9' })),
+    );
+
+    expect(context.failureReason).toBe('callback_details_mismatch');
+  });
+
   it('marks error message types as failed', async () => {
     await createPendingTransaction();
     const failed = vi.fn();
