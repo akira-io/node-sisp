@@ -65,6 +65,8 @@ export function delegate(client: PrismaClientLike, name: string): PrismaDelegate
   return (client as unknown as Record<string, PrismaDelegate>)[name] as PrismaDelegate;
 }
 
-export function rawExec(client: PrismaClientLike): (query: string, ...values: unknown[]) => Promise<unknown> {
+export function rawExec(
+  client: PrismaClientLike,
+): (query: string, ...values: unknown[]) => Promise<unknown> {
   return client.$queryRawUnsafe.bind(client);
 }

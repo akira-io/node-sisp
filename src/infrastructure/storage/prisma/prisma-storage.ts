@@ -7,10 +7,10 @@ import { makeInvoiceRepository } from './repositories/invoice';
 import { makePaymentIntentRepository } from './repositories/payment-intent';
 import { makeRateLimitRepository } from './repositories/rate-limit';
 import { makeRequestMetadataRepository } from './repositories/request-metadata';
+import { makeTransactionRepository } from './repositories/transaction';
 import { makeTransactionAttemptRepository } from './repositories/transaction-attempt';
 import { makeTransactionItemRepository } from './repositories/transaction-item';
 import { makeTransactionLogRepository } from './repositories/transaction-log';
-import { makeTransactionRepository } from './repositories/transaction';
 
 export type PrismaSqlProvider = 'postgresql' | 'mysql' | 'sqlite';
 
@@ -54,7 +54,12 @@ class PrismaStorage implements SispStorage {
     return {
       transactions: makeTransactionRepository(txc, this.tables, this.cipher, this.provider),
       transactionItems: makeTransactionItemRepository(txc, this.tables),
-      transactionAttempts: makeTransactionAttemptRepository(txc, this.tables, this.cipher, this.provider),
+      transactionAttempts: makeTransactionAttemptRepository(
+        txc,
+        this.tables,
+        this.cipher,
+        this.provider,
+      ),
       paymentIntents: makePaymentIntentRepository(txc, this.tables),
       invoices: makeInvoiceRepository(txc, this.tables),
       transactionLogs: makeTransactionLogRepository(txc, this.tables),

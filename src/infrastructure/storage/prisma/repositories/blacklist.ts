@@ -20,10 +20,7 @@ export function makeBlacklistRepository(
         where: {
           type,
           value,
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: now } },
-          ],
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         },
       });
 

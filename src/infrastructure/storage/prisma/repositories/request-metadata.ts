@@ -1,7 +1,10 @@
 import type { SispTables } from '../../../../application/config';
 import type { RequestMetadataRepository } from '../../../../core/contracts/storage';
 import type { RequestMetadataRecord } from '../../../../domain/records';
-import type { ListByTransactionOptions, NewRequestMetadata } from '../../../../domain/storage-types';
+import type {
+  ListByTransactionOptions,
+  NewRequestMetadata,
+} from '../../../../domain/storage-types';
 import {
   normalizeListLimit,
   normalizeListOffset,
@@ -45,9 +48,8 @@ export function makeRequestMetadataRepository(
           isMobile: data.is_mobile ?? false,
           riskScore: data.risk_score ?? 0,
           riskReason: data.risk_reason ?? null,
-          customMetadata: data.custom_metadata !== undefined
-            ? JSON.stringify(data.custom_metadata)
-            : null,
+          customMetadata:
+            data.custom_metadata !== undefined ? JSON.stringify(data.custom_metadata) : null,
           createdAt: new Date(timestamp),
           updatedAt: new Date(timestamp),
         },

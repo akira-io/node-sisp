@@ -161,7 +161,8 @@ export function mapInvoice(row: PrismaRow): InvoiceRecord {
     transaction_id: asNumber(row.transactionId),
     invoice_number: row.invoiceNumber as string,
     invoice_date: invoiceDateToIso(row.invoiceDate),
-    due_date: row.dueDate === null || row.dueDate === undefined ? null : invoiceDateToIso(row.dueDate),
+    due_date:
+      row.dueDate === null || row.dueDate === undefined ? null : invoiceDateToIso(row.dueDate),
     status: row.status as InvoiceRecord['status'],
     customer_name: (row.customerName as string | null) ?? null,
     customer_email: (row.customerEmail as string | null) ?? null,

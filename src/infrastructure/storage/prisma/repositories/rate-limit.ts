@@ -44,9 +44,10 @@ function isCurrentlyBlocked(row: RateLimitRow): boolean {
     return true;
   }
 
-  const until = row.blockedUntil instanceof Date
-    ? row.blockedUntil.getTime()
-    : Date.parse(String(row.blockedUntil));
+  const until =
+    row.blockedUntil instanceof Date
+      ? row.blockedUntil.getTime()
+      : Date.parse(String(row.blockedUntil));
 
   return until > Date.now();
 }

@@ -1,13 +1,12 @@
 import type { SispTables } from '../../../../application/config';
 import type { TransactionAttemptRepository } from '../../../../core/contracts/storage';
-import type { TransactionAttemptRecord } from '../../../../domain/records';
+import type { TransactionAttemptRecord, TransactionRecord } from '../../../../domain/records';
 import type {
   ListByTransactionOptions,
   TransactionAttemptChanges,
 } from '../../../../domain/storage-types';
 import type { PaymentRequest } from '../../../../domain/value-objects/payment-request';
 import { paymentRequestToFormFields } from '../../../../domain/value-objects/payment-request';
-import type { TransactionRecord } from '../../../../domain/records';
 import type { PayloadCipher } from '../../knex/encryption';
 import {
   normalizeListLimit,
@@ -187,7 +186,10 @@ export function makeTransactionAttemptRepository(
       return latest ? mapTransactionAttempt(latest, cipher) : null;
     },
 
-    async update(id: number, changes: TransactionAttemptChanges): Promise<TransactionAttemptRecord> {
+    async update(
+      id: number,
+      changes: TransactionAttemptChanges,
+    ): Promise<TransactionAttemptRecord> {
       // TODO: new TransactionAttemptChanges fields must be added to this whitelist.
       const data: Record<string, unknown> = { updatedAt: new Date(nowIso()) };
 

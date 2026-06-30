@@ -14,8 +14,8 @@ import {
   normalizeListOrder,
 } from '../../knex/list-options';
 import { currentLogSource } from '../../knex/log-context';
-import { nowIso } from '../../knex/records';
 import { stableStringify } from '../../knex/models/transaction-row';
+import { nowIso } from '../../knex/records';
 import {
   DELEGATE_NAMES,
   delegate,
@@ -95,7 +95,11 @@ export function makeTransactionRepository(
 
   async function appendLog(
     transactionId: number,
-    diff: { changed: string[]; oldValues: Record<string, unknown>; newValues: Record<string, unknown> },
+    diff: {
+      changed: string[];
+      oldValues: Record<string, unknown>;
+      newValues: Record<string, unknown>;
+    },
   ): Promise<void> {
     const timestamp = nowIso();
 

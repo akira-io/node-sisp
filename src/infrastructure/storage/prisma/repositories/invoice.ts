@@ -1,7 +1,7 @@
 import type { SispTables } from '../../../../application/config';
 import type { InvoiceRepository } from '../../../../core/contracts/storage';
-import type { InvoiceRecord, TransactionRecord } from '../../../../domain/records';
 import type { InvoiceStatus } from '../../../../domain/enums/invoice-status';
+import type { InvoiceRecord, TransactionRecord } from '../../../../domain/records';
 import { nowIso } from '../../knex/records';
 import { DELEGATE_NAMES, delegate, type PrismaClientLike } from '../client';
 import { mapInvoice } from '../mapping';
