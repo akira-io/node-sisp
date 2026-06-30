@@ -7,3 +7,6 @@ coverage/
 .DS_Store
 .env*
 sisp.config.*
+
+# subagent-driven scratch (never commit)
+.superpowers/
