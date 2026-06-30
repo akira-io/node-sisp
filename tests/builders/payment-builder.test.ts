@@ -62,8 +62,8 @@ describe('PaymentBuilder', () => {
   it('fills refs, session, and timestamp from the configured generators', () => {
     const request = builderFor().amount(100).build();
 
-    expect(request.merchantRef).toMatch(/^R\d{14}[0-9a-f]{12}$/);
-    expect(request.merchantSession).toMatch(/^S\d{14}[0-9a-f]{12}$/);
+    expect(request.merchantRef).toMatch(/^R[0-9a-z]{14}$/);
+    expect(request.merchantSession).toMatch(/^S[0-9a-z]{14}$/);
     expect(request.timeStamp).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
     expect(request.transactionCode).toBe('1');
     expect(request.currency).toBe('132');

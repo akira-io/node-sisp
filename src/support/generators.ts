@@ -1,22 +1,19 @@
-import { randomBytes } from 'node:crypto';
+import { randomInt } from 'node:crypto';
+
+export const MERCHANT_IDENTIFIER_MAX_LENGTH = 15;
+
+const IDENTIFIER_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
 
 export function generateMerchantReference(date: Date = new Date()): string {
-  return `R${formatCompactTimestamp(date)}${randomEntropy()}`;
+  return buildMerchantIdentifier('R', date);
 }
 
 export function generateMerchantSession(date: Date = new Date()): string {
-  return `S${formatCompactTimestamp(date)}${randomEntropy()}`;
+  return buildMerchantIdentifier('S', date);
 }
 
 export function generateTimeStamp(date: Date = new Date()): string {
   return formatSispTimestamp(date);
-}
-
-export function formatCompactTimestamp(date: Date): string {
-  return (
-    `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}` +
-    `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
-  );
 }
 
 export function formatSispTimestamp(date: Date): string {
@@ -26,10 +23,26 @@ export function formatSispTimestamp(date: Date): string {
   );
 }
 
+function buildMerchantIdentifier(prefix: string, date: Date): string {
+  const time = Math.floor(date.getTime()).toString(36);
+  const randomLength = Math.max(2, MERCHANT_IDENTIFIER_MAX_LENGTH - prefix.length - time.length);
+
+  return `${prefix}${time}${randomAlphanumeric(randomLength)}`.slice(
+    0,
+    MERCHANT_IDENTIFIER_MAX_LENGTH,
+  );
+}
+
 function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
 
-function randomEntropy(): string {
-  return randomBytes(6).toString('hex');
+function randomAlphanumeric(length: number): string {
+  let identifier = '';
+
+  for (let index = 0; index < length; index += 1) {
+    identifier += IDENTIFIER_ALPHABET[randomInt(IDENTIFIER_ALPHABET.length)];
+  }
+
+  return identifier;
 }

@@ -46,8 +46,8 @@ describe('BuildSandboxPayloadAction', () => {
   it('fills refs and timestamps from the generators when omitted', () => {
     const payload = actionFor().handle({ amount: 100 });
 
-    expect(payload.merchantRef).toMatch(/^R\d{14}[0-9a-f]{12}$/);
-    expect(payload.merchantSession).toMatch(/^S\d{14}[0-9a-f]{12}$/);
+    expect(payload.merchantRef).toMatch(/^R[0-9a-z]{14}$/);
+    expect(payload.merchantSession).toMatch(/^S[0-9a-z]{14}$/);
     expect(payload.timeStamp).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
     expect(payload.transactionID).toMatch(/^FAKE/);
   });
