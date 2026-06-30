@@ -20,16 +20,16 @@ import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-pay
 import { generateCallbackFingerprint } from '../../src/infrastructure/fingerprints/callback-fingerprint';
 import { computeToken } from '../../src/infrastructure/fingerprints/token';
 import { runMigrations } from '../../src/infrastructure/storage/knex/auto-migrate';
-import { createKnexInstance } from '../../src/infrastructure/storage/knex/create-knex';
-import { PayloadCipher } from '../../src/infrastructure/storage/knex/encryption';
-import { Transaction } from '../../src/infrastructure/storage/knex/models/transaction';
-import { TransactionAttempt } from '../../src/infrastructure/storage/knex/models/transaction-attempt';
+import { KnexStorage } from '../../src/infrastructure/storage/knex/knex-storage';
+import type { Transaction } from '../../src/infrastructure/storage/knex/models/transaction';
+import type { TransactionAttempt } from '../../src/infrastructure/storage/knex/models/transaction-attempt';
 import { TransactionLog } from '../../src/infrastructure/storage/knex/models/transaction-log';
 
 const token = computeToken('TEST_POS_AUT_CODE');
 
 let db: Knex;
 let config: ResolvedSispConfig;
+let storage: KnexStorage;
 let transactions: Transaction;
 let attempts: TransactionAttempt;
 let logs: TransactionLog;
@@ -37,36 +37,35 @@ let events: SispEventEmitter;
 let pipeline: HandleCallbackPipeline;
 
 beforeEach(async () => {
-  db = createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
   config = resolveConfig({
     posId: '90051',
     posAutCode: 'TEST_POS_AUT_CODE',
     appKey: 'app-key',
     database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
   });
+  storage = KnexStorage.create(config.database, config.tables, config.appKey);
+  db = storage.raw;
   await runMigrations(db, config.tables);
 
-  const cipher = new PayloadCipher(config.appKey);
-
-  transactions = new Transaction(db, config.tables, cipher);
-  attempts = new TransactionAttempt(db, config.tables, cipher);
+  transactions = storage.transactions;
+  attempts = storage.transactionAttempts;
   logs = new TransactionLog(db, config.tables);
   events = new SispEventEmitter();
 
   const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(config));
-  const failTransaction = new FailTransactionAction(db, transactions, attempts);
+  const failTransaction = new FailTransactionAction(storage);
 
   pipeline = new HandleCallbackPipeline([
-    new ResolveTransaction(db, transactions, attempts),
+    new ResolveTransaction(storage),
     new ValidateFingerprint(credentialsResolver, failTransaction, events),
     new EnsureCallbackMatchesTransaction(config, credentialsResolver, failTransaction, events),
-    new ApplyTransactionStatus(db, transactions, attempts),
+    new ApplyTransactionStatus(storage),
     new DispatchPaymentEvents(events),
   ]);
 });
 
 afterEach(async () => {
-  await db.destroy();
+  await storage.destroy();
 });
 
 async function createPendingTransaction(amount: number | string = '1500') {

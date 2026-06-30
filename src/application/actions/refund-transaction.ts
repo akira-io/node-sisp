@@ -1,9 +1,8 @@
-import type { Knex } from 'knex';
+import type { SispStorage, TransactionRepository } from '../../core/contracts/storage';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { SispError, TransactionStateError } from '../../domain/errors/exceptions';
 import { refundRequestToRecord } from '../../domain/value-objects/refund-request';
 import { runWithLogSource } from '../../infrastructure/storage/knex/log-context';
-import type { Transaction } from '../../infrastructure/storage/knex/models/transaction';
 import {
   nowIso,
   type TransactionRecord,
@@ -15,8 +14,7 @@ import type { BuildRefundRequestAction } from './build-refund-request';
 
 export class RefundTransactionAction {
   constructor(
-    private readonly db: Knex,
-    private readonly transactions: Transaction,
+    private readonly storage: SispStorage,
     private readonly buildRefundRequest: BuildRefundRequestAction,
     private readonly events: SispEventEmitter,
   ) {}
@@ -32,16 +30,15 @@ export class RefundTransactionAction {
       throw new SispError('Refund amount must be greater than 0.');
     }
 
-    const refunded = await this.db.transaction(async (trx) => {
-      const transactions = this.transactions.withConnection(trx);
-      const locked = await transactions.findByIdForUpdate(transaction.id);
+    const refunded = await this.storage.transaction(async (tx) => {
+      const locked = await tx.transactions.findByIdForUpdate(transaction.id);
 
       if (locked === null) {
         throw new SispError(`Transaction ${transaction.id} not found.`);
       }
 
       return this.refundLockedTransaction(
-        transactions,
+        tx.transactions,
         locked,
         refundAmount,
         refundThousandths,
@@ -59,7 +56,7 @@ export class RefundTransactionAction {
   }
 
   private async refundLockedTransaction(
-    transactions: Transaction,
+    transactions: TransactionRepository,
     transaction: TransactionRecord,
     refundAmount: number,
     refundThousandths: number,

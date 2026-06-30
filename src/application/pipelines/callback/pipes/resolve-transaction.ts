@@ -1,8 +1,6 @@
-import type { Knex } from 'knex';
 import type { CallbackPipe } from '../../../../core/contracts/pipes';
+import type { SispStorage } from '../../../../core/contracts/storage';
 import { TransactionNotFoundError } from '../../../../domain/errors/exceptions';
-import type { Transaction } from '../../../../infrastructure/storage/knex/models/transaction';
-import type { TransactionAttempt } from '../../../../infrastructure/storage/knex/models/transaction-attempt';
 import type {
   TransactionAttemptRecord,
   TransactionRecord,
@@ -10,20 +8,16 @@ import type {
 import type { CallbackContext } from '../callback-context';
 
 export class ResolveTransaction implements CallbackPipe {
-  constructor(
-    private readonly db: Knex,
-    private readonly transactions: Transaction,
-    private readonly attempts: TransactionAttempt,
-  ) {}
+  constructor(private readonly storage: SispStorage) {}
 
   async handle(context: CallbackContext, next: () => Promise<void>): Promise<void> {
-    const attempt = await this.attempts.findByRefAndSession(
+    const attempt = await this.storage.transactionAttempts.findByRefAndSession(
       context.payload.merchantRef,
       context.payload.merchantSession,
     );
 
     if (attempt !== null) {
-      const transaction = await this.transactions.findById(attempt.transaction_id);
+      const transaction = await this.storage.transactions.findById(attempt.transaction_id);
 
       if (transaction === null) {
         throw new TransactionNotFoundError(
@@ -50,10 +44,8 @@ export class ResolveTransaction implements CallbackPipe {
   private async resolveLegacyTransaction(
     context: CallbackContext,
   ): Promise<{ transaction: TransactionRecord; attempt: TransactionAttemptRecord }> {
-    return this.db.transaction(async (trx) => {
-      const transactions = this.transactions.withConnection(trx);
-      const attempts = this.attempts.withConnection(trx);
-      const transaction = await transactions.findByRefAndSessionForUpdate(
+    return this.storage.transaction(async (tx) => {
+      const transaction = await tx.transactions.findByRefAndSessionForUpdate(
         context.payload.merchantRef,
         context.payload.merchantSession,
       );
@@ -64,14 +56,14 @@ export class ResolveTransaction implements CallbackPipe {
         );
       }
 
-      const attempt = await attempts.findByRefAndSessionForUpdate(
+      const attempt = await tx.transactionAttempts.findByRefAndSessionForUpdate(
         context.payload.merchantRef,
         context.payload.merchantSession,
       );
 
       return {
         transaction,
-        attempt: attempt ?? (await attempts.createFromTransaction(transaction)),
+        attempt: attempt ?? (await tx.transactionAttempts.createFromTransaction(transaction)),
       };
     });
   }

@@ -1,5 +1,5 @@
-import type { Knex } from 'knex';
 import type { PaymentPipe } from '../../../../core/contracts/pipes';
+import type { SispStorage } from '../../../../core/contracts/storage';
 import {
   DuplicatePaymentIdentifierError,
   UnableToGenerateUniquePaymentIdentifiersError,
@@ -11,10 +11,6 @@ import {
 import { paymentRequestToFormFields } from '../../../../domain/value-objects/payment-request';
 import { transactionItemCollection } from '../../../../domain/value-objects/transaction-item-data';
 import { runWithLogSource } from '../../../../infrastructure/storage/knex/log-context';
-import type { Invoice } from '../../../../infrastructure/storage/knex/models/invoice';
-import type { Transaction } from '../../../../infrastructure/storage/knex/models/transaction';
-import type { TransactionAttempt } from '../../../../infrastructure/storage/knex/models/transaction-attempt';
-import type { TransactionItem } from '../../../../infrastructure/storage/knex/models/transaction-item';
 import type { TransactionRecord } from '../../../../infrastructure/storage/knex/records';
 import { isUniqueConstraintError, sleep } from '../../../../support/database-errors';
 import type { BuildRequestPayloadAction } from '../../../actions/build-request-payload';
@@ -24,11 +20,7 @@ import type { PaymentContext } from '../payment-context';
 export class PersistTransaction implements PaymentPipe {
   constructor(
     private readonly config: ResolvedSispConfig,
-    private readonly db: Knex,
-    private readonly transactions: Transaction,
-    private readonly attempts: TransactionAttempt,
-    private readonly items: TransactionItem,
-    private readonly invoices: Invoice,
+    private readonly storage: SispStorage,
     private readonly buildRequestPayload: BuildRequestPayloadAction,
   ) {}
 
@@ -61,7 +53,7 @@ export class PersistTransaction implements PaymentPipe {
     context.transaction = transaction;
 
     try {
-      await this.invoices.createForTransaction(transaction);
+      await this.storage.invoices.createForTransaction(transaction);
     } catch {
       // Invoice stub creation must never break the payment flow.
     }
@@ -72,11 +64,8 @@ export class PersistTransaction implements PaymentPipe {
   private async persist(context: PaymentContext): Promise<TransactionRecord> {
     const paymentRequest = context.requirePaymentRequest();
 
-    return this.db.transaction(async (trx) => {
-      const transactions = this.transactions.withConnection(trx);
-      const attempts = this.attempts.withConnection(trx);
-
-      const created = await transactions.create({
+    return this.storage.transaction(async (tx) => {
+      const created = await tx.transactions.create({
         merchantRef: paymentRequest.merchantRef,
         merchantSession: paymentRequest.merchantSession,
         amount: paymentRequest.amount,
@@ -86,18 +75,19 @@ export class PersistTransaction implements PaymentPipe {
         locale: paymentRequest.locale,
       });
 
-      await attempts.createForPayment(created, paymentRequest);
+      await tx.transactionAttempts.createForPayment(created, paymentRequest);
 
       const withCustomer = await runWithLogSource('customer-data', () =>
-        transactions.update(
+        tx.transactions.update(
           created.id,
           customerDataToRecord(customerDataFrom(context.request.body)),
         ),
       );
 
-      await this.items
-        .withConnection(trx)
-        .createMany(created.id, transactionItemCollection(itemsFromBody(context.request.body)));
+      await tx.transactionItems.createMany(
+        created.id,
+        transactionItemCollection(itemsFromBody(context.request.body)),
+      );
 
       return withCustomer;
     });

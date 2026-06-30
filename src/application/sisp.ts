@@ -80,7 +80,7 @@ export class Sisp {
 
   forCredentials(credentials: Partial<SispCredentials>): ScopedSisp {
     return new ScopedSisp(
-      this.db,
+      this._storage,
       this.config,
       this.events,
       this.models,

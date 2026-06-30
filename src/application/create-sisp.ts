@@ -50,7 +50,13 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     blacklist: storage.blacklist,
   };
 
-  const services = wireCredentialScopedServices(db, resolved, events, models, credentialsResolver);
+  const services = wireCredentialScopedServices(
+    storage,
+    resolved,
+    events,
+    models,
+    credentialsResolver,
+  );
   const storeMetadata = new StoreRequestMetadataAction(storage.requestMetadata);
   const rateLimits = storage.rateLimits;
   const paymentPreflightPipes = [
@@ -62,15 +68,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     customizePipes(resolved.pipelines.payment, [
       ...paymentPreflightPipes,
       new BuildPaymentRequest(services.buildRequestPayload),
-      new PersistTransaction(
-        resolved,
-        db,
-        models.transactions,
-        models.transactionAttempts,
-        models.transactionItems,
-        models.invoices,
-        services.buildRequestPayload,
-      ),
+      new PersistTransaction(resolved, storage, services.buildRequestPayload),
       new CaptureRequestMetadata(storeMetadata),
     ]),
     paymentPreflightPipes,
@@ -82,15 +80,12 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   const canRetryPayment = new CanRetryPaymentAction(resolved);
   const createRetryAttempt = new CreateRetryPaymentAttemptAction(
     resolved,
-    db,
-    models.transactions,
-    models.transactionAttempts,
+    storage,
     retryPayment,
     canRetryPayment,
   );
   const refundTransaction = new RefundTransactionAction(
-    db,
-    models.transactions,
+    storage,
     new BuildRefundRequestAction(resolved, credentialsResolver),
     events,
   );

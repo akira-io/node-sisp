@@ -1,0 +1,779 @@
+3374405 refactor(storage): build Sisp on the storage port
+
+ .superpowers/sdd/progress.md                    |   1 +
+ .superpowers/sdd/task-3-report.md               |  45 +++
+ .superpowers/sdd/task-3-review.txt              | 373 ++++++++++++++++++++++++
+ src/application/create-sisp.ts                  |  38 +--
+ src/application/sisp.ts                         |   8 +-
+ src/infrastructure/storage/knex/knex-storage.ts |  88 ++----
+ 6 files changed, 468 insertions(+), 85 deletions(-)
+
+diff --git a/.superpowers/sdd/progress.md b/.superpowers/sdd/progress.md
+index df96e5f..43ef473 100644
+--- a/.superpowers/sdd/progress.md
++++ b/.superpowers/sdd/progress.md
+@@ -1,8 +1,9 @@
+ # Storage Port Phase 1 — progress
+ 
+ - Plan: docs/superpowers/plans/2026-06-30-storage-port-phase1.md
+ 
+ (no tasks complete yet)
+ Task 1: complete (commit bb54ad7..be62dfe, review clean)
+ Task 2: complete (commit be62dfe..70b0253, review clean)
+   - Minor (final review): contract afterEach calls storage.destroy() when makeStorage throws -> use await storage?.destroy()
++Task 3: complete (commit 70b0253..46e18d5, review clean — files moved, KnexStorage, 390 tests)
+diff --git a/.superpowers/sdd/task-3-report.md b/.superpowers/sdd/task-3-report.md
+new file mode 100644
+index 0000000..62082a8
+--- /dev/null
++++ b/.superpowers/sdd/task-3-report.md
+@@ -0,0 +1,45 @@
++# Task 3 Report: knex adapter
++
++Plan reference: docs/superpowers/plans/2026-06-30-storage-port-phase1.md
++
++## File Moves
++
++All 23 files moved from `src/infrastructure/database/` to `src/infrastructure/storage/knex/` using `git mv`:
++
++- `auto-migrate.ts`, `create-knex.ts`, `encryption.ts`, `list-options.ts`, `locking.ts`, `log-context.ts`, `records.ts`, `transaction-log-pruning.ts`
++- `models/` — blacklist, invoice, payment-intent, rate-limit, request-metadata, transaction-attempt, transaction-item, transaction-log, transaction-row, transaction
++- `migrations/` — create-payment-intents-table, create-sisp-tables, create-transaction-attempts-table, create-transaction-logs-table, index
++
++Import paths updated across all 70 affected files (src + tests + HTTP layer + CLI).
++
++## Models gaining `withConnection`
++
++All 9 models already had `withConnection` in place (added by prior task steps):
++- `blacklist.ts`, `invoice.ts`, `payment-intent.ts`, `rate-limit.ts`, `request-metadata.ts`, `transaction.ts`, `transaction-attempt.ts`, `transaction-item.ts`, `transaction-log.ts`
++
++No new additions were required.
++
++## KnexStorage shape
++
++`src/infrastructure/storage/knex/knex-storage.ts`:
++- `implements SispStorage`
++- `static create(database: Required<SispDatabaseConfig>, tables: SispTables, appKey: string | null): KnexStorage`
++- 9 readonly repository properties: `transactions`, `transactionItems`, `transactionAttempts`, `paymentIntents`, `invoices`, `transactionLogs`, `blacklist`, `rateLimits`, `requestMetadata`
++- `async transaction<T>(work)` — wraps `db.transaction((trx) => work(this.scoped(trx)))`
++- `private scoped(trx)` — returns `SispStorageTx` with each repo bound via `withConnection(trx)`
++- `async migrate()` — runs `runMigrations` only when `database.autoMigrate` is true
++- `async destroy()` — calls `db.destroy()`
++- `get raw(): Knex` — exposes underlying connection
++- 121 lines (well under 300-line cap)
++
++## Verification Results
++
++1. **`npm run typecheck`** — PASS, zero errors
++2. **`npx vitest run tests/storage/knex.test.ts`** — PASS, 6/6 tests green
++3. **`npm test`** — PASS, 390 tests across 38 test files (all green, including the 6 newly-passing contract tests)
++4. **`npm run lint`** — PASS, 0 errors / 2 warnings (same 2 pre-existing warnings, no new errors; fixed organizeImports issues from import reordering via `biome check --write`)
++
++## Commit
++
++Hash: `46e18d5`
++Message: `refactor(storage): move knex persistence behind KnexStorage`
+diff --git a/.superpowers/sdd/task-3-review.txt b/.superpowers/sdd/task-3-review.txt
+new file mode 100644
+index 0000000..09aae2d
+--- /dev/null
++++ b/.superpowers/sdd/task-3-review.txt
+@@ -0,0 +1,373 @@
++46e18d5 refactor(storage): move knex persistence behind KnexStorage
++
++ .superpowers/sdd/progress.md                       |   8 +
++ .superpowers/sdd/task-1-review.txt                 | 199 +++++++++++++++++++++
++ .superpowers/sdd/task-2-report.md                  |  47 +++++
++ .superpowers/sdd/task-2-review.txt                 | 132 ++++++++++++++
++ src/application/actions/build-refund-request.ts    |   2 +-
++ src/application/actions/can-retry-payment.ts       |   2 +-
++ src/application/actions/cancel-transaction.ts      |   6 +-
++ .../actions/create-retry-payment-attempt.ts        |   8 +-
++ src/application/actions/fail-transaction.ts        |   8 +-
++ .../actions/reconcile-transaction-status.ts        |   8 +-
++ src/application/actions/refund-transaction.ts      |   6 +-
++ src/application/actions/retry-payment.ts           |   2 +-
++ src/application/actions/store-request-metadata.ts  |   4 +-
++ src/application/actions/update-invoice-status.ts   |   4 +-
++ src/application/builders/refund-builder.ts         |   2 +-
++ src/application/create-sisp.ts                     |  24 +--
++ src/application/events.ts                          |   2 +-
++ .../pipelines/callback/callback-context.ts         |   2 +-
++ .../callback/pipes/apply-transaction-status.ts     |   8 +-
++ .../pipes/ensure-callback-matches-transaction.ts   |   2 +-
++ .../callback/pipes/resolve-transaction.ts          |   6 +-
++ .../pipelines/payment/payment-context.ts           |   2 +-
++ .../pipelines/payment/pipes/enforce-rate-limits.ts |   2 +-
++ .../payment/pipes/ensure-ip-is-not-blacklisted.ts  |   2 +-
++ .../pipelines/payment/pipes/persist-transaction.ts |  12 +-
++ src/application/scoped-sisp.ts                     |   2 +-
++ src/application/sisp.ts                            |  16 +-
++ src/core/contracts/storage.ts                      |  70 +++++---
++ src/index.ts                                       |  26 +--
++ src/infrastructure/http/callback-processing.ts     |   4 +-
++ src/infrastructure/http/handlers.ts                |  10 +-
++ src/infrastructure/http/lifecycle-handlers.ts      |   8 +-
++ .../http/payment-context-resolver.ts               |   8 +-
++ src/infrastructure/http/payment-response.ts        |   2 +-
++ .../{database => storage/knex}/auto-migrate.ts     |   2 +-
++ .../{database => storage/knex}/create-knex.ts      |   2 +-
++ .../{database => storage/knex}/encryption.ts       |   2 +-
++ src/infrastructure/storage/knex/knex-storage.ts    | 121 +++++++++++++
++ .../{database => storage/knex}/list-options.ts     |   0
++ .../{database => storage/knex}/locking.ts          |   0
++ .../{database => storage/knex}/log-context.ts      |   0
++ .../migrations/create-payment-intents-table.ts     |   2 +-
++ .../knex}/migrations/create-sisp-tables.ts         |   2 +-
++ .../create-transaction-attempts-table.ts           |   4 +-
++ .../migrations/create-transaction-logs-table.ts    |   2 +-
++ .../{database => storage/knex}/migrations/index.ts |   2 +-
++ .../{database => storage/knex}/models/blacklist.ts |   6 +-
++ .../{database => storage/knex}/models/invoice.ts   |   8 +-
++ .../knex}/models/payment-intent.ts                 |   4 +-
++ .../knex}/models/rate-limit.ts                     |   6 +-
++ .../knex}/models/request-metadata.ts               |   6 +-
++ .../knex}/models/transaction-attempt.ts            |  10 +-
++ .../knex}/models/transaction-item.ts               |   4 +-
++ .../knex}/models/transaction-log.ts                |   6 +-
++ .../knex}/models/transaction-row.ts                |   2 +-
++ .../knex}/models/transaction.ts                    |   6 +-
++ .../{database => storage/knex}/records.ts          |   4 +-
++ .../knex}/transaction-log-pruning.ts               |   2 +-
++ src/presentation/cli/run.ts                        |   4 +-
++ tests/database/auto-migrate.test.ts                |   7 +-
++ tests/database/encryption.test.ts                  |   2 +-
++ tests/database/guards.test.ts                      |   8 +-
++ tests/database/list-limits.test.ts                 |  20 +--
++ tests/database/transaction-list.test.ts            |  10 +-
++ tests/database/transaction-model.test.ts           |  12 +-
++ tests/events.test.ts                               |   2 +-
++ tests/http/callback-processing.test.ts             |   4 +-
++ tests/pipelines/callback-pipeline.test.ts          |  12 +-
++ tests/pipelines/payment-pipeline.test.ts           |  20 +--
++ tests/storage/knex.test.ts                         |  16 +-
++ 70 files changed, 768 insertions(+), 198 deletions(-)
++=== NON-RENAME CONTENT CHANGES (knex-storage + edited files) ===
++diff --git a/src/core/contracts/storage.ts b/src/core/contracts/storage.ts
++index 9d289b1..9f675b6 100644
++--- a/src/core/contracts/storage.ts
+++++ b/src/core/contracts/storage.ts
++@@ -1,56 +1,78 @@
++ import type { InvoiceStatus } from '../../domain/enums/invoice-status';
++-import type { TransactionItemData } from '../../domain/value-objects/transaction-item-data';
++ import type { PaymentRequest } from '../../domain/value-objects/payment-request';
+++import type { TransactionItemData } from '../../domain/value-objects/transaction-item-data';
+++import type { ListByTransactionOptions } from '../../infrastructure/storage/knex/list-options';
+++import type { BlacklistEntry } from '../../infrastructure/storage/knex/models/blacklist';
+++import type { RateLimitHit } from '../../infrastructure/storage/knex/models/rate-limit';
+++import type { NewRequestMetadata } from '../../infrastructure/storage/knex/models/request-metadata';
+++import type {
+++  ListTransactionsOptions,
+++  NewTransaction,
+++  TransactionChanges,
+++} from '../../infrastructure/storage/knex/models/transaction';
+++import type { TransactionAttemptChanges } from '../../infrastructure/storage/knex/models/transaction-attempt';
++ import type {
++   BlacklistRecord,
++   InvoiceRecord,
++   PaymentIntentRecord,
++   RequestMetadataRecord,
++   TransactionAttemptRecord,
++   TransactionItemRecord,
++   TransactionLogRecord,
++   TransactionRecord,
++-} from '../../infrastructure/database/records';
++-import type {
++-  ListTransactionsOptions,
++-  NewTransaction,
++-  TransactionChanges,
++-} from '../../infrastructure/database/models/transaction';
++-import type { ListByTransactionOptions } from '../../infrastructure/database/list-options';
++-import type { TransactionAttemptChanges } from '../../infrastructure/database/models/transaction-attempt';
++-import type { BlacklistEntry } from '../../infrastructure/database/models/blacklist';
++-import type { RateLimitHit } from '../../infrastructure/database/models/rate-limit';
++-import type { NewRequestMetadata } from '../../infrastructure/database/models/request-metadata';
+++} from '../../infrastructure/storage/knex/records';
++ 
++ export interface TransactionRepository {
++   create(data: NewTransaction): Promise<TransactionRecord>;
++   findById(id: number): Promise<TransactionRecord | null>;
++   findByIdForUpdate(id: number): Promise<TransactionRecord | null>;
++-  findByRefAndSession(merchantRef: string, merchantSession: string): Promise<TransactionRecord | null>;
++-  findByRefAndSessionForUpdate(merchantRef: string, merchantSession: string): Promise<TransactionRecord | null>;
+++  findByRefAndSession(
+++    merchantRef: string,
+++    merchantSession: string,
+++  ): Promise<TransactionRecord | null>;
+++  findByRefAndSessionForUpdate(
+++    merchantRef: string,
+++    merchantSession: string,
+++  ): Promise<TransactionRecord | null>;
++   findByRef(merchantRef: string): Promise<TransactionRecord | null>;
++   findByGatewayTransactionId(transactionId: string): Promise<TransactionRecord | null>;
++   list(options?: ListTransactionsOptions): Promise<TransactionRecord[]>;
++   listPendingForReconciliation(cutoffIso: string, limit: number): Promise<TransactionRecord[]>;
++   update(id: number, changes: TransactionChanges): Promise<TransactionRecord>;
++ }
++ 
++ export interface TransactionItemRepository {
++   createMany(transactionId: number, items: readonly TransactionItemData[]): Promise<void>;
++-  listByTransaction(transactionId: number, options?: ListByTransactionOptions): Promise<TransactionItemRecord[]>;
+++  listByTransaction(
+++    transactionId: number,
+++    options?: ListByTransactionOptions,
+++  ): Promise<TransactionItemRecord[]>;
++ }
++ 
++ export interface TransactionAttemptRepository {
++-  createForPayment(transaction: TransactionRecord, paymentRequest: PaymentRequest, supersedeCurrent?: boolean): Promise<TransactionAttemptRecord>;
+++  createForPayment(
+++    transaction: TransactionRecord,
+++    paymentRequest: PaymentRequest,
+++    supersedeCurrent?: boolean,
+++  ): Promise<TransactionAttemptRecord>;
++   createFromTransaction(transaction: TransactionRecord): Promise<TransactionAttemptRecord>;
++-  findByRefAndSession(merchantRef: string, merchantSession: string): Promise<TransactionAttemptRecord | null>;
++-  findByRefAndSessionForUpdate(merchantRef: string, merchantSession: string): Promise<TransactionAttemptRecord | null>;
++-  listByTransaction(transactionId: number, options?: ListByTransactionOptions): Promise<TransactionAttemptRecord[]>;
+++  findByRefAndSession(
+++    merchantRef: string,
+++    merchantSession: string,
+++  ): Promise<TransactionAttemptRecord | null>;
+++  findByRefAndSessionForUpdate(
+++    merchantRef: string,
+++    merchantSession: string,
+++  ): Promise<TransactionAttemptRecord | null>;
+++  listByTransaction(
+++    transactionId: number,
+++    options?: ListByTransactionOptions,
+++  ): Promise<TransactionAttemptRecord[]>;
++   existsByTransaction(transactionId: number): Promise<boolean>;
++   currentByTransaction(transactionId: number): Promise<TransactionAttemptRecord | null>;
++   update(id: number, changes: TransactionAttemptChanges): Promise<TransactionAttemptRecord>;
++ }
++ 
++ export interface PaymentIntentRepository {
++   reserve(idempotencyKey: string): Promise<boolean>;
++   findByKey(idempotencyKey: string): Promise<PaymentIntentRecord | null>;
++@@ -60,33 +82,39 @@ export interface PaymentIntentRepository {
++ 
++ export interface InvoiceRepository {
++   createForTransaction(transaction: TransactionRecord): Promise<InvoiceRecord>;
++   findByTransaction(transactionId: number): Promise<InvoiceRecord | null>;
++   updateStatus(transactionId: number, status: InvoiceStatus): Promise<void>;
++ }
++ 
++ export interface TransactionLogRepository {
++-  listByTransaction(transactionId: number, options?: ListByTransactionOptions): Promise<TransactionLogRecord[]>;
+++  listByTransaction(
+++    transactionId: number,
+++    options?: ListByTransactionOptions,
+++  ): Promise<TransactionLogRecord[]>;
++ }
++ 
++ export interface BlacklistRepository {
++   find(type: string, value: string): Promise<BlacklistRecord | null>;
++   isBlacklisted(type: string, value: string): Promise<boolean>;
++   add(entry: BlacklistEntry): Promise<BlacklistRecord>;
++   remove(type: string, value: string): Promise<boolean>;
++ }
++ 
++ export interface RateLimitRepository {
++   hit(params: RateLimitHit): Promise<boolean>;
++ }
++ 
++ export interface RequestMetadataRepository {
++   create(data: NewRequestMetadata): Promise<void>;
++-  listByTransaction(transactionId: number, options?: ListByTransactionOptions): Promise<RequestMetadataRecord[]>;
+++  listByTransaction(
+++    transactionId: number,
+++    options?: ListByTransactionOptions,
+++  ): Promise<RequestMetadataRecord[]>;
++ }
++ 
++ export interface SispStorageRepositories {
++   transactions: TransactionRepository;
++   transactionItems: TransactionItemRepository;
++   transactionAttempts: TransactionAttemptRepository;
++   paymentIntents: PaymentIntentRepository;
++   invoices: InvoiceRepository;
++diff --git a/src/infrastructure/storage/knex/knex-storage.ts b/src/infrastructure/storage/knex/knex-storage.ts
++new file mode 100644
++index 0000000..eb47147
++--- /dev/null
+++++ b/src/infrastructure/storage/knex/knex-storage.ts
++@@ -0,0 +1,121 @@
+++import type { Knex } from 'knex';
+++import type { SispDatabaseConfig, SispTables } from '../../../application/config';
+++import type {
+++  BlacklistRepository,
+++  InvoiceRepository,
+++  PaymentIntentRepository,
+++  RateLimitRepository,
+++  RequestMetadataRepository,
+++  SispStorage,
+++  SispStorageTx,
+++  TransactionAttemptRepository,
+++  TransactionItemRepository,
+++  TransactionLogRepository,
+++  TransactionRepository,
+++} from '../../../core/contracts/storage';
+++import { runMigrations } from './auto-migrate';
+++import { createKnexInstance } from './create-knex';
+++import { PayloadCipher } from './encryption';
+++import { Blacklist } from './models/blacklist';
+++import { Invoice } from './models/invoice';
+++import { PaymentIntent } from './models/payment-intent';
+++import { RateLimit } from './models/rate-limit';
+++import { RequestMetadata } from './models/request-metadata';
+++import { Transaction } from './models/transaction';
+++import { TransactionAttempt } from './models/transaction-attempt';
+++import { TransactionItem } from './models/transaction-item';
+++import { TransactionLog } from './models/transaction-log';
+++
+++export class KnexStorage implements SispStorage {
+++  readonly transactions: TransactionRepository;
+++  readonly transactionItems: TransactionItemRepository;
+++  readonly transactionAttempts: TransactionAttemptRepository;
+++  readonly paymentIntents: PaymentIntentRepository;
+++  readonly invoices: InvoiceRepository;
+++  readonly transactionLogs: TransactionLogRepository;
+++  readonly blacklist: BlacklistRepository;
+++  readonly rateLimits: RateLimitRepository;
+++  readonly requestMetadata: RequestMetadataRepository;
+++
+++  private readonly transactionsModel: Transaction;
+++  private readonly transactionItemsModel: TransactionItem;
+++  private readonly transactionAttemptsModel: TransactionAttempt;
+++  private readonly paymentIntentsModel: PaymentIntent;
+++  private readonly invoicesModel: Invoice;
+++  private readonly transactionLogsModel: TransactionLog;
+++  private readonly blacklistModel: Blacklist;
+++  private readonly rateLimitsModel: RateLimit;
+++  private readonly requestMetadataModel: RequestMetadata;
+++
+++  private constructor(
+++    private readonly db: Knex,
+++    private readonly database: Required<SispDatabaseConfig>,
+++    private readonly tables: SispTables,
+++    cipher: PayloadCipher,
+++  ) {
+++    this.transactionsModel = new Transaction(db, tables, cipher);
+++    this.transactionItemsModel = new TransactionItem(db, tables);
+++    this.transactionAttemptsModel = new TransactionAttempt(db, tables, cipher);
+++    this.paymentIntentsModel = new PaymentIntent(db, tables);
+++    this.invoicesModel = new Invoice(db, tables);
+++    this.transactionLogsModel = new TransactionLog(db, tables);
+++    this.blacklistModel = new Blacklist(db, tables);
+++    this.rateLimitsModel = new RateLimit(db, tables);
+++    this.requestMetadataModel = new RequestMetadata(db, tables);
+++
+++    this.transactions = this.transactionsModel;
+++    this.transactionItems = this.transactionItemsModel;
+++    this.transactionAttempts = this.transactionAttemptsModel;
+++    this.paymentIntents = this.paymentIntentsModel;
+++    this.invoices = this.invoicesModel;
+++    this.transactionLogs = this.transactionLogsModel;
+++    this.blacklist = this.blacklistModel;
+++    this.rateLimits = this.rateLimitsModel;
+++    this.requestMetadata = this.requestMetadataModel;
+++  }
+++
+++  static create(
+++    database: Required<SispDatabaseConfig>,
+++    tables: SispTables,
+++    appKey: string | null,
+++  ): KnexStorage {
+++    const db = createKnexInstance(database);
+++    const cipher = new PayloadCipher(appKey);
+++
+++    return new KnexStorage(db, database, tables, cipher);
+++  }
+++
+++  async transaction<T>(work: (tx: SispStorageTx) => Promise<T>): Promise<T> {
+++    return this.db.transaction((trx) => work(this.scoped(trx)));
+++  }
+++
+++  async migrate(): Promise<void> {
+++    if (!this.database.autoMigrate) {
+++      return;
+++    }
+++
+++    await runMigrations(this.db, this.tables);
+++  }
+++
+++  async destroy(): Promise<void> {
+++    await this.db.destroy();
+++  }
+++
+++  get raw(): Knex {
+++    return this.db;
+++  }
+++
+++  private scoped(trx: Knex.Transaction): SispStorageTx {
+++    return {
+++      transactions: this.transactionsModel.withConnection(trx),
+++      transactionItems: this.transactionItemsModel.withConnection(trx),
+++      transactionAttempts: this.transactionAttemptsModel.withConnection(trx),
+++      paymentIntents: this.paymentIntentsModel.withConnection(trx),
+++      invoices: this.invoicesModel.withConnection(trx),
+++      transactionLogs: this.transactionLogsModel.withConnection(trx),
+++      blacklist: this.blacklistModel.withConnection(trx),
+++      rateLimits: this.rateLimitsModel.withConnection(trx),
+++      requestMetadata: this.requestMetadataModel.withConnection(trx),
+++    };
+++  }
+++}
++diff --git a/tests/storage/knex.test.ts b/tests/storage/knex.test.ts
++index 5ddf968..63cf95f 100644
++--- a/tests/storage/knex.test.ts
+++++ b/tests/storage/knex.test.ts
++@@ -1,9 +1,21 @@
++ import { describe } from 'vitest';
+++import { DEFAULT_TABLES } from '../../src/application/config';
+++import { KnexStorage } from '../../src/infrastructure/storage/knex/knex-storage';
++ import { runStorageContract } from './contract';
++ 
++ describe('KnexStorage', () => {
++   runStorageContract(async () => {
++-    // TODO: replace with real KnexStorage factory (Task 3)
++-    throw new Error('KnexStorage not implemented yet');
+++    const storage = KnexStorage.create(
+++      {
+++        client: 'better-sqlite3',
+++        connection: { filename: ':memory:' },
+++        autoMigrate: true,
+++      },
+++      DEFAULT_TABLES,
+++      'app-key',
+++    );
+++    await storage.migrate();
+++
+++    return storage;
++   });
++ });
+diff --git a/src/application/create-sisp.ts b/src/application/create-sisp.ts
+index ded6605..aa36d72 100644
+--- a/src/application/create-sisp.ts
++++ b/src/application/create-sisp.ts
+@@ -1,27 +1,16 @@
+ import {
+   type CredentialsResolver,
+   StaticCredentialsResolver,
+ } from '../core/contracts/credentials-resolver';
+ import { SispHttpHandlers } from '../infrastructure/http/handlers';
+-import { runMigrations } from '../infrastructure/storage/knex/auto-migrate';
+-import { createKnexInstance } from '../infrastructure/storage/knex/create-knex';
+-import { PayloadCipher } from '../infrastructure/storage/knex/encryption';
+-import { Blacklist } from '../infrastructure/storage/knex/models/blacklist';
+-import { Invoice } from '../infrastructure/storage/knex/models/invoice';
+-import { PaymentIntent } from '../infrastructure/storage/knex/models/payment-intent';
+-import { RateLimit } from '../infrastructure/storage/knex/models/rate-limit';
+-import { RequestMetadata } from '../infrastructure/storage/knex/models/request-metadata';
+-import { Transaction } from '../infrastructure/storage/knex/models/transaction';
+-import { TransactionAttempt } from '../infrastructure/storage/knex/models/transaction-attempt';
+-import { TransactionItem } from '../infrastructure/storage/knex/models/transaction-item';
+-import { TransactionLog } from '../infrastructure/storage/knex/models/transaction-log';
++import { KnexStorage } from '../infrastructure/storage/knex/knex-storage';
+ import { UrlSigner } from '../support/signed-url';
+ import { BuildRefundRequestAction } from './actions/build-refund-request';
+ import { CanRetryPaymentAction } from './actions/can-retry-payment';
+ import { CancelTransactionAction } from './actions/cancel-transaction';
+ import { CreateRetryPaymentAttemptAction } from './actions/create-retry-payment-attempt';
+ import { RefundTransactionAction } from './actions/refund-transaction';
+ import { RetryPaymentAction } from './actions/retry-payment';
+ import { StoreRequestMetadataAction } from './actions/store-request-metadata';
+ import {
+   credentialsFromConfig,
+@@ -34,43 +23,43 @@ import { BuildPaymentRequest } from './pipelines/payment/pipes/build-payment-req
+ import { CaptureRequestMetadata } from './pipelines/payment/pipes/capture-request-metadata';
+ import { EnforceRateLimits } from './pipelines/payment/pipes/enforce-rate-limits';
+ import { EnsureIpIsNotBlacklisted } from './pipelines/payment/pipes/ensure-ip-is-not-blacklisted';
+ import { PersistTransaction } from './pipelines/payment/pipes/persist-transaction';
+ import { ProcessPaymentPipeline } from './pipelines/payment/process-payment-pipeline';
+ import { Sisp, type SispModels } from './sisp';
+ import { customizePipes, wireCredentialScopedServices } from './wiring';
+ 
+ export async function createSisp(config: SispConfig): Promise<Sisp> {
+   const resolved = resolveConfig(config);
+-  const db = createKnexInstance(resolved.database);
++  const storage = KnexStorage.create(resolved.database, resolved.tables, resolved.appKey);
+ 
+   if (resolved.database.autoMigrate) {
+-    await runMigrations(db, resolved.tables);
++    await storage.migrate();
+   }
+ 
+-  const cipher = new PayloadCipher(resolved.appKey);
++  const db = storage.raw;
+   const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(resolved));
+   const events = new SispEventEmitter(resolved.onEventListenerError ?? undefined);
+ 
+   const models: SispModels = {
+-    transactions: new Transaction(db, resolved.tables, cipher),
+-    transactionItems: new TransactionItem(db, resolved.tables),
+-    transactionAttempts: new TransactionAttempt(db, resolved.tables, cipher),
+-    paymentIntents: new PaymentIntent(db, resolved.tables),
+-    invoices: new Invoice(db, resolved.tables),
+-    transactionLogs: new TransactionLog(db, resolved.tables),
+-    blacklist: new Blacklist(db, resolved.tables),
++    transactions: storage.transactions,
++    transactionItems: storage.transactionItems,
++    transactionAttempts: storage.transactionAttempts,
++    paymentIntents: storage.paymentIntents,
++    invoices: storage.invoices,
++    transactionLogs: storage.transactionLogs,
++    blacklist: storage.blacklist,
+   };
+ 
+   const services = wireCredentialScopedServices(db, resolved, events, models, credentialsResolver);
+-  const storeMetadata = new StoreRequestMetadataAction(new RequestMetadata(db, resolved.tables));
+-  const rateLimits = new RateLimit(db, resolved.tables);
++  const storeMetadata = new StoreRequestMetadataAction(storage.requestMetadata);
++  const rateLimits = storage.rateLimits;
+   const paymentPreflightPipes = [
+     new EnsureIpIsNotBlacklisted(models.blacklist),
+     new EnforceRateLimits(rateLimits, resolved.rateLimiting),
+   ];
+ 
+   const paymentPipeline = new ProcessPaymentPipeline(
+     customizePipes(resolved.pipelines.payment, [
+       ...paymentPreflightPipes,
+       new BuildPaymentRequest(services.buildRequestPayload),
+       new PersistTransaction(
+@@ -124,20 +113,21 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
+     createRetryAttempt,
+     canRetryPayment,
+     refundTransaction,
+     rateLimits,
+     urlSigner,
+   });
+ 
+   return new Sisp(
+     resolved,
+     db,
++    storage,
+     events,
+     services.manager,
+     models,
+     handlers,
+     credentialsResolver,
+     services.buildRequestPayload,
+     services.buildSandboxPayload,
+     services.callbackPipeline,
+     cancelTransaction,
+     refundTransaction,
+diff --git a/src/application/sisp.ts b/src/application/sisp.ts
+index 906ed2d..606ee65 100644
+--- a/src/application/sisp.ts
++++ b/src/application/sisp.ts
+@@ -1,13 +1,14 @@
+ import type { Knex } from 'knex';
+ import type { CredentialsResolver } from '../core/contracts/credentials-resolver';
+ import type { SispDriver } from '../core/contracts/sisp-driver';
++import type { SispStorage } from '../core/contracts/storage';
+ import type { CallbackPayload } from '../domain/value-objects/callback-payload';
+ import type { PaymentRequest } from '../domain/value-objects/payment-request';
+ import type { PaymentRequestData } from '../domain/value-objects/payment-request-data';
+ import { type SispCredentials, sispCredentials } from '../domain/value-objects/sisp-credentials';
+ import type { TransactionStatusResponse } from '../domain/value-objects/transaction-status-response';
+ import type { SispManager } from '../infrastructure/drivers/sisp-manager';
+ import { validateCallbackFingerprint } from '../infrastructure/fingerprints/callback-fingerprint';
+ import { computeToken } from '../infrastructure/fingerprints/token';
+ import type { SispHttpHandlers } from '../infrastructure/http/handlers';
+ import type { Blacklist } from '../infrastructure/storage/knex/models/blacklist';
+@@ -51,34 +52,39 @@ export interface ReconcilePendingOptions {
+ export interface ReconcilePendingResult {
+   skipped: boolean;
+   checked: number;
+   reconciled: number;
+ }
+ 
+ export class Sisp {
+   constructor(
+     readonly config: ResolvedSispConfig,
+     readonly db: Knex,
++    private readonly _storage: SispStorage,
+     readonly events: SispEventEmitter,
+     readonly manager: SispManager,
+     readonly models: SispModels,
+     readonly handlers: SispHttpHandlers,
+     private readonly credentialsResolver: CredentialsResolver,
+     private readonly buildRequestPayloadAction: BuildRequestPayloadAction,
+     private readonly buildSandboxPayloadAction: BuildSandboxPayloadAction,
+     private readonly callbackPipeline: HandleCallbackPipeline,
+     private readonly cancelTransaction: CancelTransactionAction,
+     private readonly refundTransaction: RefundTransactionAction,
+     private readonly reconcileTransaction: ReconcileTransactionStatusAction,
+     private readonly urlSigner: UrlSigner,
+   ) {}
+ 
++  get storage(): SispStorage {
++    return this._storage;
++  }
++
+   forCredentials(credentials: Partial<SispCredentials>): ScopedSisp {
+     return new ScopedSisp(
+       this.db,
+       this.config,
+       this.events,
+       this.models,
+       sispCredentials(credentials),
+     );
+   }
+ 
+@@ -180,13 +186,13 @@ export class Sisp {
+   }
+ 
+   generateSandboxPayload(
+     data: PaymentRequestData,
+     status: SandboxStatus = 'success',
+   ): CallbackPayload {
+     return this.buildSandboxPayloadAction.handle(data, status);
+   }
+ 
+   async destroy(): Promise<void> {
+-    await this.db.destroy();
++    await this._storage.destroy();
+   }
+ }
+diff --git a/src/infrastructure/storage/knex/knex-storage.ts b/src/infrastructure/storage/knex/knex-storage.ts
+index eb47147..c4f12b6 100644
+--- a/src/infrastructure/storage/knex/knex-storage.ts
++++ b/src/infrastructure/storage/knex/knex-storage.ts
+@@ -1,84 +1,52 @@
+ import type { Knex } from 'knex';
+ import type { SispDatabaseConfig, SispTables } from '../../../application/config';
+-import type {
+-  BlacklistRepository,
+-  InvoiceRepository,
+-  PaymentIntentRepository,
+-  RateLimitRepository,
+-  RequestMetadataRepository,
+-  SispStorage,
+-  SispStorageTx,
+-  TransactionAttemptRepository,
+-  TransactionItemRepository,
+-  TransactionLogRepository,
+-  TransactionRepository,
+-} from '../../../core/contracts/storage';
++import type { SispStorage, SispStorageTx } from '../../../core/contracts/storage';
+ import { runMigrations } from './auto-migrate';
+ import { createKnexInstance } from './create-knex';
+ import { PayloadCipher } from './encryption';
+ import { Blacklist } from './models/blacklist';
+ import { Invoice } from './models/invoice';
+ import { PaymentIntent } from './models/payment-intent';
+ import { RateLimit } from './models/rate-limit';
+ import { RequestMetadata } from './models/request-metadata';
+ import { Transaction } from './models/transaction';
+ import { TransactionAttempt } from './models/transaction-attempt';
+ import { TransactionItem } from './models/transaction-item';
+ import { TransactionLog } from './models/transaction-log';
+ 
+ export class KnexStorage implements SispStorage {
+-  readonly transactions: TransactionRepository;
+-  readonly transactionItems: TransactionItemRepository;
+-  readonly transactionAttempts: TransactionAttemptRepository;
+-  readonly paymentIntents: PaymentIntentRepository;
+-  readonly invoices: InvoiceRepository;
+-  readonly transactionLogs: TransactionLogRepository;
+-  readonly blacklist: BlacklistRepository;
+-  readonly rateLimits: RateLimitRepository;
+-  readonly requestMetadata: RequestMetadataRepository;
+-
+-  private readonly transactionsModel: Transaction;
+-  private readonly transactionItemsModel: TransactionItem;
+-  private readonly transactionAttemptsModel: TransactionAttempt;
+-  private readonly paymentIntentsModel: PaymentIntent;
+-  private readonly invoicesModel: Invoice;
+-  private readonly transactionLogsModel: TransactionLog;
+-  private readonly blacklistModel: Blacklist;
+-  private readonly rateLimitsModel: RateLimit;
+-  private readonly requestMetadataModel: RequestMetadata;
++  readonly transactions: Transaction;
++  readonly transactionItems: TransactionItem;
++  readonly transactionAttempts: TransactionAttempt;
++  readonly paymentIntents: PaymentIntent;
++  readonly invoices: Invoice;
++  readonly transactionLogs: TransactionLog;
++  readonly blacklist: Blacklist;
++  readonly rateLimits: RateLimit;
++  readonly requestMetadata: RequestMetadata;
+ 
+   private constructor(
+     private readonly db: Knex,
+     private readonly database: Required<SispDatabaseConfig>,
+     private readonly tables: SispTables,
+     cipher: PayloadCipher,
+   ) {
+-    this.transactionsModel = new Transaction(db, tables, cipher);
+-    this.transactionItemsModel = new TransactionItem(db, tables);
+-    this.transactionAttemptsModel = new TransactionAttempt(db, tables, cipher);
+-    this.paymentIntentsModel = new PaymentIntent(db, tables);
+-    this.invoicesModel = new Invoice(db, tables);
+-    this.transactionLogsModel = new TransactionLog(db, tables);
+-    this.blacklistModel = new Blacklist(db, tables);
+-    this.rateLimitsModel = new RateLimit(db, tables);
+-    this.requestMetadataModel = new RequestMetadata(db, tables);
+-
+-    this.transactions = this.transactionsModel;
+-    this.transactionItems = this.transactionItemsModel;
+-    this.transactionAttempts = this.transactionAttemptsModel;
+-    this.paymentIntents = this.paymentIntentsModel;
+-    this.invoices = this.invoicesModel;
+-    this.transactionLogs = this.transactionLogsModel;
+-    this.blacklist = this.blacklistModel;
+-    this.rateLimits = this.rateLimitsModel;
+-    this.requestMetadata = this.requestMetadataModel;
++    this.transactions = new Transaction(db, tables, cipher);
++    this.transactionItems = new TransactionItem(db, tables);
++    this.transactionAttempts = new TransactionAttempt(db, tables, cipher);
++    this.paymentIntents = new PaymentIntent(db, tables);
++    this.invoices = new Invoice(db, tables);
++    this.transactionLogs = new TransactionLog(db, tables);
++    this.blacklist = new Blacklist(db, tables);
++    this.rateLimits = new RateLimit(db, tables);
++    this.requestMetadata = new RequestMetadata(db, tables);
+   }
+ 
+   static create(
+     database: Required<SispDatabaseConfig>,
+     tables: SispTables,
+     appKey: string | null,
+   ): KnexStorage {
+     const db = createKnexInstance(database);
+     const cipher = new PayloadCipher(appKey);
+ 
+@@ -100,22 +68,22 @@ export class KnexStorage implements SispStorage {
+   async destroy(): Promise<void> {
+     await this.db.destroy();
+   }
+ 
+   get raw(): Knex {
+     return this.db;
+   }
+ 
+   private scoped(trx: Knex.Transaction): SispStorageTx {
+     return {
+-      transactions: this.transactionsModel.withConnection(trx),
+-      transactionItems: this.transactionItemsModel.withConnection(trx),
+-      transactionAttempts: this.transactionAttemptsModel.withConnection(trx),
+-      paymentIntents: this.paymentIntentsModel.withConnection(trx),
+-      invoices: this.invoicesModel.withConnection(trx),
+-      transactionLogs: this.transactionLogsModel.withConnection(trx),
+-      blacklist: this.blacklistModel.withConnection(trx),
+-      rateLimits: this.rateLimitsModel.withConnection(trx),
+-      requestMetadata: this.requestMetadataModel.withConnection(trx),
++      transactions: this.transactions.withConnection(trx),
++      transactionItems: this.transactionItems.withConnection(trx),
++      transactionAttempts: this.transactionAttempts.withConnection(trx),
++      paymentIntents: this.paymentIntents.withConnection(trx),
++      invoices: this.invoices.withConnection(trx),
++      transactionLogs: this.transactionLogs.withConnection(trx),
++      blacklist: this.blacklist.withConnection(trx),
++      rateLimits: this.rateLimits.withConnection(trx),
++      requestMetadata: this.requestMetadata.withConnection(trx),
+     };
+   }
+ }

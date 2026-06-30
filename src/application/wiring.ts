@@ -1,6 +1,6 @@
-import type { Knex } from 'knex';
 import type { CredentialsResolver } from '../core/contracts/credentials-resolver';
 import type { CallbackPipe, PaymentPipe } from '../core/contracts/pipes';
+import type { SispStorage } from '../core/contracts/storage';
 import { createSispManager, type SispManager } from '../infrastructure/drivers/sisp-manager';
 import { BuildRequestPayloadAction } from './actions/build-request-payload';
 import { FailTransactionAction } from './actions/fail-transaction';
@@ -27,7 +27,7 @@ export interface CredentialScopedServices {
 }
 
 export function wireCredentialScopedServices(
-  db: Knex,
+  storage: SispStorage,
   config: ResolvedSispConfig,
   events: SispEventEmitter,
   models: SispModels,
@@ -36,19 +36,15 @@ export function wireCredentialScopedServices(
   const manager = createSispManager(config, credentialsResolver);
   const buildRequestPayload = new BuildRequestPayloadAction(config, credentialsResolver);
   const buildSandboxPayload = new BuildSandboxPayloadAction(config, credentialsResolver);
-  const failTransaction = new FailTransactionAction(
-    db,
-    models.transactions,
-    models.transactionAttempts,
-  );
+  const failTransaction = new FailTransactionAction(storage);
   const updateInvoiceStatus = new UpdateInvoiceStatusAction(models.invoices);
 
   const callbackPipeline = new HandleCallbackPipeline(
     customizePipes(config.pipelines.callback, [
-      new ResolveTransaction(db, models.transactions, models.transactionAttempts),
+      new ResolveTransaction(storage),
       new ValidateFingerprint(credentialsResolver, failTransaction, events),
       new EnsureCallbackMatchesTransaction(config, credentialsResolver, failTransaction, events),
-      new ApplyTransactionStatus(db, models.transactions, models.transactionAttempts),
+      new ApplyTransactionStatus(storage),
       new DispatchPaymentEvents(events),
     ]),
   );
