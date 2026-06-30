@@ -5,7 +5,7 @@ The package is framework-agnostic. The [React example](04-react.md) backend and 
 1. `POST /sisp/payment/intent` returns `{ action, fields, ref }`.
 2. Build a `<form>` and submit it full-page to the gateway.
 3. After payment the package redirects to `${frontendResultUrl}?ref=...`.
-4. The result route reads `ref` and polls `GET /api/transactions/:ref`.
+4. The result route reads `ref` and polls `GET /sisp/transactions/:ref`.
 
 The gateway submit is plain DOM, identical everywhere:
 
@@ -83,7 +83,7 @@ export async function startPayment(data: Record<string, string>) {
     let attempts = 0;
     const poll = async () => {
       attempts += 1;
-      const response = await fetch(`${API}/api/transactions/${reference}`);
+      const response = await fetch(`${API}/sisp/transactions/${reference}`);
       if (!response.ok) return;
       transaction = await response.json();
       if (transaction?.status === 'pending' && attempts < 10) {

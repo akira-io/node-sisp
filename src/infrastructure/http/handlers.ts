@@ -36,6 +36,7 @@ import {
 import { paymentRequestDataFrom } from '../../domain/value-objects/payment-request-data';
 import { allCountries } from '../../support/countries';
 import type { UrlSigner } from '../../support/signed-url';
+import { fromCents } from '../../support/sisp-amount';
 import type { SispManager } from '../drivers/sisp-manager';
 import { renderAutoSubmitForm } from './auto-submit-form';
 import {
@@ -129,6 +130,21 @@ export class SispHttpHandlers {
 
   async handleRefund(request: HttpRequestInfo, transactionId: number): Promise<HttpResult> {
     return this.lifecycle.handleRefund(request, transactionId);
+  }
+  async handleTransactionStatus(merchantRef: string): Promise<HttpResult> {
+    const transaction = await this.transactions.findByRef(merchantRef);
+
+    if (!transaction) {
+      return json({ message: 'Transaction not found.' }, 404);
+    }
+
+    return json({
+      ref: transaction.merchant_ref,
+      status: transaction.status,
+      amount: fromCents(transaction.amount_cents),
+      messageType: transaction.message_type,
+      detail: transaction.merchant_response,
+    });
   }
   async handleRetryPayment(request: HttpRequestInfo): Promise<HttpResult> {
     return this.lifecycle.handleRetryPayment(request);

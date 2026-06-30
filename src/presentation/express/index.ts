@@ -56,6 +56,13 @@ export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router 
     handle(() => Promise.resolve(sisp.handlers.handleCountries())),
   );
 
+  router.get('/transactions/:ref', (req, res, next) => {
+    sisp.handlers
+      .handleTransactionStatus(req.params.ref)
+      .then((result) => send(res, result))
+      .catch(next);
+  });
+
   router.post('/refund/:transaction', (req, res, next) => {
     Promise.resolve(authorizeRefund(req))
       .then((authorized) => {

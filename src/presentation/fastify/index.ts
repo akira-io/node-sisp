@@ -68,6 +68,12 @@ export async function sispFastifyPlugin(
     route(() => Promise.resolve(sisp.handlers.handleCountries())),
   );
 
+  fastify.get('/transactions/:ref', async (request, reply) => {
+    const { ref } = request.params as { ref: string };
+
+    send(reply, await sisp.handlers.handleTransactionStatus(ref));
+  });
+
   fastify.post('/refund/:transaction', async (request, reply) => {
     if (!(await authorizeRefund(request))) {
       reply.status(403).send({

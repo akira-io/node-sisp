@@ -80,6 +80,11 @@ export class SispController {
     send(res, this.sisp.handlers.handleCountries());
   }
 
+  @Get('transactions/:ref')
+  async transactionStatus(@Param('ref') ref: string, @Res() res: Response): Promise<void> {
+    send(res, await this.sisp.handlers.handleTransactionStatus(ref));
+  }
+
   @Post('refund/:transaction')
   async refund(
     @Param('transaction') transaction: string,

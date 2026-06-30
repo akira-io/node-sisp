@@ -2,12 +2,12 @@
 
 Drive a payment from a separate React app with an API-only backend. Payment initiation still requires a full-page browser navigation to the gateway (3D Secure cannot run over XHR), so the pattern is: the SPA asks the API for a payment intent, submits it full-page, and the package hands the browser back to the SPA afterwards.
 
-The package does the heavy lifting. `POST /sisp/payment/intent` runs the full payment pipeline (validation, idempotency, persist transaction and first attempt, sign the request) and returns the gateway target as JSON `{ action, fields, ref }`. The SPA only submits the form.
+The package does the heavy lifting. `POST /sisp/payment/intent` runs the full payment pipeline (validation, idempotency, persist transaction and first attempt, sign the request) and returns the gateway target as JSON `{ action, fields, ref }`. The adapter also exposes the status endpoint the SPA polls, so there is no custom backend code at all.
 
 ## Backend (Fastify, API + CORS)
 
 ```ts
-import { createSisp, fromCents } from '@akira-io/sisp';
+import { createSisp } from '@akira-io/sisp';
 import { sispFastifyPlugin } from '@akira-io/sisp/fastify';
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
@@ -30,30 +30,14 @@ const app = Fastify();
 await app.register(cors, { origin: FRONTEND_URL });
 await app.register(sispFastifyPlugin, { sisp, prefix: '/sisp' });
 
-// Status endpoint the SPA polls after the gateway returns.
-app.get('/api/transactions/:ref', async (request, reply) => {
-  const { ref } = request.params as { ref: string };
-  const transaction = await sisp.models.transactions.findByRef(ref);
-
-  if (!transaction) {
-    reply.status(404).send({ message: 'Transaction not found.' });
-    return;
-  }
-
-  reply.send({
-    ref: transaction.merchant_ref,
-    status: transaction.status,
-    amount: fromCents(transaction.amount_cents),
-    detail: transaction.merchant_response,
-  });
-});
-
 await app.listen({ port: 3000 });
 ```
 
+The adapter registers the status endpoint for you at `GET /sisp/transactions/:ref`, returning `{ ref, status, amount, messageType, detail }` (or `404` when the reference is unknown). The SPA polls it directly; you do not write it.
+
 ### Same backend on Prisma
 
-Swap the `database` config for an injected Prisma client. The rest of the backend (CORS, the `/sisp` plugin, the status endpoint) is unchanged. Setup steps are in [Fastify with Prisma storage](02-prisma.md).
+Swap the `database` config for an injected Prisma client. The rest of the backend (CORS, the `/sisp` plugin) is unchanged. Setup steps are in [Fastify with Prisma storage](02-prisma.md).
 
 ```ts
 import { createPrismaStorage } from '@akira-io/sisp/prisma';
@@ -126,8 +110,8 @@ The result route reads `ref` from the query string and polls the status endpoint
 
 ```tsx
 const ref = new URLSearchParams(location.search).get('ref');
-const response = await fetch(`${API}/api/transactions/${ref}`);
-const transaction = await response.json(); // { status, amount, detail }
+const response = await fetch(`${API}/sisp/transactions/${ref}`);
+const transaction = await response.json(); // { ref, status, amount, messageType, detail }
 ```
 
 ## Flow summary
@@ -137,7 +121,7 @@ SPA --POST /sisp/payment/intent--> backend: { action, fields, ref }
 SPA --full-page POST--> gateway (3D Secure card page)
 gateway --> backend /sisp/callback (processed, events emitted)
 backend --redirect--> SPA /result?ref=...
-SPA --GET /api/transactions/:ref--> backend: authoritative status
+SPA --GET /sisp/transactions/:ref--> backend: authoritative status (built-in)
 ```
 
 `/sisp/payment` (HTML) and `/sisp/payment/intent` (JSON) run the same pipeline; a `fetch`-driven SPA must use the JSON one. See [Adapters](../../06-adapters.md).
