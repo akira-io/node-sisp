@@ -1,6 +1,6 @@
-# Fastify production
+# Fastify with knex storage
 
-Mount the gateway against the real SISP/Vinti4 endpoint with 3D Secure enabled.
+The default setup: mount the gateway on Fastify and let the package build its knex storage from a `database` config. This is the flow validated against the real SISP/Vinti4 endpoint with 3D Secure enabled. For the same app on Prisma, see [Fastify with Prisma storage](prisma.md).
 
 ```ts
 import { createSisp } from '@akira-io/sisp';
@@ -60,4 +60,4 @@ The response is an auto-submitting form that takes the browser to the gateway ca
 - `BizMPIOnUsSisp` is a 3D Secure (MPI) endpoint. Sending `is3DSec: '0'` makes the gateway return a blank page, so keep it `'1'` and send the address fields.
 - The customer's browser performs the callback redirect, so for single-machine manual testing `http://localhost` works without a tunnel. A public HTTPS `baseUrl` is needed only when paying from another device or when the terminal whitelists the response URL.
 
-**Next:** [Decoupled SPA (React)](02-spa-react.md)
+**Next:** [Fastify with Prisma storage](prisma.md)
