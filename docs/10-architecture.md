@@ -36,12 +36,22 @@ src/
 ## Key decisions
 
 - **Pipelines** are arrays of `{ handle(context, next) }` objects executed by a tiny async runner. The default pipe sets can be customized per flow through `pipelines.payment` and `pipelines.callback`.
-- **Models** are table gateways over knex, not an ORM. `Transaction.update` diffs changes, encrypts the payload, and appends the audit log in one place.
+- **Models** are the knex adapter's repository implementations behind the `SispStorage` port. `Transaction.update` diffs changes, encrypts the payload, and appends the audit log in one place.
 - **Payment intents** live at the HTTP boundary. They reserve checkout keys, link keys to transactions, and allow safe replay of the same checkout.
 - **Transaction attempts** live under the parent transaction. They preserve every gateway submission and let callbacks update the exact attempt that SISP answered.
 - **Drivers** decide the payment endpoint and the status API client. `manager.extend('custom', factory)` registers new gateways.
 - **Credential scoping** rebuilds only the credential-dependent services (`wiring.ts`) around a static resolver, which is how `forCredentials` works without a container.
 - **Parity** with the PHP package is pinned by golden vectors generated from the real implementation, not by re-derived constants.
+
+## Storage adapters
+
+The persistence layer sits behind an ORM-neutral port, `SispStorage`, defined in `src/core/contracts/storage.ts`: nine entity repositories plus a `transaction()` unit-of-work, an optional `migrate?()`, and `destroy()`. The port leaks no engine types.
+
+`KnexStorage` (`src/infrastructure/storage/knex/`) is the only adapter today. Future adapters (Prisma, Drizzle, Sequelize, TypeORM) implement the same port and are validated by the shared contract suite `tests/storage/contract.ts`.
+
+The application layer runs every database transaction through `storage.transaction(tx => ...)` with locked reads via the repository `...ForUpdate` methods, so atomicity and locking are adapter-decided.
+
+Intentionally knex-coupled surfaces kept for this phase: the `database.connection` config type, the `sisp.db` escape hatch, the CLI `migrate` command, and the `runMigrations`/`createKnexInstance` re-exports. Engine selection and genericizing the `database` config are a later phase.
 
 ## Differences from the Laravel package
 
