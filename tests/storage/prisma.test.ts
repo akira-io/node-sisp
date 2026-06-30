@@ -12,6 +12,7 @@ const schemaPath = new URL('./prisma/fixture.prisma', import.meta.url).pathname;
 const sqlPath = new URL('./prisma/create-tables.sql', import.meta.url).pathname;
 const dbPath = join(tmpdir(), `sisp-contract-${process.pid}.db`);
 const prismaBin = new URL('../../node_modules/.bin/prisma', import.meta.url).pathname;
+const generatedClientPath = '../../node_modules/.prisma/sisp-test/index.js';
 
 describe('PrismaStorage (sqlite)', () => {
   beforeAll(() => {
@@ -30,7 +31,7 @@ describe('PrismaStorage (sqlite)', () => {
   }, 60_000);
 
   runStorageContract(async () => {
-    const { PrismaClient } = await import('../../node_modules/.prisma/sisp-test/index.js');
+    const { PrismaClient } = await import(generatedClientPath);
     const prisma = new PrismaClient();
 
     await prisma.$connect();
