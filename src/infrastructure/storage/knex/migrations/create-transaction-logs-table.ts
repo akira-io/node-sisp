@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../../application/config';
+import type { SispTables } from '../../../../application/config';
 
 export async function createTransactionLogsTable(db: Knex, tables: SispTables): Promise<void> {
   if (await db.schema.hasTable(tables.transactionLogs)) {

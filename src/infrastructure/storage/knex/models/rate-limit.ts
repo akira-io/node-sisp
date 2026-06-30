@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../../application/config';
+import type { SispTables } from '../../../../application/config';
 import { nowIso } from '../records';
 
 export interface RateLimitHit {
@@ -25,6 +25,10 @@ export class RateLimit {
     private readonly db: Knex,
     private readonly tables: SispTables,
   ) {}
+
+  withConnection(connection: Knex): RateLimit {
+    return new RateLimit(connection, this.tables);
+  }
 
   async hit(params: RateLimitHit): Promise<boolean> {
     return this.db.transaction(async (trx) => {

@@ -19,17 +19,17 @@ import {
   BlacklistedIdentifierError,
   RateLimitExceededError,
 } from '../../src/domain/errors/exceptions';
-import { runMigrations } from '../../src/infrastructure/database/auto-migrate';
-import { createKnexInstance } from '../../src/infrastructure/database/create-knex';
-import { PayloadCipher } from '../../src/infrastructure/database/encryption';
-import { Blacklist } from '../../src/infrastructure/database/models/blacklist';
-import { Invoice } from '../../src/infrastructure/database/models/invoice';
-import { RateLimit } from '../../src/infrastructure/database/models/rate-limit';
-import { RequestMetadata } from '../../src/infrastructure/database/models/request-metadata';
-import { Transaction } from '../../src/infrastructure/database/models/transaction';
-import { TransactionAttempt } from '../../src/infrastructure/database/models/transaction-attempt';
-import { TransactionItem } from '../../src/infrastructure/database/models/transaction-item';
 import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
+import { runMigrations } from '../../src/infrastructure/storage/knex/auto-migrate';
+import { createKnexInstance } from '../../src/infrastructure/storage/knex/create-knex';
+import { PayloadCipher } from '../../src/infrastructure/storage/knex/encryption';
+import { Blacklist } from '../../src/infrastructure/storage/knex/models/blacklist';
+import { Invoice } from '../../src/infrastructure/storage/knex/models/invoice';
+import { RateLimit } from '../../src/infrastructure/storage/knex/models/rate-limit';
+import { RequestMetadata } from '../../src/infrastructure/storage/knex/models/request-metadata';
+import { Transaction } from '../../src/infrastructure/storage/knex/models/transaction';
+import { TransactionAttempt } from '../../src/infrastructure/storage/knex/models/transaction-attempt';
+import { TransactionItem } from '../../src/infrastructure/storage/knex/models/transaction-item';
 
 let db: Knex;
 let config: ResolvedSispConfig;

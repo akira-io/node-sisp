@@ -17,14 +17,14 @@ import { ValidateFingerprint } from '../../src/application/pipelines/callback/pi
 import { StaticCredentialsResolver } from '../../src/core/contracts/credentials-resolver';
 import { TransactionNotFoundError } from '../../src/domain/errors/exceptions';
 import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
-import { runMigrations } from '../../src/infrastructure/database/auto-migrate';
-import { createKnexInstance } from '../../src/infrastructure/database/create-knex';
-import { PayloadCipher } from '../../src/infrastructure/database/encryption';
-import { Transaction } from '../../src/infrastructure/database/models/transaction';
-import { TransactionAttempt } from '../../src/infrastructure/database/models/transaction-attempt';
-import { TransactionLog } from '../../src/infrastructure/database/models/transaction-log';
 import { generateCallbackFingerprint } from '../../src/infrastructure/fingerprints/callback-fingerprint';
 import { computeToken } from '../../src/infrastructure/fingerprints/token';
+import { runMigrations } from '../../src/infrastructure/storage/knex/auto-migrate';
+import { createKnexInstance } from '../../src/infrastructure/storage/knex/create-knex';
+import { PayloadCipher } from '../../src/infrastructure/storage/knex/encryption';
+import { Transaction } from '../../src/infrastructure/storage/knex/models/transaction';
+import { TransactionAttempt } from '../../src/infrastructure/storage/knex/models/transaction-attempt';
+import { TransactionLog } from '../../src/infrastructure/storage/knex/models/transaction-log';
 
 const token = computeToken('TEST_POS_AUT_CODE');
 

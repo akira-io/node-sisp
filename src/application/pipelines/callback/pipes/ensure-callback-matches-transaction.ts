@@ -4,7 +4,7 @@ import type { CallbackPayload } from '../../../../domain/value-objects/callback-
 import type {
   TransactionAttemptRecord,
   TransactionRecord,
-} from '../../../../infrastructure/database/records';
+} from '../../../../infrastructure/storage/knex/records';
 import { toThousandths } from '../../../../support/sisp-amount';
 import type { FailTransactionAction } from '../../../actions/fail-transaction';
 import type { ResolvedSispConfig } from '../../../config';

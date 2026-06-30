@@ -1,6 +1,6 @@
 import type { PaymentPipe } from '../../../../core/contracts/pipes';
 import { RateLimitExceededError } from '../../../../domain/errors/exceptions';
-import type { RateLimit } from '../../../../infrastructure/database/models/rate-limit';
+import type { RateLimit } from '../../../../infrastructure/storage/knex/models/rate-limit';
 import type { RateLimiting } from '../../../config';
 import type { PaymentContext } from '../payment-context';
 

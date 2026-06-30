@@ -10,12 +10,12 @@ import {
 } from '../../../../domain/value-objects/customer-data';
 import { paymentRequestToFormFields } from '../../../../domain/value-objects/payment-request';
 import { transactionItemCollection } from '../../../../domain/value-objects/transaction-item-data';
-import { runWithLogSource } from '../../../../infrastructure/database/log-context';
-import type { Invoice } from '../../../../infrastructure/database/models/invoice';
-import type { Transaction } from '../../../../infrastructure/database/models/transaction';
-import type { TransactionAttempt } from '../../../../infrastructure/database/models/transaction-attempt';
-import type { TransactionItem } from '../../../../infrastructure/database/models/transaction-item';
-import type { TransactionRecord } from '../../../../infrastructure/database/records';
+import { runWithLogSource } from '../../../../infrastructure/storage/knex/log-context';
+import type { Invoice } from '../../../../infrastructure/storage/knex/models/invoice';
+import type { Transaction } from '../../../../infrastructure/storage/knex/models/transaction';
+import type { TransactionAttempt } from '../../../../infrastructure/storage/knex/models/transaction-attempt';
+import type { TransactionItem } from '../../../../infrastructure/storage/knex/models/transaction-item';
+import type { TransactionRecord } from '../../../../infrastructure/storage/knex/records';
 import { isUniqueConstraintError, sleep } from '../../../../support/database-errors';
 import type { BuildRequestPayloadAction } from '../../../actions/build-request-payload';
 import type { ResolvedSispConfig } from '../../../config';

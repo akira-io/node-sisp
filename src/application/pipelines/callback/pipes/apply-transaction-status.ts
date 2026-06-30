@@ -3,14 +3,14 @@ import type { CallbackPipe } from '../../../../core/contracts/pipes';
 import { TransactionStatus } from '../../../../domain/enums/transaction-status';
 import { TransactionNotFoundError } from '../../../../domain/errors/exceptions';
 import type { CallbackPayload } from '../../../../domain/value-objects/callback-payload';
-import { runWithLogSource } from '../../../../infrastructure/database/log-context';
-import type { Transaction } from '../../../../infrastructure/database/models/transaction';
+import { runWithLogSource } from '../../../../infrastructure/storage/knex/log-context';
+import type { Transaction } from '../../../../infrastructure/storage/knex/models/transaction';
 import {
   attemptChangesFromCallback,
   shouldPropagateAttemptToTransaction,
   type TransactionAttempt,
-} from '../../../../infrastructure/database/models/transaction-attempt';
-import type { TransactionAttemptRecord } from '../../../../infrastructure/database/records';
+} from '../../../../infrastructure/storage/knex/models/transaction-attempt';
+import type { TransactionAttemptRecord } from '../../../../infrastructure/storage/knex/records';
 import { mapTransactionStatus } from '../../../actions/map-transaction-status';
 import type { CallbackContext } from '../callback-context';
 

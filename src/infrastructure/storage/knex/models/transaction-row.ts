@@ -1,4 +1,4 @@
-import { toCents } from '../../../support/sisp-amount';
+import { toCents } from '../../../../support/sisp-amount';
 
 export function extractId(value: unknown): number {
   if (typeof value === 'object' && value !== null && 'id' in value) {

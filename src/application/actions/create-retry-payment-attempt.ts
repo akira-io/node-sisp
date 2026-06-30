@@ -5,13 +5,13 @@ import {
   UnableToGenerateUniquePaymentIdentifiersError,
 } from '../../domain/errors/exceptions';
 import type { PaymentRequest } from '../../domain/value-objects/payment-request';
-import { runWithLogSource } from '../../infrastructure/database/log-context';
-import type { Transaction } from '../../infrastructure/database/models/transaction';
-import type { TransactionAttempt } from '../../infrastructure/database/models/transaction-attempt';
+import { runWithLogSource } from '../../infrastructure/storage/knex/log-context';
+import type { Transaction } from '../../infrastructure/storage/knex/models/transaction';
+import type { TransactionAttempt } from '../../infrastructure/storage/knex/models/transaction-attempt';
 import type {
   TransactionAttemptRecord,
   TransactionRecord,
-} from '../../infrastructure/database/records';
+} from '../../infrastructure/storage/knex/records';
 import { isUniqueConstraintError, sleep } from '../../support/database-errors';
 import type { ResolvedSispConfig } from '../config';
 import type { CanRetryPaymentAction } from './can-retry-payment';

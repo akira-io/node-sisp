@@ -1,12 +1,12 @@
 import type { Knex } from 'knex';
 import type { CallbackPipe } from '../../../../core/contracts/pipes';
 import { TransactionNotFoundError } from '../../../../domain/errors/exceptions';
-import type { Transaction } from '../../../../infrastructure/database/models/transaction';
-import type { TransactionAttempt } from '../../../../infrastructure/database/models/transaction-attempt';
+import type { Transaction } from '../../../../infrastructure/storage/knex/models/transaction';
+import type { TransactionAttempt } from '../../../../infrastructure/storage/knex/models/transaction-attempt';
 import type {
   TransactionAttemptRecord,
   TransactionRecord,
-} from '../../../../infrastructure/database/records';
+} from '../../../../infrastructure/storage/knex/records';
 import type { CallbackContext } from '../callback-context';
 
 export class ResolveTransaction implements CallbackPipe {

@@ -1,0 +1,8 @@
+# Storage Port Phase 1 — progress
+
+- Plan: docs/superpowers/plans/2026-06-30-storage-port-phase1.md
+
+(no tasks complete yet)
+Task 1: complete (commit bb54ad7..be62dfe, review clean)
+Task 2: complete (commit be62dfe..70b0253, review clean)
+  - Minor (final review): contract afterEach calls storage.destroy() when makeStorage throws -> use await storage?.destroy()

@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../../application/config';
-import type { TransactionItemData } from '../../../domain/value-objects/transaction-item-data';
+import type { SispTables } from '../../../../application/config';
+import type { TransactionItemData } from '../../../../domain/value-objects/transaction-item-data';
 import {
   type ListByTransactionOptions,
   normalizeListLimit,

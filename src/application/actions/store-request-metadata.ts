@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
+import { type HttpRequestInfo, headerValue } from '../../infrastructure/http/request-info';
 import type {
   NewRequestMetadata,
   RequestMetadata,
-} from '../../infrastructure/database/models/request-metadata';
-import { type HttpRequestInfo, headerValue } from '../../infrastructure/http/request-info';
+} from '../../infrastructure/storage/knex/models/request-metadata';
 import {
   detectBrowser,
   detectDeviceType,

@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../../application/config';
-import { isIndexAlreadyExistsError } from '../../../support/database-errors';
+import type { SispTables } from '../../../../application/config';
+import { isIndexAlreadyExistsError } from '../../../../support/database-errors';
 import { nowIso } from '../records';
 
 export async function createTransactionAttemptsTable(db: Knex, tables: SispTables): Promise<void> {

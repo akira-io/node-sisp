@@ -1,17 +1,17 @@
 import type { Knex } from 'knex';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import type { CallbackPayload } from '../../domain/value-objects/callback-payload';
-import { runWithLogSource } from '../../infrastructure/database/log-context';
-import type { Transaction } from '../../infrastructure/database/models/transaction';
+import { runWithLogSource } from '../../infrastructure/storage/knex/log-context';
+import type { Transaction } from '../../infrastructure/storage/knex/models/transaction';
 import {
   attemptChangesFromCallback,
   shouldPropagateAttemptToTransaction,
   type TransactionAttempt,
-} from '../../infrastructure/database/models/transaction-attempt';
+} from '../../infrastructure/storage/knex/models/transaction-attempt';
 import type {
   TransactionAttemptRecord,
   TransactionRecord,
-} from '../../infrastructure/database/records';
+} from '../../infrastructure/storage/knex/records';
 
 export interface FailedTransactionResult {
   transaction: TransactionRecord;

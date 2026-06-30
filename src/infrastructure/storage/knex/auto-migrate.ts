@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../application/config';
+import type { SispTables } from '../../../application/config';
 import { SISP_MIGRATIONS } from './migrations';
 
 export const MIGRATIONS_TABLE = 'sisp_migrations';

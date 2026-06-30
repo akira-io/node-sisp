@@ -2,19 +2,19 @@ import {
   type CredentialsResolver,
   StaticCredentialsResolver,
 } from '../core/contracts/credentials-resolver';
-import { runMigrations } from '../infrastructure/database/auto-migrate';
-import { createKnexInstance } from '../infrastructure/database/create-knex';
-import { PayloadCipher } from '../infrastructure/database/encryption';
-import { Blacklist } from '../infrastructure/database/models/blacklist';
-import { Invoice } from '../infrastructure/database/models/invoice';
-import { PaymentIntent } from '../infrastructure/database/models/payment-intent';
-import { RateLimit } from '../infrastructure/database/models/rate-limit';
-import { RequestMetadata } from '../infrastructure/database/models/request-metadata';
-import { Transaction } from '../infrastructure/database/models/transaction';
-import { TransactionAttempt } from '../infrastructure/database/models/transaction-attempt';
-import { TransactionItem } from '../infrastructure/database/models/transaction-item';
-import { TransactionLog } from '../infrastructure/database/models/transaction-log';
 import { SispHttpHandlers } from '../infrastructure/http/handlers';
+import { runMigrations } from '../infrastructure/storage/knex/auto-migrate';
+import { createKnexInstance } from '../infrastructure/storage/knex/create-knex';
+import { PayloadCipher } from '../infrastructure/storage/knex/encryption';
+import { Blacklist } from '../infrastructure/storage/knex/models/blacklist';
+import { Invoice } from '../infrastructure/storage/knex/models/invoice';
+import { PaymentIntent } from '../infrastructure/storage/knex/models/payment-intent';
+import { RateLimit } from '../infrastructure/storage/knex/models/rate-limit';
+import { RequestMetadata } from '../infrastructure/storage/knex/models/request-metadata';
+import { Transaction } from '../infrastructure/storage/knex/models/transaction';
+import { TransactionAttempt } from '../infrastructure/storage/knex/models/transaction-attempt';
+import { TransactionItem } from '../infrastructure/storage/knex/models/transaction-item';
+import { TransactionLog } from '../infrastructure/storage/knex/models/transaction-log';
 import { UrlSigner } from '../support/signed-url';
 import { BuildRefundRequestAction } from './actions/build-refund-request';
 import { CanRetryPaymentAction } from './actions/can-retry-payment';

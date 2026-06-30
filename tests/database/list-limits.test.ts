@@ -1,16 +1,16 @@
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_TABLES } from '../../src/application/config';
-import { runMigrations } from '../../src/infrastructure/database/auto-migrate';
-import { createKnexInstance } from '../../src/infrastructure/database/create-knex';
-import { PayloadCipher } from '../../src/infrastructure/database/encryption';
-import { DEFAULT_LIST_BY_TRANSACTION_LIMIT } from '../../src/infrastructure/database/list-options';
-import { RequestMetadata } from '../../src/infrastructure/database/models/request-metadata';
-import { Transaction } from '../../src/infrastructure/database/models/transaction';
-import { TransactionAttempt } from '../../src/infrastructure/database/models/transaction-attempt';
-import { TransactionItem } from '../../src/infrastructure/database/models/transaction-item';
-import { TransactionLog } from '../../src/infrastructure/database/models/transaction-log';
-import { nowIso, type TransactionRecord } from '../../src/infrastructure/database/records';
+import { runMigrations } from '../../src/infrastructure/storage/knex/auto-migrate';
+import { createKnexInstance } from '../../src/infrastructure/storage/knex/create-knex';
+import { PayloadCipher } from '../../src/infrastructure/storage/knex/encryption';
+import { DEFAULT_LIST_BY_TRANSACTION_LIMIT } from '../../src/infrastructure/storage/knex/list-options';
+import { RequestMetadata } from '../../src/infrastructure/storage/knex/models/request-metadata';
+import { Transaction } from '../../src/infrastructure/storage/knex/models/transaction';
+import { TransactionAttempt } from '../../src/infrastructure/storage/knex/models/transaction-attempt';
+import { TransactionItem } from '../../src/infrastructure/storage/knex/models/transaction-item';
+import { TransactionLog } from '../../src/infrastructure/storage/knex/models/transaction-log';
+import { nowIso, type TransactionRecord } from '../../src/infrastructure/storage/knex/records';
 
 let db: Knex;
 let transaction: Transaction;

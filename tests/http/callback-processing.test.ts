@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { Transaction } from '../../src/infrastructure/database/models/transaction';
-import type { TransactionAttempt } from '../../src/infrastructure/database/models/transaction-attempt';
 import {
   booleanFromInput,
   isAlreadyProcessed,
 } from '../../src/infrastructure/http/callback-processing';
+import type { Transaction } from '../../src/infrastructure/storage/knex/models/transaction';
+import type { TransactionAttempt } from '../../src/infrastructure/storage/knex/models/transaction-attempt';
 
 describe('booleanFromInput', () => {
   it.each([

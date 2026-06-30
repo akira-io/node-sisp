@@ -1,4 +1,4 @@
-import type { TransactionRecord } from '../../infrastructure/database/records';
+import type { TransactionRecord } from '../../infrastructure/storage/knex/records';
 import type { RefundTransactionAction } from '../actions/refund-transaction';
 
 export class RefundBuilder {

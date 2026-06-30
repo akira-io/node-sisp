@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import type { SispTables } from '../../../application/config';
+import type { SispTables } from '../../../../application/config';
 import {
   type ListByTransactionOptions,
   normalizeListLimit,
@@ -19,6 +19,10 @@ export class RequestMetadata {
     private readonly db: Knex,
     private readonly tables: SispTables,
   ) {}
+
+  withConnection(connection: Knex): RequestMetadata {
+    return new RequestMetadata(connection, this.tables);
+  }
 
   async create(data: NewRequestMetadata): Promise<void> {
     const timestamp = nowIso();

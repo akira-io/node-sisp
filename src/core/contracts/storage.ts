@@ -1,6 +1,16 @@
 import type { InvoiceStatus } from '../../domain/enums/invoice-status';
-import type { TransactionItemData } from '../../domain/value-objects/transaction-item-data';
 import type { PaymentRequest } from '../../domain/value-objects/payment-request';
+import type { TransactionItemData } from '../../domain/value-objects/transaction-item-data';
+import type { ListByTransactionOptions } from '../../infrastructure/storage/knex/list-options';
+import type { BlacklistEntry } from '../../infrastructure/storage/knex/models/blacklist';
+import type { RateLimitHit } from '../../infrastructure/storage/knex/models/rate-limit';
+import type { NewRequestMetadata } from '../../infrastructure/storage/knex/models/request-metadata';
+import type {
+  ListTransactionsOptions,
+  NewTransaction,
+  TransactionChanges,
+} from '../../infrastructure/storage/knex/models/transaction';
+import type { TransactionAttemptChanges } from '../../infrastructure/storage/knex/models/transaction-attempt';
 import type {
   BlacklistRecord,
   InvoiceRecord,
@@ -10,24 +20,20 @@ import type {
   TransactionItemRecord,
   TransactionLogRecord,
   TransactionRecord,
-} from '../../infrastructure/database/records';
-import type {
-  ListTransactionsOptions,
-  NewTransaction,
-  TransactionChanges,
-} from '../../infrastructure/database/models/transaction';
-import type { ListByTransactionOptions } from '../../infrastructure/database/list-options';
-import type { TransactionAttemptChanges } from '../../infrastructure/database/models/transaction-attempt';
-import type { BlacklistEntry } from '../../infrastructure/database/models/blacklist';
-import type { RateLimitHit } from '../../infrastructure/database/models/rate-limit';
-import type { NewRequestMetadata } from '../../infrastructure/database/models/request-metadata';
+} from '../../infrastructure/storage/knex/records';
 
 export interface TransactionRepository {
   create(data: NewTransaction): Promise<TransactionRecord>;
   findById(id: number): Promise<TransactionRecord | null>;
   findByIdForUpdate(id: number): Promise<TransactionRecord | null>;
-  findByRefAndSession(merchantRef: string, merchantSession: string): Promise<TransactionRecord | null>;
-  findByRefAndSessionForUpdate(merchantRef: string, merchantSession: string): Promise<TransactionRecord | null>;
+  findByRefAndSession(
+    merchantRef: string,
+    merchantSession: string,
+  ): Promise<TransactionRecord | null>;
+  findByRefAndSessionForUpdate(
+    merchantRef: string,
+    merchantSession: string,
+  ): Promise<TransactionRecord | null>;
   findByRef(merchantRef: string): Promise<TransactionRecord | null>;
   findByGatewayTransactionId(transactionId: string): Promise<TransactionRecord | null>;
   list(options?: ListTransactionsOptions): Promise<TransactionRecord[]>;
@@ -37,15 +43,31 @@ export interface TransactionRepository {
 
 export interface TransactionItemRepository {
   createMany(transactionId: number, items: readonly TransactionItemData[]): Promise<void>;
-  listByTransaction(transactionId: number, options?: ListByTransactionOptions): Promise<TransactionItemRecord[]>;
+  listByTransaction(
+    transactionId: number,
+    options?: ListByTransactionOptions,
+  ): Promise<TransactionItemRecord[]>;
 }
 
 export interface TransactionAttemptRepository {
-  createForPayment(transaction: TransactionRecord, paymentRequest: PaymentRequest, supersedeCurrent?: boolean): Promise<TransactionAttemptRecord>;
+  createForPayment(
+    transaction: TransactionRecord,
+    paymentRequest: PaymentRequest,
+    supersedeCurrent?: boolean,
+  ): Promise<TransactionAttemptRecord>;
   createFromTransaction(transaction: TransactionRecord): Promise<TransactionAttemptRecord>;
-  findByRefAndSession(merchantRef: string, merchantSession: string): Promise<TransactionAttemptRecord | null>;
-  findByRefAndSessionForUpdate(merchantRef: string, merchantSession: string): Promise<TransactionAttemptRecord | null>;
-  listByTransaction(transactionId: number, options?: ListByTransactionOptions): Promise<TransactionAttemptRecord[]>;
+  findByRefAndSession(
+    merchantRef: string,
+    merchantSession: string,
+  ): Promise<TransactionAttemptRecord | null>;
+  findByRefAndSessionForUpdate(
+    merchantRef: string,
+    merchantSession: string,
+  ): Promise<TransactionAttemptRecord | null>;
+  listByTransaction(
+    transactionId: number,
+    options?: ListByTransactionOptions,
+  ): Promise<TransactionAttemptRecord[]>;
   existsByTransaction(transactionId: number): Promise<boolean>;
   currentByTransaction(transactionId: number): Promise<TransactionAttemptRecord | null>;
   update(id: number, changes: TransactionAttemptChanges): Promise<TransactionAttemptRecord>;
@@ -65,7 +87,10 @@ export interface InvoiceRepository {
 }
 
 export interface TransactionLogRepository {
-  listByTransaction(transactionId: number, options?: ListByTransactionOptions): Promise<TransactionLogRecord[]>;
+  listByTransaction(
+    transactionId: number,
+    options?: ListByTransactionOptions,
+  ): Promise<TransactionLogRecord[]>;
 }
 
 export interface BlacklistRepository {
@@ -81,7 +106,10 @@ export interface RateLimitRepository {
 
 export interface RequestMetadataRepository {
   create(data: NewRequestMetadata): Promise<void>;
-  listByTransaction(transactionId: number, options?: ListByTransactionOptions): Promise<RequestMetadataRecord[]>;
+  listByTransaction(
+    transactionId: number,
+    options?: ListByTransactionOptions,
+  ): Promise<RequestMetadataRecord[]>;
 }
 
 export interface SispStorageRepositories {

@@ -1,6 +1,6 @@
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { PaymentRetryLimitExceededError } from '../../domain/errors/exceptions';
-import type { TransactionRecord } from '../../infrastructure/database/records';
+import type { TransactionRecord } from '../../infrastructure/storage/knex/records';
 import type { ResolvedSispConfig } from '../config';
 
 export class CanRetryPaymentAction {

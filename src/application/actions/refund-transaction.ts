@@ -2,13 +2,13 @@ import type { Knex } from 'knex';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { SispError, TransactionStateError } from '../../domain/errors/exceptions';
 import { refundRequestToRecord } from '../../domain/value-objects/refund-request';
-import { runWithLogSource } from '../../infrastructure/database/log-context';
-import type { Transaction } from '../../infrastructure/database/models/transaction';
+import { runWithLogSource } from '../../infrastructure/storage/knex/log-context';
+import type { Transaction } from '../../infrastructure/storage/knex/models/transaction';
 import {
   nowIso,
   type TransactionRecord,
   transactionPayloadRecord,
-} from '../../infrastructure/database/records';
+} from '../../infrastructure/storage/knex/records';
 import { toThousandths } from '../../support/sisp-amount';
 import type { SispEventEmitter } from '../events';
 import type { BuildRefundRequestAction } from './build-refund-request';
