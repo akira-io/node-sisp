@@ -51,6 +51,31 @@ app.get('/api/transactions/:ref', async (request, reply) => {
 await app.listen({ port: 3000 });
 ```
 
+### Same backend on Prisma
+
+Swap the `database` config for an injected Prisma client. The rest of the backend (CORS, the `/sisp` plugin, the status endpoint) is unchanged. Setup steps are in [Fastify with Prisma storage](prisma.md).
+
+```ts
+import { createPrismaStorage } from '@akira-io/sisp/prisma';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+const sisp = await createSisp({
+  posId: process.env.POS_ID,
+  posAutCode: process.env.POS_AUT_CODE,
+  url: process.env.SISP_URL,
+  sandbox: false,
+  is3DSec: '1',
+  appKey: process.env.APP_KEY,
+  baseUrl: process.env.BASE_URL,
+  frontendResultUrl: `${FRONTEND_URL}/result`,
+  storage: createPrismaStorage(prisma, undefined, process.env.APP_KEY, {
+    provider: 'postgresql',
+  }),
+});
+```
+
 The SPA posts straight to the adapter's `POST /sisp/payment/intent`; there is no custom payment code on the backend. `frontendResultUrl` makes a processed callback redirect the browser to `${frontendResultUrl}?ref=...` instead of the built-in JSON result page, so the SPA regains control.
 
 ## Frontend (React)
@@ -115,6 +140,6 @@ backend --redirect--> SPA /result?ref=...
 SPA --GET /api/transactions/:ref--> backend: authoritative status
 ```
 
-`/sisp/payment` (HTML) and `/sisp/payment/intent` (JSON) run the same pipeline; a `fetch`-driven SPA must use the JSON one. See [Adapters](../06-adapters.md).
+`/sisp/payment` (HTML) and `/sisp/payment/intent` (JSON) run the same pipeline; a `fetch`-driven SPA must use the JSON one. See [Adapters](../../06-adapters.md).
 
-**Next:** [Handling cancellation](03-cancellation.md)
+**Next:** [Decoupled SPA (Vue)](vue.md)
