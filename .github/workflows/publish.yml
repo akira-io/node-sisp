@@ -67,3 +67,13 @@ jobs:
       - name: Publish to npm
         if: steps.version_check.outputs.skip != 'true'
         run: npx -y npm@11 publish --access public --provenance --tag "${{ steps.dist_tag.outputs.tag }}"
+
+      - name: Point latest at the newest prerelease until a stable exists
+        if: steps.dist_tag.outputs.tag != 'latest'
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION="${GITHUB_REF_NAME#v}"
+          CURRENT_LATEST=$(npm view "$NAME@latest" version 2>/dev/null || echo "")
+          if [[ -z "$CURRENT_LATEST" || "$CURRENT_LATEST" == *-* ]]; then
+            npx -y npm@11 dist-tag add "$NAME@$VERSION" latest
+          fi
