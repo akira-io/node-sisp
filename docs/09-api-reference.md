@@ -17,7 +17,7 @@
 | `driver(name?)` | Resolves the active or a named `SispDriver` |
 | `manager` | `SispManager` with `extend(name, factory)` |
 | `models` | `transactions`, `transactionItems`, `transactionAttempts`, `paymentIntents`, `invoices`, `transactionLogs`, `blacklist` |
-| `handlers` | Framework-agnostic HTTP handlers used by the adapters |
+| `handlers` | `SispHttpHandlers` - framework-agnostic HTTP handlers used by the adapters. Key methods: `handlePayment`, `handlePaymentIntent`, `handleCallback`, `handleRetryPayment`, `handleCancel`, `handleRefund`, `handleSandbox` |
 | `buildRequestPayload(data)` | Signed `PaymentRequest` from raw data |
 | `validateCallback(payload)` | Constant-time fingerprint check |
 | `handlePaymentCallback(payload)` | Runs the callback pipeline, returns the transaction |
@@ -39,7 +39,7 @@
 
 ### Utilities
 
-`toThousandths`, `toCents`, `computeToken`, `generatePaymentFingerprint`, `generateCallbackFingerprint`, `generateRefundFingerprint`, `validateCallbackFingerprint`, `callbackPayloadFrom`, `paymentRequestToFormFields`, `validatePaymentInput`, `allCountries`, `getCountryNumericCode`, `mapTransactionStatus`, `errorMessageTypeFromValue` and label helpers, `runMigrations`, `PayloadCipher`, `runWithLogSource`.
+`fromCents`, `toCents`, `toThousandths`, `computeToken`, `generatePaymentFingerprint`, `generateCallbackFingerprint`, `generateRefundFingerprint`, `validateCallbackFingerprint`, `callbackPayloadFrom`, `callbackPayloadToFormFields`, `paymentRequestToFormFields`, `paymentRequestDataFrom`, `validatePaymentInput`, `allCountries`, `findCountryByNumeric`, `getCountryName`, `getCountryFlag`, `getCountryNumericCode`, `mapTransactionStatus`, `errorMessageTypeFromValue` and label helpers, `runMigrations`, `createKnexInstance`, `PayloadCipher`, `runWithLogSource`.
 
 ### Errors
 

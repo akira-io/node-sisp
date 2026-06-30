@@ -24,7 +24,7 @@ Patterns validated against the live gateway. See [examples](examples/00-index.md
 
 | # | Example | What it shows |
 |---|---------|---------------|
-| 01 | [Fastify production](examples/01-fastify-production.md) | Production driver with 3-D Secure |
+| 01 | [Fastify production](examples/01-fastify-production.md) | Production driver with 3D Secure |
 | 02 | [Decoupled SPA (React)](examples/02-spa-react.md) | API-only backend feeding a React frontend |
 | 03 | [Handling cancellation](examples/03-cancellation.md) | Reacting to `transaction:cancelled` |
 | 04 | [Handling failed payments](examples/04-failed-payments.md) | Reacting to `payment:failed` and OTP failures |

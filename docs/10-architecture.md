@@ -1,36 +1,49 @@
 # Architecture
 
-The port keeps the architecture of `laravel-sisp` 2.x: actions, builders, pipelines, drivers, and contracts. Laravel's container is replaced by explicit constructor wiring in `createSisp`.
+The port keeps the architecture of `laravel-sisp` 2.x: actions, builders, pipelines, drivers, and contracts. Laravel's container is replaced by explicit constructor wiring in `createSisp`. The layout is hexagonal: core contracts and domain sit at the centre; application orchestrates them; infrastructure provides the adapters; presentation exposes the HTTP surface.
 
 ```
 src/
-  config.ts              SispConfig, defaults, credential mapping
-  create-sisp.ts         composition root
-  sisp.ts                public facade
-  scoped-sisp.ts         forCredentials facade
-  wiring.ts              credential-scoped service wiring (shared with ScopedSisp)
-  contracts/             SispDriver, CredentialsResolver, PaymentPipe, CallbackPipe
-  fingerprints/          token, payment, callback, refund algorithms
+  core/
+    contracts/           SispDriver, CredentialsResolver, PaymentPipe, CallbackPipe, SispStorage (port)
+  domain/
+    enums/               statuses, transaction codes, message types, translations
+    errors/              SispError and typed subclasses
+    policies/            domain rules (retry eligibility, refund limits, ...)
+    value-objects/       CallbackPayload, PaymentRequest, RefundRequest, credentials
+  application/
+    config.ts            SispConfig, defaults, credential mapping
+    create-sisp.ts       composition root
+    sisp.ts              public facade
+    scoped-sisp.ts       forCredentials facade
+    wiring.ts            credential-scoped service wiring (shared with ScopedSisp)
+    events.ts            typed emitter
+    sandbox.ts           fake gateway payload builder
+    actions/             one unit of work each, ported 1:1 from the PHP actions
+    builders/            PaymentBuilder, RefundBuilder
+    pipelines/
+      payment/           context plus default payment pipes
+      callback/          context plus default callback pipes
+  infrastructure/
+    drivers/             SispManager, production, sandbox, TransactionStatusClient
+    fingerprints/        token, payment, callback, refund algorithms
+    http/                pure handlers, idempotency resolver, validation, results, auto-submit forms
+    storage/
+      knex/              KnexStorage (the only adapter today)
+        models/          repository implementations (Transaction, TransactionAttempt, PaymentIntent, ...)
+        migrations/      bundled schema, mirror of the Laravel migrations
+        create-knex.ts   knex instance factory
+        auto-migrate.ts  migration runner
+        encryption.ts    AES-256-GCM payload cipher
+        locking.ts       row-level lock helper for supported drivers
+        log-context.ts   AsyncLocalStorage log source
+        records.ts       raw DB record types
+  presentation/
+    cli/                 sisp binary (migrate, reconcile-pending)
+    express/             thin Express adapter
+    fastify/             thin Fastify adapter
+    nest/                thin NestJS adapter
   support/               SispAmount, generators, countries, signed URLs, user agent
-  enums/                 statuses, transaction codes, message types, translations
-  value-objects/         CallbackPayload, PaymentRequest, RefundRequest, credentials
-  actions/               one unit of work each, ported 1:1 from the PHP actions
-  builders/              PaymentBuilder, RefundBuilder
-  pipelines/
-    payment/             context plus default payment pipes
-    callback/            context plus default callback pipes
-  drivers/               SispManager, production, sandbox, TransactionStatusClient
-  database/
-    migrations/          bundled schema, mirror of the Laravel migrations
-    models/              table gateways (Transaction, TransactionAttempt, PaymentIntent, ...)
-    encryption.ts        AES-256-GCM payload cipher
-    locking.ts           row-level lock helper for supported drivers
-    log-context.ts       AsyncLocalStorage log source, like TransactionLogContext
-  http/                  pure handlers, idempotency resolver, validation, results, auto-submit forms
-  express/ fastify/ nest/  thin adapters over the same handlers
-  sandbox.ts             fake gateway payload builder
-  events.ts              typed emitter
-  cli.ts, cli/           sisp binary
 ```
 
 ## Key decisions
