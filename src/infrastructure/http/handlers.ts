@@ -39,6 +39,7 @@ import { renderAutoSubmitForm } from './auto-submit-form';
 import {
   booleanFromInput,
   cancelUserCancelledTransaction,
+  frontendResultUrl,
   isAlreadyProcessed,
   signedCallbackResultUrl,
 } from './callback-processing';
@@ -256,6 +257,10 @@ export class SispHttpHandlers {
 
     await this.runQuietly(() => this.storeMetadata.handle(request, transaction.id));
     await this.runQuietly(() => this.updateInvoiceStatus.handle(transaction));
+
+    if (this.config.frontendResultUrl) {
+      return redirect(frontendResultUrl(this.config.frontendResultUrl, transaction.merchant_ref));
+    }
 
     return redirect(signedCallbackResultUrl(this.config, this.urlSigner, transaction.id));
   }

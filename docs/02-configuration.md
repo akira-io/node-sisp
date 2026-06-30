@@ -26,6 +26,7 @@
 | `basePath` | `'/sisp'` | Mount path of the HTTP routes |
 | `urlMerchantResponse` | callback route | Where SISP posts the payment result |
 | `redirectUrl` | `'/'` | Fallback redirect for cancelled or unknown callbacks |
+| `frontendResultUrl` | `null` | When set, a processed callback redirects the browser to `${frontendResultUrl}?ref=…` instead of the JSON result page, handing control to a SPA |
 | `driver` | derived | `'production'`, `'sandbox'`, or a custom driver name |
 | `sandbox` | `false` | Selects the sandbox driver when no explicit `driver` |
 | `allowRetry` | `true` | Enables the retry flow for failed payments |

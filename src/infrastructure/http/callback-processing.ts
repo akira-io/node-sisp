@@ -15,6 +15,12 @@ export function signedCallbackResultUrl(
   return `${config.baseUrl}${signedPath}`;
 }
 
+export function frontendResultUrl(baseUrl: string, merchantRef: string): string {
+  const separator = baseUrl.includes('?') ? '&' : '?';
+
+  return `${baseUrl}${separator}ref=${encodeURIComponent(merchantRef)}`;
+}
+
 export async function isAlreadyProcessed(
   transactions: Transaction,
   attempts: TransactionAttempt,
