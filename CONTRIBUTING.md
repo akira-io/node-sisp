@@ -28,6 +28,17 @@ Open an issue at https://github.com/akira-io/node-sisp/issues. Include:
 - No drive-by refactors in feature PRs.
 - No emojis in code, copy, commit messages, or PR descriptions.
 
+## Generated fixtures and parity vectors
+
+Some files are generated, not hand-edited. Regenerate them after the relevant upstream change and commit the result. Fingerprint parity with the PHP package is enforced by `tests/fixtures/golden-vectors.json`, generated from the real `laravel-sisp` 2.x code by `scripts/generate-golden-vectors.php`; regenerate it after upstream fingerprint changes.
+
+```bash
+git clone --branch 2.x https://github.com/akira-io/laravel-sisp /tmp/laravel-sisp-2x
+php scripts/generate-golden-vectors.php > tests/fixtures/golden-vectors.json
+php scripts/generate-enums-data.php
+php scripts/generate-countries.php
+```
+
 ## License
 
 By contributing, you agree that your contributions will be dual-licensed
