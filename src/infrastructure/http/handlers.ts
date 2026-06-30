@@ -38,6 +38,7 @@ import type { SispManager } from '../drivers/sisp-manager';
 import { renderAutoSubmitForm } from './auto-submit-form';
 import {
   booleanFromInput,
+  cancelUserCancelledTransaction,
   isAlreadyProcessed,
   signedCallbackResultUrl,
 } from './callback-processing';
@@ -84,12 +85,14 @@ export class SispHttpHandlers {
   private readonly lifecycle: LifecycleHandlers;
   private readonly paymentContexts: PaymentContextResolver;
   private readonly urlSigner: UrlSigner;
+  private readonly cancelTransaction: CancelTransactionAction;
 
   constructor(deps: SispHandlersDeps) {
     this.config = deps.config;
     this.manager = deps.manager;
     this.callbackPipeline = deps.callbackPipeline;
     this.transactions = deps.transactions;
+    this.cancelTransaction = deps.cancelTransaction;
     this.attempts = deps.attempts;
     this.invoices = deps.invoices;
     this.storeMetadata = deps.storeMetadata;
@@ -156,6 +159,10 @@ export class SispHttpHandlers {
 
   async handleCallback(request: HttpRequestInfo): Promise<HttpResult> {
     if (booleanFromInput(request.body.UserCancelled ?? request.query.UserCancelled)) {
+      await this.runQuietly(() =>
+        cancelUserCancelledTransaction(this.transactions, this.cancelTransaction, request),
+      );
+
       return redirect(this.config.redirectUrl);
     }
 
