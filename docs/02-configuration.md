@@ -81,6 +81,8 @@ identifierGeneration: {
 
 `merchantReference`, `merchantSession`, and retry attempts are protected by unique constraints. If a custom generator collides, the package retries with a new candidate until `maxAttempts` is reached. The default sleep is `1000` milliseconds, which is one second.
 
+> SISP caps `merchantRef` and `merchantSession` at **15 characters**. Longer values are truncated by the gateway before it recomputes the request fingerprint, so the payment is rejected with `messageType=6 / Fingerprint Invalid` and the card page never loads. The built-in generators stay within 15 characters; keep any custom generator within the limit too.
+
 ## Extension points
 
 | Key | Description |
@@ -104,6 +106,6 @@ const sisp = await createSisp({
 });
 ```
 
-Custom generators may keep using date-based values. The package does not require a specific format. It only requires that the generated identifiers pass the database uniqueness checks within the configured retry limit.
+Custom generators may keep using date-based values. The package does not require a specific format, but identifiers must stay within SISP's 15-character limit and pass the database uniqueness checks within the configured retry limit.
 
 **Next:** [Quick Start](03-quick-start.md)

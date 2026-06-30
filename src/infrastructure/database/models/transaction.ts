@@ -3,10 +3,21 @@ import type { SispTables } from '../../../application/config';
 import type { TransactionStatus } from '../../../domain/enums/transaction-status';
 import { fromCents, toCents } from '../../../support/sisp-amount';
 import type { PayloadCipher } from '../encryption';
+import {
+  type ListByTransactionOptions,
+  normalizeListLimit,
+  normalizeListOffset,
+  normalizeListOrder,
+} from '../list-options';
 import { lockForUpdate } from '../locking';
 import { currentLogSource } from '../log-context';
 import { nowIso, type TransactionRecord } from '../records';
 import { pruneTransactionLogs } from '../transaction-log-pruning';
+import { amountCentsFromRow, extractId, stableStringify } from './transaction-row';
+
+export interface ListTransactionsOptions extends ListByTransactionOptions {
+  status?: TransactionStatus;
+}
 export interface NewTransaction {
   merchantRef: string;
   merchantSession: string;
@@ -118,6 +129,21 @@ export class Transaction {
     const row = await this.table().where('transaction_id', transactionId).first();
 
     return row ? this.map(row) : null;
+  }
+
+  async list(options: ListTransactionsOptions = {}): Promise<TransactionRecord[]> {
+    const query = this.table();
+
+    if (options.status) {
+      query.where('status', options.status);
+    }
+
+    const rows = await query
+      .orderBy('id', normalizeListOrder(options.order ?? 'desc'))
+      .limit(normalizeListLimit(options.limit))
+      .offset(normalizeListOffset(options.offset));
+
+    return rows.map((row: Record<string, unknown>) => this.map(row));
   }
 
   async listPendingForReconciliation(
@@ -271,30 +297,4 @@ export class Transaction {
   private table(): Knex.QueryBuilder {
     return this.db(this.tables.transactions);
   }
-}
-
-function extractId(value: unknown): number {
-  if (typeof value === 'object' && value !== null && 'id' in value) {
-    return Number((value as { id: unknown }).id);
-  }
-
-  return Number(value);
-}
-
-function stableStringify(value: unknown): string {
-  return JSON.stringify(value) ?? 'undefined';
-}
-
-function amountCentsFromRow(row: Record<string, unknown>): number {
-  const amountCents = Number(row.amount_cents);
-
-  if (row.amount_cents !== null && row.amount_cents !== undefined && Number.isFinite(amountCents)) {
-    return amountCents;
-  }
-
-  if (typeof row.amount === 'number' || typeof row.amount === 'string') {
-    return toCents(row.amount);
-  }
-
-  return 0;
 }

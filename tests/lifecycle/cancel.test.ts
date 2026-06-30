@@ -106,3 +106,42 @@ describe('cancel transaction', () => {
     expect(response.body.message).toContain('cannot be cancelled');
   });
 });
+
+describe('user cancellation callback', () => {
+  function cancelCallback(merchantRef: string, merchantSession: string) {
+    return sisp.handlers.handleCallback({
+      ip: '127.0.0.1',
+      method: 'POST',
+      path: '/sisp/callback',
+      headers: {},
+      query: {},
+      body: { merchantRef, merchantSession, UserCancelled: 'true' },
+    });
+  }
+
+  it('cancels the transaction and emits transaction:cancelled', async () => {
+    const transaction = await createTransaction();
+    const cancelled = vi.fn();
+    sisp.on('transaction:cancelled', cancelled);
+
+    const result = await cancelCallback(transaction.merchant_ref, transaction.merchant_session);
+
+    expect(result.type).toBe('redirect');
+
+    const stored = await sisp.models.transactions.findById(transaction.id);
+
+    expect(stored?.status).toBe('cancelled');
+    expect(stored?.merchant_response).toBe('user_cancelled');
+    expect(cancelled).toHaveBeenCalledOnce();
+  });
+
+  it('redirects without error for an unknown transaction', async () => {
+    const cancelled = vi.fn();
+    sisp.on('transaction:cancelled', cancelled);
+
+    const result = await cancelCallback('R-missing', 'S-missing');
+
+    expect(result.type).toBe('redirect');
+    expect(cancelled).not.toHaveBeenCalled();
+  });
+});
