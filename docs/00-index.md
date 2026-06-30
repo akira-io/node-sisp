@@ -18,4 +18,17 @@ Framework-agnostic Node.js client for the SISP/Vinti4 payment gateway (Cabo Verd
 | 10 | [Architecture](10-architecture.md) | Actions, builders, pipelines, drivers, contracts |
 | 11 | [Idempotency and Attempts](11-idempotency.md) | Payment intents, retries, attempt audit trail, collision handling |
 
+## Examples
+
+Patterns validated against the live gateway. See [examples](examples/00-index.md).
+
+| # | Example | What it shows |
+|---|---------|---------------|
+| 01 | [Fastify production](examples/01-fastify-production.md) | Production driver with 3-D Secure |
+| 02 | [Decoupled SPA (React)](examples/02-spa-react.md) | API-only backend feeding a React frontend |
+| 03 | [Handling cancellation](examples/03-cancellation.md) | Reacting to `transaction:cancelled` |
+| 04 | [Handling failed payments](examples/04-failed-payments.md) | Reacting to `payment:failed` and OTP failures |
+| 05 | [Listing transactions](examples/05-listing-transactions.md) | Paginated, hydrated listing |
+| 06 | [Decoupled SPA: Vue and Svelte](examples/06-spa-frameworks.md) | The same SPA flow in Vue and Svelte |
+
 **Next:** [Installation](01-installation.md)
