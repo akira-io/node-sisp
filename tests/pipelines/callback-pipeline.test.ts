@@ -244,10 +244,19 @@ describe('HandleCallbackPipeline', () => {
     'posID',
     'currency',
     'transactionCode',
-  ])('rejects callbacks missing %s', async (field) => {
+  ])('accepts success callbacks that omit %s', async (field) => {
     await createPendingTransaction();
 
     const context = await pipeline.run(new CallbackContext(signedCallback({}, [field])));
+
+    expect(context.failed()).toBe(false);
+    expect(context.requireTransaction().status).toBe('completed');
+  });
+
+  it('rejects callbacks that provide a mismatching currency', async () => {
+    await createPendingTransaction();
+
+    const context = await pipeline.run(new CallbackContext(signedCallback({ currency: '840' })));
 
     expect(context.failureReason).toBe('callback_details_mismatch');
   });
