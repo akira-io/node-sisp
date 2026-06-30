@@ -1,8 +1,10 @@
 import type { CancelTransactionAction } from '../../application/actions/cancel-transaction';
 import type { ResolvedSispConfig } from '../../application/config';
+import type {
+  TransactionAttemptRepository,
+  TransactionRepository,
+} from '../../core/contracts/storage';
 import type { UrlSigner } from '../../support/signed-url';
-import type { Transaction } from '../storage/knex/models/transaction';
-import type { TransactionAttempt } from '../storage/knex/models/transaction-attempt';
 import type { HttpRequestInfo } from './request-info';
 
 export function signedCallbackResultUrl(
@@ -22,8 +24,8 @@ export function frontendResultUrl(baseUrl: string, merchantRef: string): string 
 }
 
 export async function isAlreadyProcessed(
-  transactions: Transaction,
-  attempts: TransactionAttempt,
+  transactions: TransactionRepository,
+  attempts: TransactionAttemptRepository,
   merchantRef: string,
   merchantSession: string,
 ): Promise<boolean> {
@@ -55,7 +57,7 @@ export function booleanFromInput(value: unknown): boolean {
 }
 
 export async function cancelUserCancelledTransaction(
-  transactions: Transaction,
+  transactions: TransactionRepository,
   cancelTransaction: CancelTransactionAction,
   request: HttpRequestInfo,
 ): Promise<void> {

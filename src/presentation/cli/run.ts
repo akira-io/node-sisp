@@ -1,5 +1,5 @@
-import { access, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, isAbsolute, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { resolveConfig, type SispConfig } from '../../application/config';
@@ -10,6 +10,7 @@ import { createKnexInstance } from '../../infrastructure/storage/knex/create-kne
 export interface CliOptions {
   loadConfig?: () => Promise<SispConfig>;
   output?: (line: string) => void;
+  schemaPath?: string;
 }
 
 const CONFIG_FILES = ['sisp.config.js', 'sisp.config.mjs', 'sisp.config.cjs', 'sisp.config.json'];
@@ -26,12 +27,18 @@ export async function runCli(argv: string[], options: CliOptions = {}): Promise<
     return reconcilePending(rest, options, output);
   }
 
+  if (command === 'prisma') {
+    return prismaSchema(rest, options, output);
+  }
+
   output('Usage: sisp <command>');
   output('');
   output('Commands:');
   output('  migrate                Run the bundled SISP migrations');
   output('  reconcile-pending      Reconcile old pending transactions via the status API');
   output('                         [--older-than <minutes>] [--limit <n>] [--force]');
+  output('  prisma                 Copy the reference Prisma schema into your project');
+  output('                         [--out <path>] [--print] [--models-only] [--force]');
 
   return command === undefined || command === 'help' || command === '--help' ? 0 : 1;
 }
@@ -74,6 +81,11 @@ async function migrate(
 ): Promise<number> {
   const config = await (options.loadConfig ?? loadConfigFile)();
   const resolved = resolveConfig(config);
+
+  if (!resolved.database) {
+    throw new Error('The `migrate` command requires a `database` configuration.');
+  }
+
   const db = createKnexInstance(resolved.database);
 
   try {
@@ -137,6 +149,54 @@ async function reconcilePending(
   } finally {
     await sisp.destroy();
   }
+}
+
+async function prismaSchema(
+  argv: string[],
+  options: CliOptions,
+  output: (line: string) => void,
+): Promise<number> {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      out: { type: 'string' },
+      print: { type: 'boolean' },
+      'models-only': { type: 'boolean' },
+      force: { type: 'boolean' },
+    },
+  });
+
+  const sourcePath =
+    options.schemaPath ?? new URL('../prisma/sisp.prisma', import.meta.url).pathname;
+
+  let schema = await readFile(sourcePath, 'utf8');
+
+  if (values['models-only']) {
+    schema = schema
+      .replace(/^(datasource|generator)\s+\w+\s*\{[^}]*\}\s*/gm, '')
+      .replace(/^\n+/, '');
+  }
+
+  if (values.print) {
+    output(schema);
+
+    return 0;
+  }
+
+  const outRel = values.out ?? join('prisma', 'sisp.prisma');
+  const dest = isAbsolute(outRel) ? outRel : join(process.cwd(), outRel);
+
+  if (!values.force && (await exists(dest))) {
+    output(`Refusing to overwrite ${dest}. Use --force to replace it.`);
+
+    return 1;
+  }
+
+  await mkdir(dirname(dest), { recursive: true });
+  await writeFile(dest, schema, 'utf8');
+  output(`Wrote ${dest}`);
+
+  return 0;
 }
 
 async function exists(filePath: string): Promise<boolean> {

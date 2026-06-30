@@ -1,6 +1,6 @@
+import type { InvoiceRepository } from '../../core/contracts/storage';
 import { InvoiceStatus } from '../../domain/enums/invoice-status';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
-import type { Invoice } from '../../infrastructure/storage/knex/models/invoice';
 import type { TransactionRecord } from '../../infrastructure/storage/knex/records';
 
 const STATUS_MAP: Partial<Record<TransactionStatus, InvoiceStatus>> = {
@@ -10,7 +10,7 @@ const STATUS_MAP: Partial<Record<TransactionStatus, InvoiceStatus>> = {
 };
 
 export class UpdateInvoiceStatusAction {
-  constructor(private readonly invoices: Invoice) {}
+  constructor(private readonly invoices: InvoiceRepository) {}
 
   async handle(transaction: TransactionRecord): Promise<void> {
     const invoiceStatus = STATUS_MAP[transaction.status];

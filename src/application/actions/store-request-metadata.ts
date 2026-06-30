@@ -1,9 +1,7 @@
 import { createHash } from 'node:crypto';
+import type { RequestMetadataRepository } from '../../core/contracts/storage';
+import type { NewRequestMetadata } from '../../domain/storage-types';
 import { type HttpRequestInfo, headerValue } from '../../infrastructure/http/request-info';
-import type {
-  NewRequestMetadata,
-  RequestMetadata,
-} from '../../infrastructure/storage/knex/models/request-metadata';
 import {
   detectBrowser,
   detectDeviceType,
@@ -26,7 +24,7 @@ const SENSITIVE_KEY_MARKERS = [
 ];
 
 export class StoreRequestMetadataAction {
-  constructor(private readonly requestMetadata: RequestMetadata) {}
+  constructor(private readonly requestMetadata: RequestMetadataRepository) {}
 
   async handle(request: HttpRequestInfo, transactionId: number | null): Promise<void> {
     await this.requestMetadata.create(buildRequestMetadata(request, transactionId));

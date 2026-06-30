@@ -1,7 +1,7 @@
+import type { TransactionRepository } from '../../core/contracts/storage';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { TransactionStateError } from '../../domain/errors/exceptions';
 import { runWithLogSource } from '../../infrastructure/storage/knex/log-context';
-import type { Transaction } from '../../infrastructure/storage/knex/models/transaction';
 import { nowIso, type TransactionRecord } from '../../infrastructure/storage/knex/records';
 import type { SispEventEmitter } from '../events';
 
@@ -12,7 +12,7 @@ const NOT_CANCELLABLE: readonly TransactionStatus[] = [
 
 export class CancelTransactionAction {
   constructor(
-    private readonly transactions: Transaction,
+    private readonly transactions: TransactionRepository,
     private readonly events: SispEventEmitter,
   ) {}
 

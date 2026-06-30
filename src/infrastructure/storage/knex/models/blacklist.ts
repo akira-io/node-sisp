@@ -1,16 +1,9 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../../../application/config';
+import type { BlacklistEntry } from '../../../../domain/storage-types';
 import { type BlacklistRecord, nowIso } from '../records';
 
-export interface BlacklistEntry {
-  type: string;
-  value: string;
-  severity?: string;
-  reason?: string | null;
-  notes?: string | null;
-  addedBy?: string | null;
-  expiresInMinutes?: number | null;
-}
+export type { BlacklistEntry } from '../../../../domain/storage-types';
 
 export class Blacklist {
   constructor(

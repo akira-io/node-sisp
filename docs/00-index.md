@@ -17,6 +17,7 @@ Framework-agnostic Node.js client for the SISP/Vinti4 payment gateway (Cabo Verd
 | 09 | [API Reference](09-api-reference.md) | Public exports of every entry point |
 | 10 | [Architecture](10-architecture.md) | Actions, builders, pipelines, drivers, contracts |
 | 11 | [Idempotency and Attempts](11-idempotency.md) | Payment intents, retries, attempt audit trail, collision handling |
+| 12 | [Storage Adapters](12-storage-adapters.md) | SispStorage port, Prisma quick start, custom ORM adapters |
 
 ## Examples
 

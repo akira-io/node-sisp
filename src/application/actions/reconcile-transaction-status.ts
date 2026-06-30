@@ -1,3 +1,4 @@
+import type { TransactionRepository } from '../../core/contracts/storage';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import {
   paymentStatusOf,
@@ -5,7 +6,6 @@ import {
 } from '../../domain/value-objects/transaction-status-response';
 import type { SispManager } from '../../infrastructure/drivers/sisp-manager';
 import { runWithLogSource } from '../../infrastructure/storage/knex/log-context';
-import type { Transaction } from '../../infrastructure/storage/knex/models/transaction';
 import {
   type TransactionRecord,
   transactionPayloadRecord,
@@ -15,7 +15,7 @@ import type { UpdateInvoiceStatusAction } from './update-invoice-status';
 export class ReconcileTransactionStatusAction {
   constructor(
     private readonly manager: SispManager,
-    private readonly transactions: Transaction,
+    private readonly transactions: TransactionRepository,
     private readonly updateInvoiceStatus: UpdateInvoiceStatusAction,
   ) {}
 

@@ -1,14 +1,9 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../../../application/config';
+import type { RateLimitHit } from '../../../../domain/storage-types';
 import { nowIso } from '../records';
 
-export interface RateLimitHit {
-  identifier: string;
-  limitType: string;
-  context?: string | null;
-  limit: number;
-  windowSeconds: number;
-}
+export type { RateLimitHit } from '../../../../domain/storage-types';
 
 interface RateLimitRow {
   id: number;

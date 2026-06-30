@@ -34,6 +34,19 @@ export type { CredentialsResolver } from './core/contracts/credentials-resolver'
 export { StaticCredentialsResolver } from './core/contracts/credentials-resolver';
 export type { CallbackPipe, PaymentPipe } from './core/contracts/pipes';
 export type { SispDriver } from './core/contracts/sisp-driver';
+export type {
+  BlacklistRepository,
+  InvoiceRepository,
+  PaymentIntentRepository,
+  RateLimitRepository,
+  RequestMetadataRepository,
+  SispStorage,
+  SispStorageTx,
+  TransactionAttemptRepository,
+  TransactionItemRepository,
+  TransactionLogRepository,
+  TransactionRepository,
+} from './core/contracts/storage';
 export {
   type ErrorMessageType,
   errorActionLabel,
@@ -57,6 +70,16 @@ export {
   SispError,
   TransactionNotFoundError,
 } from './domain/errors/exceptions';
+export type {
+  BlacklistRecord,
+  InvoiceRecord,
+  PaymentIntentRecord,
+  RequestMetadataRecord,
+  TransactionAttemptRecord,
+  TransactionItemRecord,
+  TransactionLogRecord,
+  TransactionRecord,
+} from './domain/records';
 export {
   type CallbackPayload,
   callbackPayloadFrom,
@@ -93,15 +116,6 @@ export { MIGRATIONS_TABLE, runMigrations } from './infrastructure/storage/knex/a
 export { createKnexInstance } from './infrastructure/storage/knex/create-knex';
 export { PayloadCipher } from './infrastructure/storage/knex/encryption';
 export { runWithLogSource } from './infrastructure/storage/knex/log-context';
-export type {
-  BlacklistRecord,
-  InvoiceRecord,
-  PaymentIntentRecord,
-  RequestMetadataRecord,
-  TransactionItemRecord,
-  TransactionLogRecord,
-  TransactionRecord,
-} from './infrastructure/storage/knex/records';
 export {
   allCountries,
   type Country,

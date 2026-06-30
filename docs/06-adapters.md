@@ -1,6 +1,8 @@
 # Adapters
 
-The core exposes pure handlers (`sisp.handlers.*`) that take a normalized request and return `{ type: 'html' | 'json' | 'redirect', ... }`. Adapters only translate framework requests and responses, so all three mount the same routes:
+This page covers HTTP framework adapters (Express, Fastify, NestJS). For ORM-level adapters such as Prisma, see [Storage Adapters](12-storage-adapters.md).
+
+The core exposes pure handlers (`sisp.handlers.*`) that take a normalized request and return `{ type: 'html' | 'json' | 'redirect', ... }`. HTTP adapters only translate framework requests and responses, so all three mount the same routes:
 
 | Method | Route | Purpose |
 |--------|-------|---------|

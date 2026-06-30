@@ -1,9 +1,11 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SispConfig } from '../../src/application/config';
 import { loadConfigFile, runCli } from '../../src/presentation/cli/run';
+
+const SCHEMA_PATH = new URL('../../prisma/sisp.prisma', import.meta.url).pathname;
 
 function memoryConfig(overrides: Partial<SispConfig> = {}): SispConfig {
   return {
@@ -110,5 +112,81 @@ describe('help and config loading', () => {
     const cwd = await mkdtemp(join(tmpdir(), 'sisp-empty-'));
 
     await expect(loadConfigFile(cwd)).rejects.toThrow('No SISP configuration found.');
+  });
+});
+
+describe('sisp prisma', () => {
+  it('copies the schema to prisma/sisp.prisma by default and returns 0', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'sisp-prisma-'));
+    const dest = join(dir, 'prisma', 'sisp.prisma');
+    const { lines, output } = capture();
+
+    const code = await runCli(['prisma', '--out', dest], { output, schemaPath: SCHEMA_PATH });
+
+    expect(code).toBe(0);
+    expect(lines).toEqual([`Wrote ${dest}`]);
+
+    const written = await readFile(dest, 'utf8');
+    const source = await readFile(SCHEMA_PATH, 'utf8');
+
+    expect(written).toBe(source);
+  });
+
+  it('refuses to overwrite without --force and returns 1; --force overwrites', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'sisp-prisma-'));
+    const dest = join(dir, 'sisp.prisma');
+    await writeFile(dest, 'original');
+
+    const { lines: lines1, output: output1 } = capture();
+    const code1 = await runCli(['prisma', '--out', dest], {
+      output: output1,
+      schemaPath: SCHEMA_PATH,
+    });
+
+    expect(code1).toBe(1);
+    expect(lines1[0]).toContain('Refusing to overwrite');
+    expect(await readFile(dest, 'utf8')).toBe('original');
+
+    const { lines: lines2, output: output2 } = capture();
+    const code2 = await runCli(['prisma', '--out', dest, '--force'], {
+      output: output2,
+      schemaPath: SCHEMA_PATH,
+    });
+
+    expect(code2).toBe(0);
+    expect(lines2).toEqual([`Wrote ${dest}`]);
+
+    const source = await readFile(SCHEMA_PATH, 'utf8');
+
+    expect(await readFile(dest, 'utf8')).toBe(source);
+  });
+
+  it('--print writes schema to output and creates no file', async () => {
+    const { lines, output } = capture();
+
+    const code = await runCli(['prisma', '--print'], { output, schemaPath: SCHEMA_PATH });
+
+    expect(code).toBe(0);
+
+    const source = await readFile(SCHEMA_PATH, 'utf8');
+
+    expect(lines).toEqual([source]);
+  });
+
+  it('--models-only --print contains model blocks but not datasource or generator', async () => {
+    const { lines, output } = capture();
+
+    const code = await runCli(['prisma', '--print', '--models-only'], {
+      output,
+      schemaPath: SCHEMA_PATH,
+    });
+
+    expect(code).toBe(0);
+
+    const printed = lines.join('\n');
+
+    expect(printed).toContain('model SispTransaction');
+    expect(printed).not.toContain('datasource');
+    expect(printed).not.toContain('generator');
   });
 });

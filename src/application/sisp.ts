@@ -1,7 +1,16 @@
 import type { Knex } from 'knex';
 import type { CredentialsResolver } from '../core/contracts/credentials-resolver';
 import type { SispDriver } from '../core/contracts/sisp-driver';
-import type { SispStorage } from '../core/contracts/storage';
+import type {
+  BlacklistRepository,
+  InvoiceRepository,
+  PaymentIntentRepository,
+  SispStorage,
+  TransactionAttemptRepository,
+  TransactionItemRepository,
+  TransactionLogRepository,
+  TransactionRepository,
+} from '../core/contracts/storage';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
 import type { PaymentRequest } from '../domain/value-objects/payment-request';
 import type { PaymentRequestData } from '../domain/value-objects/payment-request-data';
@@ -11,13 +20,6 @@ import type { SispManager } from '../infrastructure/drivers/sisp-manager';
 import { validateCallbackFingerprint } from '../infrastructure/fingerprints/callback-fingerprint';
 import { computeToken } from '../infrastructure/fingerprints/token';
 import type { SispHttpHandlers } from '../infrastructure/http/handlers';
-import type { Blacklist } from '../infrastructure/storage/knex/models/blacklist';
-import type { Invoice } from '../infrastructure/storage/knex/models/invoice';
-import type { PaymentIntent } from '../infrastructure/storage/knex/models/payment-intent';
-import type { Transaction } from '../infrastructure/storage/knex/models/transaction';
-import type { TransactionAttempt } from '../infrastructure/storage/knex/models/transaction-attempt';
-import type { TransactionItem } from '../infrastructure/storage/knex/models/transaction-item';
-import type { TransactionLog } from '../infrastructure/storage/knex/models/transaction-log';
 import type { TransactionRecord } from '../infrastructure/storage/knex/records';
 import type { UrlSigner } from '../support/signed-url';
 import type { BuildRequestPayloadAction } from './actions/build-request-payload';
@@ -34,13 +36,13 @@ import type { BuildSandboxPayloadAction, SandboxStatus } from './sandbox';
 import { ScopedSisp } from './scoped-sisp';
 
 export interface SispModels {
-  transactions: Transaction;
-  transactionItems: TransactionItem;
-  transactionAttempts: TransactionAttempt;
-  paymentIntents: PaymentIntent;
-  invoices: Invoice;
-  transactionLogs: TransactionLog;
-  blacklist: Blacklist;
+  transactions: TransactionRepository;
+  transactionItems: TransactionItemRepository;
+  transactionAttempts: TransactionAttemptRepository;
+  paymentIntents: PaymentIntentRepository;
+  invoices: InvoiceRepository;
+  transactionLogs: TransactionLogRepository;
+  blacklist: BlacklistRepository;
 }
 
 export interface ReconcilePendingOptions {

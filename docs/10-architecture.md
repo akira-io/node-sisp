@@ -60,7 +60,12 @@ src/
 
 The persistence layer sits behind an ORM-neutral port, `SispStorage`, defined in `src/core/contracts/storage.ts`: nine entity repositories plus a `transaction()` unit-of-work, an optional `migrate?()`, and `destroy()`. The port leaks no engine types.
 
-`KnexStorage` (`src/infrastructure/storage/knex/`) is the only adapter today. Future adapters (Prisma, Drizzle, Sequelize, TypeORM) implement the same port and are validated by the shared contract suite `tests/storage/contract.ts`.
+Two adapters ship with the package:
+
+- `KnexStorage` (`src/infrastructure/storage/knex/`) - the default, built from the `database` config. Handles migrations automatically and exposes `sisp.db` for raw queries.
+- `PrismaStorage` (`src/infrastructure/storage/prisma/`) - available at the `@akira-io/sisp/prisma` subpath. Injected via `createSisp({ storage: createPrismaStorage(prisma, tables, appKey, { provider }) })`. The core bundle never imports `@prisma/client`.
+
+Both adapters are validated by the shared contract suite `tests/storage/contract.ts`, which guarantees behavioral parity. See [Storage Adapters](12-storage-adapters.md) for the Prisma quick start and instructions for implementing custom adapters.
 
 The application layer runs every database transaction through `storage.transaction(tx => ...)` with locked reads via the repository `...ForUpdate` methods, so atomicity and locking are adapter-decided.
 

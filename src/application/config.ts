@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 import type { CallbackPipe, PaymentPipe } from '../core/contracts/pipes';
+import type { SispStorage } from '../core/contracts/storage';
 import {
   type PaymentValidationConfig,
   resolvePaymentValidation,
@@ -87,7 +88,8 @@ export interface SispDatabaseConfig {
 export interface SispConfig {
   posId: string;
   posAutCode: string;
-  database: SispDatabaseConfig;
+  storage?: SispStorage;
+  database?: SispDatabaseConfig;
   url?: string;
   merchantId?: string;
   driver?: string;
@@ -120,7 +122,7 @@ export interface SispConfig {
 export interface ResolvedSispConfig {
   posId: string;
   posAutCode: string;
-  database: Required<SispDatabaseConfig>;
+  database: Required<SispDatabaseConfig> | undefined;
   url: string;
   merchantId: string;
   driver: string | null;
@@ -195,16 +197,32 @@ const DEFAULT_IDEMPOTENCY: IdempotencyConfig = {
 };
 
 export function resolveConfig(config: SispConfig): ResolvedSispConfig {
+  const hasStorage = config.storage != null;
+  const hasDatabase = config.database != null;
+
+  if (hasStorage && hasDatabase) {
+    throw new Error('Provide either `storage` or `database`, not both.');
+  }
+
+  if (!hasStorage && !hasDatabase) {
+    throw new Error('Either `storage` or `database` must be provided.');
+  }
+
   const sandbox = booleanSetting(config.sandbox, false);
+
+  const database =
+    config.database != null
+      ? {
+          client: config.database.client,
+          connection: config.database.connection,
+          autoMigrate: booleanSetting(config.database.autoMigrate, sandbox),
+        }
+      : undefined;
 
   return {
     posId: config.posId,
     posAutCode: config.posAutCode,
-    database: {
-      client: config.database.client,
-      connection: config.database.connection,
-      autoMigrate: booleanSetting(config.database.autoMigrate, sandbox),
-    },
+    database,
     url: config.url ?? '',
     merchantId: config.merchantId ?? '',
     driver: config.driver ?? null,

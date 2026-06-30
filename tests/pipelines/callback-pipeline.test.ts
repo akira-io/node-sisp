@@ -43,7 +43,11 @@ beforeEach(async () => {
     appKey: 'app-key',
     database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
   });
-  storage = KnexStorage.create(config.database, config.tables, config.appKey);
+  const database = config.database;
+
+  if (!database) throw new Error('database config missing');
+
+  storage = KnexStorage.create(database, config.tables, config.appKey);
   db = storage.raw;
   await runMigrations(db, config.tables);
 

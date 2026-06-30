@@ -1,8 +1,4 @@
-export interface ListByTransactionOptions {
-  limit?: number;
-  offset?: number;
-  order?: 'asc' | 'desc';
-}
+export type { ListByTransactionOptions } from '../../../domain/storage-types';
 
 export const DEFAULT_LIST_BY_TRANSACTION_LIMIT = 100;
 
@@ -22,6 +18,8 @@ export function normalizeListOffset(offset: number | undefined): number {
   return Math.max(0, Math.trunc(offset));
 }
 
-export function normalizeListOrder(order: ListByTransactionOptions['order']): 'asc' | 'desc' {
+export function normalizeListOrder(
+  order: import('../../../domain/storage-types').ListByTransactionOptions['order'],
+): 'asc' | 'desc' {
   return order === 'desc' ? 'desc' : 'asc';
 }

@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../../../application/config';
 import { TransactionStatus } from '../../../../domain/enums/transaction-status';
+import type { TransactionAttemptChanges } from '../../../../domain/storage-types';
 import type { CallbackPayload } from '../../../../domain/value-objects/callback-payload';
 import type { PaymentRequest } from '../../../../domain/value-objects/payment-request';
 import { paymentRequestToFormFields } from '../../../../domain/value-objects/payment-request';
@@ -14,17 +15,7 @@ import {
 import { lockForUpdate } from '../locking';
 import { nowIso, type TransactionAttemptRecord, type TransactionRecord } from '../records';
 
-export interface TransactionAttemptChanges {
-  status: TransactionStatus;
-  gateway_transaction_id?: string | null;
-  message_type?: string | null;
-  response_code?: string | null;
-  merchant_response?: string | null;
-  fingerprint?: string | null;
-  callback_payload?: unknown;
-  failure_reason?: string | null;
-  callback_received_at?: string | null;
-}
+export type { TransactionAttemptChanges } from '../../../../domain/storage-types';
 
 export class TransactionAttempt {
   constructor(
