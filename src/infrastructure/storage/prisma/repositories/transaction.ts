@@ -21,6 +21,7 @@ import {
   delegate,
   type PrismaClientLike,
   rawExec,
+  runInTransaction,
 } from '../client';
 import { lockRowForUpdate } from '../locking';
 import { mapTransaction, newTransactionToData, type PrismaRow } from '../mapping';
@@ -135,13 +136,10 @@ export function makeTransactionRepository(
     },
 
     async findByRefAndSessionForUpdate(merchantRef, merchantSession) {
-      await lockRowForUpdate(
-        rawExec(client),
-        provider,
-        tables.transactions,
-        'merchant_ref',
-        merchantRef,
-      );
+      await lockRowForUpdate(rawExec(client), provider, tables.transactions, [
+        { column: 'merchant_ref', value: merchantRef },
+        { column: 'merchant_session', value: merchantSession },
+      ]);
       const row = await model().findFirst({ where: { merchantRef, merchantSession } });
 
       return row ? mapTransaction(row, cipher) : null;
@@ -191,12 +189,15 @@ export function makeTransactionRepository(
     },
 
     async update(id: number, changes: TransactionChanges): Promise<TransactionRecord> {
-      return client.$transaction(async (txc) => {
-        const scoped = makeTransactionRepository(txc, tables, cipher, provider);
+      return runInTransaction(client, async (txc) => {
+        const scoped = makeTransactionRepository(txc, tables, cipher, provider) as unknown as {
+          updateLocked: typeof updateLocked;
+        };
 
-        return (scoped as unknown as { updateLocked: typeof updateLocked }).updateLocked(id, changes);
+        return scoped.updateLocked(id, changes);
       });
     },
+    updateLocked,
   } as TransactionRepository & { updateLocked: typeof updateLocked };
 
   async function updateLocked(id: number, changes: TransactionChanges): Promise<TransactionRecord> {

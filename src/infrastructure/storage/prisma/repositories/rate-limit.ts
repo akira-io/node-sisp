@@ -7,6 +7,7 @@ import {
   delegate,
   type PrismaClientLike,
   rawExec,
+  runInTransaction,
 } from '../client';
 import { lockRowForUpdate } from '../locking';
 import type { PrismaRow } from '../mapping';
@@ -57,7 +58,7 @@ export function makeRateLimitRepository(
 ): RateLimitRepository {
   return {
     async hit(params: RateLimitHit): Promise<boolean> {
-      return client.$transaction(async (txc) => {
+      return runInTransaction(client, async (txc) => {
         const model = () => delegate(txc, DELEGATE_NAMES.rateLimits);
         const filter: Record<string, unknown> = {
           identifier: params.identifier,
@@ -92,7 +93,13 @@ export function makeRateLimitRepository(
 
         await lockRowForUpdate(rawExec(txc), provider, tables.rateLimits, 'id', existing.id);
 
-        let row = existing as unknown as RateLimitRow;
+        const locked = await model().findFirst({ where: { id: existing.id } });
+
+        if (!locked) {
+          return false;
+        }
+
+        let row = locked as unknown as RateLimitRow;
 
         if (parseResetAt(row.resetAt) <= Date.now()) {
           const reset: PrismaRow = {

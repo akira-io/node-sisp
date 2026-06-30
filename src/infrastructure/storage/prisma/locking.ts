@@ -2,23 +2,54 @@ import type { PrismaSqlProvider } from './prisma-storage';
 
 export type RawExec = (query: string, ...values: unknown[]) => Promise<unknown>;
 
+export interface LockColumn {
+  column: string;
+  value: unknown;
+}
+
 export async function lockRowForUpdate(
   exec: RawExec,
   provider: PrismaSqlProvider,
   table: string,
   column: string,
   value: unknown,
+): Promise<void>;
+export async function lockRowForUpdate(
+  exec: RawExec,
+  provider: PrismaSqlProvider,
+  table: string,
+  columns: LockColumn[],
+): Promise<void>;
+export async function lockRowForUpdate(
+  exec: RawExec,
+  provider: PrismaSqlProvider,
+  table: string,
+  columnOrColumns: string | LockColumn[],
+  value?: unknown,
 ): Promise<void> {
   if (provider === 'sqlite') {
     return;
   }
 
+  const columns: LockColumn[] = Array.isArray(columnOrColumns)
+    ? columnOrColumns
+    : [{ column: columnOrColumns, value }];
+
+  const [first] = columns;
+
+  if (!first) {
+    return;
+  }
+
   const quotedTable = quoteIdentifier(table, provider);
-  const quotedColumn = quoteIdentifier(column, provider);
+  const firstColumn = quoteIdentifier(first.column, provider);
+  const where = columns
+    .map(({ column }) => `${quoteIdentifier(column, provider)} = ?`)
+    .join(' AND ');
 
   await exec(
-    `SELECT ${quotedColumn} FROM ${quotedTable} WHERE ${quotedColumn} = ? FOR UPDATE`,
-    value,
+    `SELECT ${firstColumn} FROM ${quotedTable} WHERE ${where} FOR UPDATE`,
+    ...columns.map(({ value }) => value),
   );
 }
 

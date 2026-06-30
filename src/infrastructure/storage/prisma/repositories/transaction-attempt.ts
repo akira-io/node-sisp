@@ -132,13 +132,10 @@ export function makeTransactionAttemptRepository(
       merchantRef: string,
       merchantSession: string,
     ): Promise<TransactionAttemptRecord | null> {
-      await lockRowForUpdate(
-        rawExec(client),
-        provider,
-        tables.transactionAttempts,
-        'merchant_ref',
-        merchantRef,
-      );
+      await lockRowForUpdate(rawExec(client), provider, tables.transactionAttempts, [
+        { column: 'merchant_ref', value: merchantRef },
+        { column: 'merchant_session', value: merchantSession },
+      ]);
 
       const row = await model().findFirst({
         where: { merchantRef, merchantSession },
@@ -191,6 +188,7 @@ export function makeTransactionAttemptRepository(
     },
 
     async update(id: number, changes: TransactionAttemptChanges): Promise<TransactionAttemptRecord> {
+      // TODO: new TransactionAttemptChanges fields must be added to this whitelist.
       const data: Record<string, unknown> = { updatedAt: new Date(nowIso()) };
 
       if ('status' in changes) {

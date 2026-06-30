@@ -58,4 +58,34 @@ describe('lockRowForUpdate', () => {
 
     expect(sql).toContain('`sisp``transactions`');
   });
+
+  it('locks on a composite WHERE across multiple columns', async () => {
+    const exec = vi.fn().mockResolvedValue([]);
+
+    await lockRowForUpdate(exec, 'postgresql', 'sisp_transactions', [
+      { column: 'merchant_ref', value: 'REF' },
+      { column: 'merchant_session', value: 'SESSION' },
+    ]);
+
+    expect(exec).toHaveBeenCalledOnce();
+
+    const [sql, ...values] = exec.mock.calls[0] as [string, ...unknown[]];
+
+    expect(sql).toContain('"merchant_ref" = ?');
+    expect(sql).toContain('"merchant_session" = ?');
+    expect(sql).toContain(' AND ');
+    expect(sql).toContain('FOR UPDATE');
+    expect(values).toEqual(['REF', 'SESSION']);
+  });
+
+  it('is a no-op for sqlite with composite columns', async () => {
+    const exec = vi.fn();
+
+    await lockRowForUpdate(exec, 'sqlite', 'sisp_transactions', [
+      { column: 'merchant_ref', value: 'REF' },
+      { column: 'merchant_session', value: 'SESSION' },
+    ]);
+
+    expect(exec).not.toHaveBeenCalled();
+  });
 });

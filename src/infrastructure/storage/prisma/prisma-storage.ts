@@ -1,7 +1,7 @@
 import { DEFAULT_TABLES, type SispTables } from '../../../application/config';
 import type { SispStorage, SispStorageTx } from '../../../core/contracts/storage';
 import { PayloadCipher } from '../knex/encryption';
-import type { PrismaClientLike } from './client';
+import { type PrismaClientLike, runInTransaction } from './client';
 import { makeBlacklistRepository } from './repositories/blacklist';
 import { makeInvoiceRepository } from './repositories/invoice';
 import { makePaymentIntentRepository } from './repositories/payment-intent';
@@ -43,11 +43,11 @@ class PrismaStorage implements SispStorage {
   }
 
   async transaction<T>(work: (tx: SispStorageTx) => Promise<T>): Promise<T> {
-    return this.prisma.$transaction((txc) => work(this.scoped(txc)));
+    return runInTransaction(this.prisma, (txc) => work(this.scoped(txc)));
   }
 
   async destroy(): Promise<void> {
-    await this.prisma.$disconnect();
+    await this.prisma.$disconnect?.();
   }
 
   private scoped(txc: PrismaClientLike): SispStorageTx {

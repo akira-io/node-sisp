@@ -34,8 +34,19 @@ export interface PrismaDelegate {
 
 export interface PrismaClientLike {
   $queryRawUnsafe(query: string, ...values: unknown[]): Promise<unknown>;
-  $transaction<T>(work: (txc: PrismaClientLike) => Promise<T>): Promise<T>;
-  $disconnect(): Promise<void>;
+  $transaction?<T>(work: (txc: PrismaClientLike) => Promise<T>): Promise<T>;
+  $disconnect?(): Promise<void>;
+}
+
+export function runInTransaction<T>(
+  client: PrismaClientLike,
+  fn: (txc: PrismaClientLike) => Promise<T>,
+): Promise<T> {
+  if (typeof client.$transaction === 'function') {
+    return client.$transaction(fn);
+  }
+
+  return fn(client);
 }
 
 export const DELEGATE_NAMES = {
