@@ -1,6 +1,6 @@
 # Decoupled SPA (React)
 
-Drive a payment from a separate React app with an API-only backend. Payment initiation still requires a full-page browser navigation to the gateway (3-D Secure cannot run over XHR), so the pattern is: the SPA asks the API for a payment intent, submits it full-page, and the package hands the browser back to the SPA afterwards.
+Drive a payment from a separate React app with an API-only backend. Payment initiation still requires a full-page browser navigation to the gateway (3D Secure cannot run over XHR), so the pattern is: the SPA asks the API for a payment intent, submits it full-page, and the package hands the browser back to the SPA afterwards.
 
 ## Backend (Fastify, API + CORS)
 
@@ -119,7 +119,7 @@ const transaction = await response.json(); // { status, amount, detail }
 
 ```
 SPA --POST /api/payment--> backend: { action, fields }
-SPA --full-page POST--> gateway (3-D Secure card page)
+SPA --full-page POST--> gateway (3D Secure card page)
 gateway --> backend /sisp/callback (processed, events emitted)
 backend --redirect--> SPA /result?ref=...
 SPA --GET /api/transactions/:ref--> backend: authoritative status

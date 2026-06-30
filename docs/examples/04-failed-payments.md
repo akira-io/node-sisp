@@ -1,6 +1,6 @@
 # Handling failed payments
 
-A declined payment, an invalid callback, or a 3-D Secure / OTP authentication failure emits `payment:failed` and marks the transaction `failed`.
+A declined payment, an invalid callback, or a 3D Secure / OTP authentication failure emits `payment:failed` and marks the transaction `failed`.
 
 ```ts
 sisp.on('payment:failed', ({ transaction, payload }) => {
@@ -12,7 +12,7 @@ sisp.on('payment:failed', ({ transaction, payload }) => {
 });
 ```
 
-## 3-D Secure / OTP failure
+## 3D Secure / OTP failure
 
 When the customer enters a wrong OTP, the gateway posts an error callback whose fingerprint is signed over a different field set than a success callback. The package fails the transaction and emits `payment:failed`; the gateway detail is on the payload.
 
