@@ -31,6 +31,10 @@ export async function sispFastifyPlugin(
     '/payment',
     route((request) => sisp.handlers.handlePayment(request)),
   );
+  fastify.post(
+    '/payment/intent',
+    route((request) => sisp.handlers.handlePaymentIntent(request)),
+  );
   fastify.get(
     '/callback',
     route((request) => sisp.handlers.handleCallback(request)),

@@ -16,6 +16,8 @@ Both flows run through pipelines of small single-purpose pipes, the same semanti
 
 The handler responds with an auto-submitting HTML form. Its action is the driver's payment endpoint with `FingerPrint`, `TimeStamp`, and `FingerPrintVersion` repeated on the query string, exactly as SISP expects.
 
+For a SPA that talks to the backend with `fetch`, post to `/payment/intent` instead. It runs the same pipeline but returns the gateway target as JSON `{ action, fields, ref }`; the frontend then builds the form and submits it full-page. The HTML `/payment` route cannot be consumed over `fetch` (the returned markup will not navigate and its inline script will not run). See [Adapters](06-adapters.md#payment-versus-paymentintent).
+
 When the same idempotency key is posted again, the handler does not create a second transaction. It either renders the stored payment request, or creates a new attempt on the same failed transaction when retry is allowed.
 
 ## Callback pipeline (POST /callback)

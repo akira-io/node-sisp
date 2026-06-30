@@ -157,6 +157,27 @@ export class SispHttpHandlers {
     }
   }
 
+  async handlePaymentIntent(request: HttpRequestInfo): Promise<HttpResult> {
+    const validation = validatePaymentInput(request.body, this.config.paymentValidation);
+
+    if (!validation.valid) {
+      return json({ message: 'The given data was invalid.', errors: validation.errors }, 422);
+    }
+
+    try {
+      const paymentRequest = (await this.paymentContexts.resolve(request)).requirePaymentRequest();
+      const fields = paymentRequestToFormFields(paymentRequest);
+
+      return json({
+        action: buildGatewayFormAction(this.manager, fields),
+        fields,
+        ref: paymentRequest.merchantRef,
+      });
+    } catch (error) {
+      return this.guardErrorResult(error);
+    }
+  }
+
   async handleCallback(request: HttpRequestInfo): Promise<HttpResult> {
     if (booleanFromInput(request.body.UserCancelled ?? request.query.UserCancelled)) {
       await this.runQuietly(() =>

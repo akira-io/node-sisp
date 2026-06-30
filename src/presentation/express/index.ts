@@ -19,6 +19,10 @@ export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router 
     '/payment',
     handle((request) => sisp.handlers.handlePayment(request)),
   );
+  router.post(
+    '/payment/intent',
+    handle((request) => sisp.handlers.handlePaymentIntent(request)),
+  );
   router.get(
     '/callback',
     handle((request) => sisp.handlers.handleCallback(request)),
