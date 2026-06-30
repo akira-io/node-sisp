@@ -74,6 +74,11 @@ async function migrate(
 ): Promise<number> {
   const config = await (options.loadConfig ?? loadConfigFile)();
   const resolved = resolveConfig(config);
+
+  if (!resolved.database) {
+    throw new Error('The `migrate` command requires a `database` configuration.');
+  }
+
   const db = createKnexInstance(resolved.database);
 
   try {

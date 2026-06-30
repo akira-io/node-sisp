@@ -17,6 +17,7 @@ import {
   type ResolvedSispConfig,
   resolveConfig,
   type SispConfig,
+  type SispDatabaseConfig,
 } from './config';
 import { SispEventEmitter } from './events';
 import { BuildPaymentRequest } from './pipelines/payment/pipes/build-payment-request';
@@ -30,24 +31,31 @@ import { customizePipes, wireCredentialScopedServices } from './wiring';
 
 export async function createSisp(config: SispConfig): Promise<Sisp> {
   const resolved = resolveConfig(config);
-  const storage = KnexStorage.create(resolved.database, resolved.tables, resolved.appKey);
+  const storage =
+    config.storage ??
+    KnexStorage.create(
+      resolved.database as Required<SispDatabaseConfig>,
+      resolved.tables,
+      resolved.appKey,
+    );
 
-  if (resolved.database.autoMigrate) {
-    await storage.migrate();
+  if (!config.storage && resolved.database?.autoMigrate) {
+    await storage.migrate?.();
   }
 
-  const db = storage.raw;
+  const knex = storage as KnexStorage;
+  const db = knex.raw;
   const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(resolved));
   const events = new SispEventEmitter(resolved.onEventListenerError ?? undefined);
 
   const models: SispModels = {
-    transactions: storage.transactions,
-    transactionItems: storage.transactionItems,
-    transactionAttempts: storage.transactionAttempts,
-    paymentIntents: storage.paymentIntents,
-    invoices: storage.invoices,
-    transactionLogs: storage.transactionLogs,
-    blacklist: storage.blacklist,
+    transactions: knex.transactions,
+    transactionItems: knex.transactionItems,
+    transactionAttempts: knex.transactionAttempts,
+    paymentIntents: knex.paymentIntents,
+    invoices: knex.invoices,
+    transactionLogs: knex.transactionLogs,
+    blacklist: knex.blacklist,
   };
 
   const services = wireCredentialScopedServices(
@@ -57,8 +65,8 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     models,
     credentialsResolver,
   );
-  const storeMetadata = new StoreRequestMetadataAction(storage.requestMetadata);
-  const rateLimits = storage.rateLimits;
+  const storeMetadata = new StoreRequestMetadataAction(knex.requestMetadata);
+  const rateLimits = knex.rateLimits;
   const paymentPreflightPipes = [
     new EnsureIpIsNotBlacklisted(models.blacklist),
     new EnforceRateLimits(rateLimits, resolved.rateLimiting),
