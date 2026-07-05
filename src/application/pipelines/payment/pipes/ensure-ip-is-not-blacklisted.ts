@@ -10,7 +10,7 @@ export class EnsureIpIsNotBlacklisted implements PaymentPipe {
     const entry = await this.blacklist.find('ip', context.request.ip);
 
     if (entry !== null) {
-      throw new BlacklistedIdentifierError(`This ip is blacklisted: ${entry.reason ?? ''}`);
+      throw new BlacklistedIdentifierError('Payment request blocked.');
     }
 
     await next();

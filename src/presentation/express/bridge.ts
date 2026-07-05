@@ -21,7 +21,7 @@ export function send(res: Response, result: HttpResult): void {
   }
 
   if (result.type === 'html') {
-    res.status(result.status).type('html').send(result.html);
+    res.status(result.status).set(result.headers).type('html').send(result.html);
 
     return;
   }

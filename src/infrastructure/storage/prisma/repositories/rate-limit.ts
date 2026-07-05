@@ -64,7 +64,7 @@ export function makeRateLimitRepository(
         const filter: Record<string, unknown> = {
           identifier: params.identifier,
           limitType: params.limitType,
-          context: params.context ?? null,
+          context: params.context ?? '',
         };
 
         let existing = await model().findFirst({ where: filter });
@@ -72,18 +72,24 @@ export function makeRateLimitRepository(
         if (!existing) {
           const timestamp = nowIso();
 
-          await model().create({
-            data: {
-              ...filter,
-              hits: 0,
-              limit: params.limit,
-              windowSeconds: params.windowSeconds,
-              resetAt: new Date(futureIso(params.windowSeconds)),
-              isBlocked: false,
-              createdAt: new Date(timestamp),
-              updatedAt: new Date(timestamp),
-            },
-          });
+          try {
+            await model().create({
+              data: {
+                ...filter,
+                hits: 0,
+                limit: params.limit,
+                windowSeconds: params.windowSeconds,
+                resetAt: new Date(futureIso(params.windowSeconds)),
+                isBlocked: false,
+                createdAt: new Date(timestamp),
+                updatedAt: new Date(timestamp),
+              },
+            });
+          } catch (error) {
+            if (!isUniqueConstraintError(error)) {
+              throw error;
+            }
+          }
 
           existing = await model().findFirst({ where: filter });
         }
@@ -147,4 +153,10 @@ export function makeRateLimitRepository(
       });
     },
   };
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  const candidate = error as { code?: unknown };
+
+  return candidate.code === 'P2002';
 }

@@ -152,7 +152,7 @@ describe('payment intents', () => {
     expect(second).toEqual({
       type: 'json',
       status: 403,
-      data: { message: 'This ip is blacklisted: fraud' },
+      data: { message: 'Payment request blocked.' },
     });
     expect(await sisp.db(sisp.config.tables.transactions)).toHaveLength(1);
     expect(await sisp.db(sisp.config.tables.transactionAttempts)).toHaveLength(1);

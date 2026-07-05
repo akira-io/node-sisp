@@ -30,6 +30,28 @@ describe('UrlSigner', () => {
     expect(signer.validate('/sisp/retry-payment', queryOf(url))).toBe(false);
   });
 
+  it('signs action URLs with nonce and mandatory expiration', () => {
+    const url = signer.signAction(
+      '/sisp/cancel',
+      { merchantRef: 'R1' },
+      new Date(Date.now() + 60_000),
+    );
+    const query = queryOf(url);
+    const action = signer.validateAction('/sisp/cancel', query);
+
+    expect(query.jti).toBeDefined();
+    expect(query.expires).toBeDefined();
+    expect(action?.nonce).toBe(query.jti);
+    expect(action?.expiresAt.getTime()).toBe(Number(query.expires) * 1000);
+  });
+
+  it('rejects action URLs without expiration or nonce', () => {
+    const url = signer.sign('/sisp/cancel', { merchantRef: 'R1' });
+
+    expect(signer.validate('/sisp/cancel', queryOf(url))).toBe(true);
+    expect(signer.validateAction('/sisp/cancel', queryOf(url))).toBeNull();
+  });
+
   it('rejects tampered parameters', () => {
     const url = signer.sign('/sisp/cancel', { merchantRef: 'R1' });
     const tampered = { ...queryOf(url), merchantRef: 'R2' };

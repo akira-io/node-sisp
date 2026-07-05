@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS "sisp_rate_limits" (
   "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "identifier" TEXT NOT NULL,
   "limit_type" TEXT NOT NULL,
-  "context" TEXT,
+  "context" TEXT NOT NULL DEFAULT '',
   "hits" INTEGER NOT NULL DEFAULT 1,
   "limit" INTEGER NOT NULL DEFAULT 100,
   "window_seconds" INTEGER NOT NULL DEFAULT 3600,
@@ -136,6 +136,8 @@ CREATE TABLE IF NOT EXISTS "sisp_rate_limits" (
   "created_at" DATETIME,
   "updated_at" DATETIME
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS "sisp_rate_limits_identifier_limit_type_context_key" ON "sisp_rate_limits"("identifier", "limit_type", "context");
 
 CREATE TABLE IF NOT EXISTS "sisp_request_metadata" (
   "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

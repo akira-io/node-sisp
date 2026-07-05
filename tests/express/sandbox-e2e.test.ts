@@ -41,6 +41,9 @@ async function sandboxCallbackForm(status?: string) {
     })
     .expect(200);
 
+  expect(paymentResponse.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+  expect(paymentResponse.headers['x-frame-options']).toBe('DENY');
+
   const paymentForm = extractForm(paymentResponse.text);
   const [sandboxPath, sandboxQuery] = paymentForm.action.split('?');
 
