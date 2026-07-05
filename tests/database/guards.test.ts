@@ -56,6 +56,20 @@ describe('RateLimit', () => {
     expect(await hit()).toBe(false);
   });
 
+  it('stores one row for each identifier, type, and context', async () => {
+    await hit();
+    await hit();
+
+    const rows = await db(DEFAULT_TABLES.rateLimits).where({
+      identifier: '10.0.0.1',
+      limit_type: 'ip',
+      context: '',
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.hits).toBe(2);
+  });
+
   it('blocks once the limit is exceeded and stays blocked', async () => {
     await hit();
     await hit();

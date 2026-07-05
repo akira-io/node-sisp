@@ -55,7 +55,7 @@ export class RateLimit {
     const filter = {
       identifier: params.identifier,
       limit_type: params.limitType,
-      context: params.context ?? null,
+      context: params.context ?? '',
     };
 
     const existing = await trx(this.tables.rateLimits).where(filter).forUpdate().first();
@@ -66,16 +66,19 @@ export class RateLimit {
 
     const timestamp = nowIso();
 
-    await trx(this.tables.rateLimits).insert({
-      ...filter,
-      hits: 0,
-      limit: params.limit,
-      window_seconds: params.windowSeconds,
-      reset_at: futureIso(params.windowSeconds),
-      is_blocked: false,
-      created_at: timestamp,
-      updated_at: timestamp,
-    });
+    await trx(this.tables.rateLimits)
+      .insert({
+        ...filter,
+        hits: 0,
+        limit: params.limit,
+        window_seconds: params.windowSeconds,
+        reset_at: futureIso(params.windowSeconds),
+        is_blocked: false,
+        created_at: timestamp,
+        updated_at: timestamp,
+      })
+      .onConflict(['identifier', 'limit_type', 'context'])
+      .ignore();
 
     return (await trx(this.tables.rateLimits).where(filter).first()) as RateLimitRow;
   }

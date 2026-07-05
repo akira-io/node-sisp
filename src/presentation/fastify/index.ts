@@ -109,7 +109,11 @@ function send(reply: FastifyReply, result: HttpResult): void {
   }
 
   if (result.type === 'html') {
-    reply.status(result.status).type('text/html').send(result.html);
+    reply
+      .headers(result.headers)
+      .status(result.status)
+      .type('text/html; charset=utf-8')
+      .send(result.html);
 
     return;
   }

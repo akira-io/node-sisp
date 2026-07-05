@@ -158,7 +158,7 @@ async function createRateLimitsTable(db: Knex, tables: SispTables): Promise<void
     table.bigIncrements('id');
     table.string('identifier').notNullable();
     table.string('limit_type').notNullable();
-    table.string('context').nullable();
+    table.string('context').notNullable().defaultTo('');
     table.integer('hits').notNullable().defaultTo(1);
     table.integer('limit').notNullable().defaultTo(100);
     table.integer('window_seconds').notNullable().defaultTo(3600);
@@ -166,6 +166,7 @@ async function createRateLimitsTable(db: Knex, tables: SispTables): Promise<void
     table.boolean('is_blocked').notNullable().defaultTo(false);
     table.timestamp('blocked_until').nullable();
     table.timestamps();
+    table.unique(['identifier', 'limit_type', 'context']);
     table.index(['identifier', 'limit_type', 'reset_at']);
     table.index(['is_blocked']);
     table.index(['reset_at']);

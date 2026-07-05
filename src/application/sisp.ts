@@ -35,6 +35,8 @@ import type { HandleCallbackPipeline } from './pipelines/callback/handle-callbac
 import type { BuildSandboxPayloadAction, SandboxStatus } from './sandbox';
 import { ScopedSisp } from './scoped-sisp';
 
+const CANCEL_URL_TTL_MINUTES = 30;
+
 export interface SispModels {
   transactions: TransactionRepository;
   transactionItems: TransactionItemRepository;
@@ -139,10 +141,14 @@ export class Sisp {
   }
 
   signedCancelUrl(merchantRef: string, reason = 'user_cancelled'): string {
-    const signedPath = this.urlSigner.sign(`${this.config.basePath}/cancel`, {
-      merchantRef,
-      reason,
-    });
+    const signedPath = this.urlSigner.signAction(
+      `${this.config.basePath}/cancel`,
+      {
+        merchantRef,
+        reason,
+      },
+      new Date(Date.now() + CANCEL_URL_TTL_MINUTES * 60_000),
+    );
 
     return `${this.config.baseUrl}${signedPath}`;
   }

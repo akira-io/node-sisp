@@ -19,7 +19,7 @@ import {
   type PaymentRequest,
   paymentRequestToFormFields,
 } from '../../domain/value-objects/payment-request';
-import type { UrlSigner } from '../../support/signed-url';
+import type { SignedAction, UrlSigner } from '../../support/signed-url';
 import type { SispManager } from '../drivers/sisp-manager';
 import type { TransactionRecord } from '../storage/knex/records';
 import { renderAutoSubmitForm } from './auto-submit-form';
@@ -53,7 +53,12 @@ export class LifecycleHandlers {
     const { config, transactions, canRetryPayment, retryPayment, createRetryAttempt, urlSigner } =
       this.deps;
 
-    if (!urlSigner.validate(`${config.basePath}/retry-payment`, request.query)) {
+    const signedAction = urlSigner.validateAction(
+      `${config.basePath}/retry-payment`,
+      request.query,
+    );
+
+    if (signedAction === null || (await this.signedActionConsumed(signedAction, 'retry-payment'))) {
       return json({ message: 'Invalid signature.' }, 403);
     }
 
@@ -100,7 +105,9 @@ export class LifecycleHandlers {
   async handleCancel(request: HttpRequestInfo): Promise<HttpResult> {
     const { config, cancelTransaction, urlSigner } = this.deps;
 
-    if (!urlSigner.validate(`${config.basePath}/cancel`, request.query)) {
+    const signedAction = urlSigner.validateAction(`${config.basePath}/cancel`, request.query);
+
+    if (signedAction === null || (await this.signedActionConsumed(signedAction, 'cancel'))) {
       return json({ message: 'Invalid signature.' }, 403);
     }
 
@@ -196,7 +203,7 @@ export class LifecycleHandlers {
   signedRetryUrl(transactionId: number): string {
     const { config, urlSigner } = this.deps;
 
-    const signedPath = urlSigner.sign(
+    const signedPath = urlSigner.signAction(
       `${config.basePath}/retry-payment`,
       { transaction: transactionId },
       new Date(Date.now() + RETRY_URL_TTL_MINUTES * 60_000),
@@ -240,5 +247,17 @@ export class LifecycleHandlers {
     }
 
     return null;
+  }
+
+  private async signedActionConsumed(action: SignedAction, context: string): Promise<boolean> {
+    const windowSeconds = Math.max(1, Math.ceil((action.expiresAt.getTime() - Date.now()) / 1000));
+
+    return this.deps.rateLimits.hit({
+      identifier: action.nonce,
+      limitType: 'signed-url',
+      context,
+      limit: 1,
+      windowSeconds,
+    });
   }
 }

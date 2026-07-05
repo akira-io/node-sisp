@@ -155,6 +155,7 @@ describe('ProcessPaymentPipeline', () => {
     await storage.blacklist.add({ type: 'ip', value: '10.0.0.1', reason: 'fraud' });
 
     await expect(pipeline.run(contextFor())).rejects.toThrow(BlacklistedIdentifierError);
+    await expect(pipeline.run(contextFor())).rejects.toThrow('Payment request blocked.');
     expect(await db(config.tables.transactions).first()).toBeUndefined();
   });
 
@@ -164,5 +165,8 @@ describe('ProcessPaymentPipeline', () => {
     await pipeline.run(contextFor());
 
     await expect(pipeline.run(contextFor())).rejects.toThrow(RateLimitExceededError);
+    await expect(pipeline.run(contextFor())).rejects.toThrow(
+      'Too many payment requests. Try again later.',
+    );
   });
 });

@@ -28,9 +28,7 @@ export class EnforceRateLimits implements PaymentPipe {
     });
 
     if (exceeded) {
-      throw new RateLimitExceededError(
-        `Rate limit exceeded for ip: ${identifier}. Limit: ${limit} requests per ${windowSeconds} seconds`,
-      );
+      throw new RateLimitExceededError('Too many payment requests. Try again later.');
     }
 
     await next();

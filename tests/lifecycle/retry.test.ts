@@ -69,8 +69,9 @@ describe('retry payment', () => {
 
   it('renders the form without touching the transaction on GET', async () => {
     const transaction = await createFailedTransaction();
+    const retryUrl = sisp.signedRetryUrl(transaction.id);
 
-    const response = await request(app).get(sisp.signedRetryUrl(transaction.id)).expect(200);
+    const response = await request(app).get(retryUrl).expect(200);
 
     expect(response.text).toContain("name='merchantSession' value='S20260612100000'");
 
@@ -78,6 +79,7 @@ describe('retry payment', () => {
 
     expect(untouched?.status).toBe('failed');
     expect(untouched?.merchant_session).toBe('S20260612100000');
+    await request(app).get(retryUrl).expect(403);
   });
 
   it('rejects unsigned and expired URLs', async () => {
@@ -85,7 +87,7 @@ describe('retry payment', () => {
 
     await request(app).get(`/sisp/retry-payment?transaction=${transaction.id}`).expect(403);
 
-    const expired = new UrlSigner('app-key').sign(
+    const expired = new UrlSigner('app-key').signAction(
       '/sisp/retry-payment',
       { transaction: transaction.id },
       new Date(Date.now() - 1000),

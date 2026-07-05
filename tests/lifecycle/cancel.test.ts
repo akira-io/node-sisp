@@ -82,6 +82,7 @@ describe('cancel transaction', () => {
     const updated = await sisp.models.transactions.findById(transaction.id);
 
     expect(updated?.status).toBe('cancelled');
+    await request(app).get(url).expect(403);
   });
 
   it('rejects tampered signatures', async () => {

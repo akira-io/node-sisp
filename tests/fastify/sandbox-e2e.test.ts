@@ -50,6 +50,9 @@ describe('fastify sandbox end-to-end payment flow', () => {
     });
 
     expect(paymentResponse.statusCode).toBe(200);
+    expect(paymentResponse.headers['content-type']).toContain('text/html; charset=utf-8');
+    expect(paymentResponse.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+    expect(paymentResponse.headers['x-frame-options']).toBe('DENY');
 
     const paymentForm = extractForm(paymentResponse.body);
 

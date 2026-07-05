@@ -1,6 +1,11 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { constantTimeEquals } from '../infrastructure/fingerprints/hash';
 import { deriveSispKey } from './key-derivation';
+
+export interface SignedAction {
+  nonce: string;
+  expiresAt: Date;
+}
 
 export class UrlSigner {
   private readonly key: Buffer | null;
@@ -25,11 +30,44 @@ export class UrlSigner {
     return `${path}?${canonicalQuery(query)}`;
   }
 
+  signAction(path: string, params: Record<string, string | number>, expiresAt: Date): string {
+    return this.sign(path, { ...params, jti: randomUUID() }, expiresAt);
+  }
+
   validate(path: string, query: Record<string, unknown>): boolean {
+    return this.signedParams(path, query) !== null;
+  }
+
+  validateAction(path: string, query: Record<string, unknown>): SignedAction | null {
+    const signed = this.signedParams(path, query);
+
+    if (signed === null) {
+      return null;
+    }
+
+    const expiresAt = parseExpiration(signed.params.expires);
+
+    if (expiresAt === null) {
+      return null;
+    }
+
+    const nonce = signed.params.jti;
+
+    if (nonce === undefined || nonce === '') {
+      return null;
+    }
+
+    return { nonce, expiresAt: new Date(expiresAt) };
+  }
+
+  private signedParams(
+    path: string,
+    query: Record<string, unknown>,
+  ): { params: Record<string, string>; signature: string } | null {
     const signature = query.signature;
 
     if (typeof signature !== 'string' || signature === '') {
-      return false;
+      return null;
     }
 
     const params: Record<string, string> = {};
@@ -41,20 +79,14 @@ export class UrlSigner {
     }
 
     if (!constantTimeEquals(this.signature(path, params), signature)) {
-      return false;
+      return null;
     }
 
-    return !this.hasExpired(params.expires);
-  }
-
-  private hasExpired(expires: string | undefined): boolean {
-    if (expires === undefined) {
-      return false;
+    if (!hasFreshExpiration(params.expires)) {
+      return null;
     }
 
-    const expiresAt = Number.parseInt(expires, 10);
-
-    return Number.isNaN(expiresAt) || expiresAt * 1000 < Date.now();
+    return { params, signature };
   }
 
   private signature(path: string, params: Record<string, string>): string {
@@ -66,6 +98,30 @@ export class UrlSigner {
       .update(`${path}?${canonicalQuery(params)}`, 'utf8')
       .digest('hex');
   }
+}
+
+function hasFreshExpiration(expires: string | undefined): boolean {
+  if (expires === undefined) {
+    return true;
+  }
+
+  const expiresAt = parseExpiration(expires);
+
+  return expiresAt !== null && expiresAt >= Date.now();
+}
+
+function parseExpiration(expires: string | undefined): number | null {
+  if (expires === undefined) {
+    return null;
+  }
+
+  const expiresAt = Number.parseInt(expires, 10);
+
+  if (Number.isNaN(expiresAt)) {
+    return null;
+  }
+
+  return expiresAt * 1000;
 }
 
 function canonicalQuery(params: Record<string, string>): string {
