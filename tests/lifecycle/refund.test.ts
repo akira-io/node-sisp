@@ -191,6 +191,14 @@ describe('refund route', () => {
     const app = express();
     app.use('/sisp', sispRoutes(sisp, { authorizeRefund: () => true }));
 
+    const invalidResponse = await request(app)
+      .post(`/sisp/refund/${transaction.id}`)
+      .type('form')
+      .send({ amount: '0' })
+      .expect(400);
+
+    expect(invalidResponse.body.message).toBe('Refund amount must be greater than 0.');
+
     const response = await request(app)
       .post(`/sisp/refund/${transaction.id}`)
       .type('form')

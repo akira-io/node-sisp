@@ -1,3 +1,4 @@
+import { SispError } from '../../domain/errors/exceptions';
 import { countryToNumeric } from '../../support/country-code-mapper';
 
 export interface ThreeDSecureCustomer {
@@ -13,13 +14,19 @@ export function buildPurchaseRequest(
   customer: ThreeDSecureCustomer,
   now: Date = new Date(),
 ): string {
+  const billAddrCountry = countryToNumeric(customer.country);
+
+  if (billAddrCountry === null) {
+    throw new SispError(`Unsupported 3-D Secure billing country: ${customer.country}.`);
+  }
+
   const payload = {
     acctID: 'x',
     acctInfo: buildAcctInfo(now),
     email: customer.email,
     addrMatch: 'N',
     billAddrCity: customer.city,
-    billAddrCountry: countryToNumeric(customer.country),
+    billAddrCountry,
     billAddrLine1: customer.address,
     billAddrLine2: '',
     billAddrLine3: '',

@@ -12,21 +12,21 @@ export function allCountries(): Record<string, Country> {
 }
 
 export function getCountryNumericCode(alpha2: string): string {
-  return countryFor(alpha2)?.numeric ?? '132';
+  return findCountryByAlpha2(alpha2)?.numeric ?? '132';
 }
 
 export function getCountryFlag(alpha2: string): string {
-  return countryFor(alpha2)?.flag ?? 'https://flagcdn.com/xx.svg';
+  return findCountryByAlpha2(alpha2)?.flag ?? 'https://flagcdn.com/xx.svg';
 }
 
 export function getCountryName(alpha2: string): string | null {
-  return countryFor(alpha2)?.name ?? null;
+  return findCountryByAlpha2(alpha2)?.name ?? null;
 }
 
 export function findCountryByNumeric(numericCode: string): Country | null {
   return Object.values(COUNTRIES).find((country) => country.numeric === numericCode) ?? null;
 }
 
-function countryFor(alpha2: string): Country | undefined {
-  return (COUNTRIES as Record<string, Country>)[alpha2.toLowerCase()];
+export function findCountryByAlpha2(alpha2: string): Country | null {
+  return (COUNTRIES as Record<string, Country>)[alpha2.toLowerCase()] ?? null;
 }

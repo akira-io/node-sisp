@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { mapTransactionStatus } from '../../src/application/actions/map-transaction-status';
+import {
+  AUTHORIZATION_SUCCESS_MESSAGE_TYPE,
+  COMPLETED_MESSAGE_TYPE_VALUES,
+  mapTransactionStatus,
+} from '../../src/application/actions/map-transaction-status';
 import {
   ERROR_MESSAGE_TYPE_VALUES,
   errorActionLabel,
@@ -74,7 +78,15 @@ describe('success message types', () => {
 });
 
 describe('mapTransactionStatus', () => {
-  it.each(['8', 'P', 'M', 'A', 'B', 'C', '10'])('maps %s to completed', (messageType) => {
+  it('keeps the locally documented authorization success code explicit', () => {
+    expect(AUTHORIZATION_SUCCESS_MESSAGE_TYPE).toBe('10');
+    expect(COMPLETED_MESSAGE_TYPE_VALUES).toEqual([
+      ...SUCCESS_MESSAGE_TYPE_VALUES,
+      AUTHORIZATION_SUCCESS_MESSAGE_TYPE,
+    ]);
+  });
+
+  it.each(COMPLETED_MESSAGE_TYPE_VALUES)('maps %s to completed', (messageType) => {
     expect(mapTransactionStatus(messageType)).toBe(TransactionStatus.Completed);
   });
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   allCountries,
+  findCountryByAlpha2,
   findCountryByNumeric,
   getCountryFlag,
   getCountryName,
@@ -28,5 +29,10 @@ describe('countries', () => {
   it('finds countries by numeric code', () => {
     expect(findCountryByNumeric('620')?.alpha2).toBe('PT');
     expect(findCountryByNumeric('000')).toBeNull();
+  });
+
+  it('finds countries by alpha-2 without applying a fallback', () => {
+    expect(findCountryByAlpha2('pt')?.numeric).toBe('620');
+    expect(findCountryByAlpha2('ZZ')).toBeNull();
   });
 });
