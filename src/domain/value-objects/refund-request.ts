@@ -1,16 +1,16 @@
 export interface RefundRequest {
-  posID: string;
-  merchantRef: string;
-  merchantSession: string;
-  amount: number;
-  currency: string;
-  timeStamp: string;
-  fingerprintversion: string;
-  transactionCode: string;
-  fingerprint: string;
-  reversal: string;
-  clearingPeriod: string;
-  transactionID: string;
+  readonly posID: string;
+  readonly merchantRef: string;
+  readonly merchantSession: string;
+  readonly amount: number;
+  readonly currency: string;
+  readonly timeStamp: string;
+  readonly fingerprintversion: string;
+  readonly transactionCode: string;
+  readonly fingerprint: string;
+  readonly reversal: string;
+  readonly clearingPeriod: string;
+  readonly transactionID: string;
 }
 
 export function refundRequestToRecord(request: RefundRequest): Record<string, string | number> {

@@ -1,20 +1,20 @@
 export interface PaymentRequestData {
-  amount: number;
-  merchantRef?: string | null;
-  merchantSession?: string | null;
-  timeStamp?: string | null;
-  currency?: string | null;
-  transactionCode?: string | null;
-  token?: string | null;
-  entityCode?: string | null;
-  referenceNumber?: string | null;
-  locale?: string | null;
-  customerEmail?: string | null;
-  customerCountry?: string | null;
-  customerCity?: string | null;
-  customerAddress?: string | null;
-  customerPostalCode?: string | null;
-  customerPhone?: string | null;
+  readonly amount: number;
+  readonly merchantRef?: string | null;
+  readonly merchantSession?: string | null;
+  readonly timeStamp?: string | null;
+  readonly currency?: string | null;
+  readonly transactionCode?: string | null;
+  readonly token?: string | null;
+  readonly entityCode?: string | null;
+  readonly referenceNumber?: string | null;
+  readonly locale?: string | null;
+  readonly customerEmail?: string | null;
+  readonly customerCountry?: string | null;
+  readonly customerCity?: string | null;
+  readonly customerAddress?: string | null;
+  readonly customerPostalCode?: string | null;
+  readonly customerPhone?: string | null;
 }
 
 const THREE_D_SECURE_FIELDS = [
@@ -26,7 +26,7 @@ const THREE_D_SECURE_FIELDS = [
 ] as const;
 
 export function paymentRequestDataFrom(data: Record<string, unknown>): PaymentRequestData {
-  return {
+  return Object.freeze({
     amount: Number(data.amount),
     merchantRef: optionalText(data.merchantRef),
     merchantSession: optionalText(data.merchantSession),
@@ -43,7 +43,7 @@ export function paymentRequestDataFrom(data: Record<string, unknown>): PaymentRe
     customerAddress: optionalText(data.customer_address),
     customerPostalCode: optionalText(data.customer_postal_code),
     customerPhone: optionalText(data.customer_phone),
-  };
+  });
 }
 
 export function missingThreeDSecureFields(data: PaymentRequestData): string[] {

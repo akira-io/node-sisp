@@ -1,21 +1,21 @@
 export interface PaymentRequest {
-  posID: string;
-  merchantRef: string;
-  merchantSession: string;
-  amount: number;
-  currency: string;
-  is3DSec: string;
-  urlMerchantResponse: string;
-  languageMessages: string;
-  timeStamp: string;
-  fingerprintversion: string;
-  transactionCode: string;
-  fingerprint: string;
-  token: string;
-  entityCode: string;
-  referenceNumber: string;
-  locale: string;
-  purchaseRequest: string;
+  readonly posID: string;
+  readonly merchantRef: string;
+  readonly merchantSession: string;
+  readonly amount: number;
+  readonly currency: string;
+  readonly is3DSec: string;
+  readonly urlMerchantResponse: string;
+  readonly languageMessages: string;
+  readonly timeStamp: string;
+  readonly fingerprintversion: string;
+  readonly transactionCode: string;
+  readonly fingerprint: string;
+  readonly token: string;
+  readonly entityCode: string;
+  readonly referenceNumber: string;
+  readonly locale: string;
+  readonly purchaseRequest: string;
 }
 
 export function paymentRequestToFormFields(

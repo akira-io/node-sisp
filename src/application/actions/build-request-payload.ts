@@ -49,7 +49,7 @@ export class BuildRequestPayloadAction {
       transactionCode: request.transactionCode,
     });
 
-    return { ...request, fingerprint };
+    return Object.freeze({ ...request, fingerprint });
   }
 
   private buildPurchaseRequestIfNeeded(data: PaymentRequestData, is3DSec: string): string {

@@ -92,11 +92,16 @@ export { TransactionStatus } from './domain/enums/transaction-status';
 export {
   BlacklistedIdentifierError,
   CorrelationRequiredError,
+  DuplicatePaymentIdentifierError,
   MissingThreeDSecureDataError,
   PaymentIntentAlreadyProcessingError,
+  PaymentRetryLimitExceededError,
   RateLimitExceededError,
   SispError,
   TransactionNotFoundError,
+  TransactionStateError,
+  TransactionStatusTransportError,
+  UnableToGenerateUniquePaymentIdentifiersError,
 } from './domain/errors/exceptions';
 export type {
   BlacklistRecord,
