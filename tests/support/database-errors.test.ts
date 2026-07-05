@@ -32,17 +32,17 @@ describe('database error helpers', () => {
     ).toBe(false);
   });
 
-  it('uses narrow message fallbacks for drivers without structured codes', () => {
+  it('does not classify message-only errors as unique constraints', () => {
     expect(
       isUniqueConstraintError({
         message: 'duplicate key value violates unique constraint "transactions_merchant_ref"',
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isUniqueConstraintError({
         message: 'UNIQUE constraint failed: sisp_transactions.merchant_ref',
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('detects existing index errors across supported drivers', () => {
@@ -53,6 +53,12 @@ describe('database error helpers', () => {
       isIndexAlreadyExistsError({
         sqlState: '42000',
         message: "Duplicate key name 'sisp_transactions_merchant_ref_unique'",
+      }),
+    ).toBe(true);
+    expect(
+      isIndexAlreadyExistsError({
+        code: 'SQLITE_ERROR',
+        message: 'index sisp_transactions_merchant_ref_unique already exists',
       }),
     ).toBe(true);
   });
