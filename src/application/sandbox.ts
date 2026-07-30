@@ -7,13 +7,13 @@ import {
 import type { PaymentRequestData } from '../domain/value-objects/payment-request-data';
 import { generateCallbackFingerprint } from '../infrastructure/fingerprints/callback-fingerprint';
 import { computeToken } from '../infrastructure/fingerprints/token';
-import type { ResolvedSispConfig } from './config';
+import type { ResolvedSharedConfig } from './config';
 
 export type SandboxStatus = 'success' | 'failed' | (string & {});
 
 export class BuildSandboxPayloadAction {
   constructor(
-    private readonly config: ResolvedSispConfig,
+    private readonly config: ResolvedSharedConfig,
     private readonly credentialsResolver: CredentialsResolver,
   ) {}
 

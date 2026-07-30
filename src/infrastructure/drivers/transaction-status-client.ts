@@ -1,4 +1,4 @@
-import type { ResolvedSispConfig } from '../../application/config';
+import type { ResolvedSharedConfig } from '../../application/config';
 import type { CredentialsResolver } from '../../core/contracts/credentials-resolver';
 import { SispError, TransactionStatusTransportError } from '../../domain/errors/exceptions';
 import {
@@ -8,7 +8,7 @@ import {
 
 export class TransactionStatusClient {
   constructor(
-    private readonly config: ResolvedSispConfig,
+    private readonly config: ResolvedSharedConfig,
     private readonly credentialsResolver: CredentialsResolver,
   ) {}
 

@@ -11,6 +11,7 @@ import {
   generateMerchantSession,
   generateTimeStamp,
 } from '../support/generators';
+import { booleanSetting } from '../support/settings';
 import type { EventErrorHandler } from './events';
 
 export interface SispPipelineCustomizers {
@@ -119,10 +120,9 @@ export interface SispConfig {
   transactionStatus?: Partial<TransactionStatusConfig>;
 }
 
-export interface ResolvedSispConfig {
+export interface ResolvedSharedConfig {
   posId: string;
   posAutCode: string;
-  database: Required<SispDatabaseConfig> | undefined;
   url: string;
   merchantId: string;
   driver: string | null;
@@ -138,18 +138,22 @@ export interface ResolvedSispConfig {
   appKey: string | null;
   baseUrl: string;
   basePath: string;
+  generators: SispGenerators;
+  paymentValidation: PaymentValidationConfig;
+  onEventListenerError: EventErrorHandler | null;
+  transactionStatus: TransactionStatusConfig;
+}
+
+export interface ResolvedSispConfig extends ResolvedSharedConfig {
+  database: Required<SispDatabaseConfig> | undefined;
   allowRetry: boolean;
   tables: SispTables;
   rateLimiting: RateLimiting;
   security: SecuritySettings;
-  generators: SispGenerators;
   identifierGeneration: IdentifierGenerationConfig;
   retry: RetryConfig;
   idempotency: IdempotencyConfig;
-  paymentValidation: PaymentValidationConfig;
   pipelines: SispPipelineCustomizers;
-  onEventListenerError: EventErrorHandler | null;
-  transactionStatus: TransactionStatusConfig;
 }
 
 type DeepPartial<T> = {
@@ -264,7 +268,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
   };
 }
 
-export function credentialsFromConfig(config: ResolvedSispConfig): SispCredentials {
+export function credentialsFromConfig(config: ResolvedSharedConfig): SispCredentials {
   return sispCredentials({
     posId: config.posId,
     posAutCode: config.posAutCode,
@@ -279,7 +283,7 @@ export function credentialsFromConfig(config: ResolvedSispConfig): SispCredentia
   });
 }
 
-export function routeUrl(config: ResolvedSispConfig, route: string): string {
+export function routeUrl(config: ResolvedSharedConfig, route: string): string {
   return `${config.baseUrl}${config.basePath}/${route}`;
 }
 
@@ -301,28 +305,4 @@ function resolveRateLimitRule(
     limit: overrides?.limit ?? defaults.limit,
     windowSeconds: overrides?.windowSeconds ?? defaults.windowSeconds,
   };
-}
-
-function booleanSetting(value: unknown, fallback: boolean): boolean {
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  if (typeof value === 'number') {
-    return value !== 0;
-  }
-
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-
-    if (['1', 'true', 'yes', 'on'].includes(normalized)) {
-      return true;
-    }
-
-    if (['0', 'false', 'no', 'off', ''].includes(normalized)) {
-      return false;
-    }
-  }
-
-  return fallback;
 }

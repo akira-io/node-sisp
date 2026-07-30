@@ -8,12 +8,12 @@ import {
 } from '../../domain/value-objects/payment-request-data';
 import { generatePaymentFingerprint } from '../../infrastructure/fingerprints/payment-fingerprint';
 import { computeToken } from '../../infrastructure/fingerprints/token';
-import { type ResolvedSispConfig, routeUrl } from '../config';
+import { type ResolvedSharedConfig, routeUrl } from '../config';
 import { buildPurchaseRequest } from './build-purchase-request';
 
 export class BuildRequestPayloadAction {
   constructor(
-    private readonly config: ResolvedSispConfig,
+    private readonly config: ResolvedSharedConfig,
     private readonly credentialsResolver: CredentialsResolver,
   ) {}
 
