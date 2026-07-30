@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { type PaymentEvent, SispEventEmitter } from '../src/application/events';
+import { type CallbackEvent, type PaymentEvent, SispEventEmitter } from '../src/application/events';
+import { CallbackRejectionReasons } from '../src/domain/enums/callback-rejection-reason';
 import { callbackPayloadFrom } from '../src/domain/value-objects/callback-payload';
 import type { TransactionRecord } from '../src/infrastructure/storage/knex/records';
 
@@ -71,5 +72,46 @@ describe('SispEventEmitter', () => {
     await vi.waitFor(() => {
       expect(onError).toHaveBeenCalledWith('payment:completed', expect.any(Error));
     });
+  });
+});
+
+describe('callback events', () => {
+  const callbackEvent: CallbackEvent = {
+    payload: callbackPayloadFrom({ messageType: '8' }),
+    reason: null,
+  };
+
+  it('delivers callback:verified with a null reason', () => {
+    const emitter = new SispEventEmitter();
+    const listener = vi.fn();
+
+    emitter.on('callback:verified', listener);
+    emitter.emit('callback:verified', callbackEvent);
+
+    expect(listener).toHaveBeenCalledWith(callbackEvent);
+  });
+
+  it('delivers callback:rejected with the reason set', () => {
+    const emitter = new SispEventEmitter();
+    const listener = vi.fn();
+    const rejected: CallbackEvent = {
+      payload: callbackPayloadFrom({ messageType: '6' }),
+      reason: CallbackRejectionReasons.InvalidFingerprint,
+    };
+
+    emitter.on('callback:rejected', listener);
+    emitter.emit('callback:rejected', rejected);
+
+    expect(listener).toHaveBeenCalledWith(rejected);
+  });
+
+  it('accepts a caller-supplied event map', () => {
+    const emitter = new SispEventEmitter<{ 'custom:ping': { at: number } }>();
+    const listener = vi.fn();
+
+    emitter.on('custom:ping', listener);
+    emitter.emit('custom:ping', { at: 7 });
+
+    expect(listener).toHaveBeenCalledWith({ at: 7 });
   });
 });
