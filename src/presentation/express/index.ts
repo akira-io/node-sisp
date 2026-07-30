@@ -1,5 +1,6 @@
 import { json, type Request, type RequestHandler, Router, urlencoded } from 'express';
 import type { Sisp } from '../../application/sisp';
+import type { StatelessSisp } from '../../application/stateless-sisp';
 import type { HttpRequestInfo } from '../../infrastructure/http/request-info';
 import type { HttpResult } from '../../infrastructure/http/results';
 import { send, toRequestInfo } from './bridge';
@@ -81,6 +82,54 @@ export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router 
       })
       .catch(next);
   });
+
+  return router;
+}
+
+export function statelessSispRoutes(sisp: StatelessSisp): Router {
+  const router = Router();
+
+  router.use(urlencoded({ extended: true }));
+  router.use(json());
+
+  if (sisp.correlationConfigured) {
+    router.post(
+      '/payment',
+      handle((request) => sisp.handlers.handlePayment(request)),
+    );
+    router.post(
+      '/payment/intent',
+      handle((request) => sisp.handlers.handlePaymentIntent(request)),
+    );
+  }
+
+  router.post(
+    '/callback',
+    handle((request) => sisp.handlers.handleCallback(request)),
+  );
+
+  if (sisp.config.appKey !== null && sisp.config.appKey !== '') {
+    router.get(
+      '/callback',
+      handle((request) => sisp.handlers.handleCallback(request)),
+    );
+  }
+
+  if (sisp.config.sandbox) {
+    router.get(
+      '/sandbox',
+      handle((request) => sisp.handlers.handleSandbox(request)),
+    );
+    router.post(
+      '/sandbox',
+      handle((request) => sisp.handlers.handleSandbox(request)),
+    );
+  }
+
+  router.get(
+    '/countries',
+    handle(() => Promise.resolve(sisp.handlers.handleCountries())),
+  );
 
   return router;
 }

@@ -2,12 +2,17 @@ import formbody from '@fastify/formbody';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import qs from 'qs';
 import type { Sisp } from '../../application/sisp';
+import type { StatelessSisp } from '../../application/stateless-sisp';
 import type { HttpRequestInfo } from '../../infrastructure/http/request-info';
 import type { HttpResult } from '../../infrastructure/http/results';
 
 export interface SispFastifyOptions {
   sisp: Sisp;
   authorizeRefund?: (request: FastifyRequest) => boolean | Promise<boolean>;
+}
+
+export interface StatelessSispFastifyOptions {
+  sisp: StatelessSisp;
 }
 
 export async function sispFastifyPlugin(
@@ -20,12 +25,6 @@ export async function sispFastifyPlugin(
   await fastify.register(formbody, {
     parser: (body) => qs.parse(body) as Record<string, unknown>,
   });
-
-  const route = (handler: (request: HttpRequestInfo) => Promise<HttpResult>) => {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
-      send(reply, await handler(toRequestInfo(request)));
-    };
-  };
 
   fastify.post(
     '/payment',
@@ -88,6 +87,60 @@ export async function sispFastifyPlugin(
 
     send(reply, await sisp.handlers.handleRefund(toRequestInfo(request), Number(transaction)));
   });
+}
+
+export async function statelessSispFastifyPlugin(
+  fastify: FastifyInstance,
+  options: StatelessSispFastifyOptions,
+): Promise<void> {
+  const { sisp } = options;
+
+  if (sisp.correlationConfigured) {
+    fastify.post(
+      '/payment',
+      route((request) => sisp.handlers.handlePayment(request)),
+    );
+    fastify.post(
+      '/payment/intent',
+      route((request) => sisp.handlers.handlePaymentIntent(request)),
+    );
+  }
+
+  fastify.post(
+    '/callback',
+    route((request) => sisp.handlers.handleCallback(request)),
+  );
+
+  if (sisp.config.appKey !== null && sisp.config.appKey !== '') {
+    fastify.get(
+      '/callback',
+      route((request) => sisp.handlers.handleCallback(request)),
+    );
+  }
+
+  if (sisp.config.sandbox) {
+    fastify.get(
+      '/sandbox',
+      route((request) => sisp.handlers.handleSandbox(request)),
+    );
+    fastify.post(
+      '/sandbox',
+      route((request) => sisp.handlers.handleSandbox(request)),
+    );
+  }
+
+  fastify.get(
+    '/countries',
+    route(() => Promise.resolve(sisp.handlers.handleCountries())),
+  );
+}
+
+function route(
+  handler: (request: HttpRequestInfo) => Promise<HttpResult>,
+): (request: FastifyRequest, reply: FastifyReply) => Promise<void> {
+  return async (request, reply) => {
+    send(reply, await handler(toRequestInfo(request)));
+  };
 }
 
 function toRequestInfo(request: FastifyRequest): HttpRequestInfo {

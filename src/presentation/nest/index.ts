@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { Sisp } from '../../application/sisp';
+import type { StatelessSisp } from '../../application/stateless-sisp';
 import { send, toRequestInfo } from '../express/bridge';
 
 export const SISP = 'SISP';
@@ -118,3 +119,58 @@ export class SispModule {
     };
   }
 }
+
+export const STATELESS_SISP = 'STATELESS_SISP';
+
+@Controller('sisp')
+export class StatelessSispController {
+  constructor(@Inject(STATELESS_SISP) private readonly sisp: StatelessSisp) {}
+
+  @Post('payment')
+  async payment(@Req() req: Request, @Res() res: Response): Promise<void> {
+    send(res, await this.sisp.handlers.handlePayment(toRequestInfo(req)));
+  }
+
+  @Post('payment/intent')
+  async paymentIntent(@Req() req: Request, @Res() res: Response): Promise<void> {
+    send(res, await this.sisp.handlers.handlePaymentIntent(toRequestInfo(req)));
+  }
+
+  @Post('callback')
+  async callbackNotification(@Req() req: Request, @Res() res: Response): Promise<void> {
+    send(res, await this.sisp.handlers.handleCallback(toRequestInfo(req)));
+  }
+
+  @Get('callback')
+  async callbackResult(@Req() req: Request, @Res() res: Response): Promise<void> {
+    send(res, await this.sisp.handlers.handleCallback(toRequestInfo(req)));
+  }
+
+  @Get('sandbox')
+  async sandboxGet(@Req() req: Request, @Res() res: Response): Promise<void> {
+    send(res, await this.sisp.handlers.handleSandbox(toRequestInfo(req)));
+  }
+
+  @Post('sandbox')
+  async sandboxPost(@Req() req: Request, @Res() res: Response): Promise<void> {
+    send(res, await this.sisp.handlers.handleSandbox(toRequestInfo(req)));
+  }
+
+  @Get('countries')
+  countries(@Res() res: Response): void {
+    send(res, this.sisp.handlers.handleCountries());
+  }
+}
+
+@Module({
+  controllers: [StatelessSispController],
+  providers: [
+    {
+      provide: STATELESS_SISP,
+      useFactory: (): StatelessSisp => {
+        throw new Error('STATELESS_SISP provider is not configured.');
+      },
+    },
+  ],
+})
+export class StatelessSispModule {}
