@@ -170,7 +170,7 @@ export const DEFAULT_TABLES: SispTables = {
   blacklist: 'sisp_blacklist',
   transactionLogs: 'sisp_transaction_logs',
 };
-const DEFAULT_TRANSACTION_STATUS: TransactionStatusConfig = {
+export const DEFAULT_TRANSACTION_STATUS: TransactionStatusConfig = {
   url: 'https://comerciante.vinti4.cv/pos/transaction-status',
   portalId: '',
   portalPassword: '',
