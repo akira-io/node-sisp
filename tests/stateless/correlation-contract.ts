@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { CallbackOutcome } from '../../src/core/contracts/callback-verifier';
 import type { PaymentCorrelationStore } from '../../src/core/contracts/payment-correlation-store';
 import { CallbackRejectionReasons } from '../../src/domain/enums/callback-rejection-reason';
 import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
@@ -27,12 +28,15 @@ export function paymentRequestFixture(overrides: Partial<PaymentRequest> = {}): 
   };
 }
 
-export function runCorrelationStoreContract(
+export function runCorrelationStoreContract<TStore extends PaymentCorrelationStore>(
   name: string,
-  makeStore: () => Promise<PaymentCorrelationStore> | PaymentCorrelationStore,
+  makeStore: () => Promise<TStore> | TStore,
+  readProcessed: (
+    store: TStore,
+  ) => Promise<readonly CallbackOutcome[]> | readonly CallbackOutcome[],
 ): void {
   describe(`PaymentCorrelationStore contract: ${name}`, () => {
-    let store: PaymentCorrelationStore;
+    let store: TStore;
 
     beforeEach(async () => {
       store = await makeStore();
@@ -84,21 +88,24 @@ export function runCorrelationStoreContract(
       await store.record(paymentRequestFixture());
       await store.claim('REF123', 'S20260730120000');
 
-      await expect(
-        store.markProcessed('REF123', 'S20260730120000', {
-          verified: true,
-          reason: null,
-          payload: callbackPayloadFrom({ messageType: '8' }),
-        }),
-      ).resolves.toBeUndefined();
+      await store.markProcessed('REF123', 'S20260730120000', {
+        verified: true,
+        reason: null,
+        payload: callbackPayloadFrom({ messageType: '8' }),
+      });
+      await store.markProcessed('REF123', 'S20260730120000', {
+        verified: false,
+        reason: CallbackRejectionReasons.DetailsMismatch,
+        payload: callbackPayloadFrom({ messageType: '6' }),
+      });
 
-      await expect(
-        store.markProcessed('REF123', 'S20260730120000', {
-          verified: false,
-          reason: CallbackRejectionReasons.DetailsMismatch,
-          payload: callbackPayloadFrom({ messageType: '6' }),
-        }),
-      ).resolves.toBeUndefined();
+      const recorded = await readProcessed(store);
+
+      expect(recorded).toHaveLength(2);
+      expect(recorded[0]?.verified).toBe(true);
+      expect(recorded[0]?.reason).toBeNull();
+      expect(recorded[1]?.verified).toBe(false);
+      expect(recorded[1]?.reason).toBe(CallbackRejectionReasons.DetailsMismatch);
     });
 
     it('tolerates markProcessed for a pair it never recorded', async () => {
