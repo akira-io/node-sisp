@@ -80,18 +80,19 @@ export function formatAmountEcv(amount: number): string {
   return `${formatted} ECV`;
 }
 
-function structuredError(transaction: TransactionRecord): PaymentErrorData | null {
-  if (!transaction.message_type) {
+export function structuredErrorFrom(
+  messageType: string | null,
+  language: string,
+): PaymentErrorData | null {
+  if (messageType === null || messageType === '') {
     return null;
   }
 
-  const errorType = errorMessageTypeFromValue(transaction.message_type);
+  const errorType = errorMessageTypeFromValue(messageType);
 
   if (errorType === null) {
     return null;
   }
-
-  const language = transaction.locale.slice(0, 2);
 
   return {
     code: errorType.value,
@@ -101,4 +102,8 @@ function structuredError(transaction: TransactionRecord): PaymentErrorData | nul
     action: errorType.action,
     actionLabel: errorActionLabel(errorType, language),
   };
+}
+
+function structuredError(transaction: TransactionRecord): PaymentErrorData | null {
+  return structuredErrorFrom(transaction.message_type, transaction.locale.slice(0, 2));
 }
