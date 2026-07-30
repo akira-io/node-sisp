@@ -7,13 +7,14 @@ export interface ExpectedPayment {
   transactionCode?: string;
 }
 
-export interface CorrelatedPayment extends ExpectedPayment {
-  processedAt?: Date | string | null;
-}
+export type CorrelationClaim =
+  | { status: 'claimed'; payment: ExpectedPayment }
+  | { status: 'missing' }
+  | { status: 'already_processed' };
 
 export interface PaymentCorrelationStore {
   record(request: PaymentRequest): Promise<void>;
-  find(merchantRef: string, merchantSession: string): Promise<CorrelatedPayment | null>;
+  claim(merchantRef: string, merchantSession: string): Promise<CorrelationClaim>;
   markProcessed(
     merchantRef: string,
     merchantSession: string,

@@ -1,12 +1,12 @@
 import type { CallbackOutcome } from '../../../../core/contracts/callback-verifier';
-import type { CorrelatedPayment } from '../../../../core/contracts/payment-correlation-store';
+import type { ExpectedPayment } from '../../../../core/contracts/payment-correlation-store';
 import type { CallbackRejectionReason } from '../../../../domain/enums/callback-rejection-reason';
 import type { CallbackPayload } from '../../../../domain/value-objects/callback-payload';
 
 export class StatelessCallbackContext {
   reason: CallbackRejectionReason | null = null;
 
-  expected: CorrelatedPayment | null = null;
+  expected: ExpectedPayment | null = null;
 
   constructor(readonly payload: CallbackPayload) {}
 

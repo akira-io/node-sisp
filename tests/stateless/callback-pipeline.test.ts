@@ -61,7 +61,7 @@ describe('StatelessCallbackPipeline', () => {
   it('rejects a tampered fingerprint without consulting the store', async () => {
     const store = new InMemoryPaymentCorrelationStore();
     await store.record(paymentRequestFixture());
-    const findSpy = vi.spyOn(store, 'find');
+    const claimSpy = vi.spyOn(store, 'claim');
 
     const payload = callbackPayloadFrom({
       merchantRespMerchantRef: 'REF123',
@@ -72,7 +72,7 @@ describe('StatelessCallbackPipeline', () => {
 
     expect(context.toOutcome().verified).toBe(false);
     expect(context.toOutcome().reason).toBe(CallbackRejectionReasons.InvalidFingerprint);
-    expect(findSpy).not.toHaveBeenCalled();
+    expect(claimSpy).not.toHaveBeenCalled();
   });
 
   it('rejects a callback whose amount does not match the recorded payment', async () => {

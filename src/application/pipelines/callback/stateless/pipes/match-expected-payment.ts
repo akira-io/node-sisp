@@ -1,6 +1,6 @@
 import type { CredentialsResolver } from '../../../../../core/contracts/credentials-resolver';
 import type {
-  CorrelatedPayment,
+  ExpectedPayment,
   PaymentCorrelationStore,
 } from '../../../../../core/contracts/payment-correlation-store';
 import { CallbackRejectionReasons } from '../../../../../domain/enums/callback-rejection-reason';
@@ -22,29 +22,29 @@ export class MatchExpectedPayment implements StatelessCallbackPipe {
       return;
     }
 
-    const expected = await this.correlation.find(
+    const claim = await this.correlation.claim(
       context.payload.merchantRef,
       context.payload.merchantSession,
     );
 
-    if (expected === null) {
+    if (claim.status === 'missing') {
       context.fail(CallbackRejectionReasons.UnknownTransaction);
 
       return;
     }
 
-    if (expected.processedAt !== null && expected.processedAt !== undefined) {
+    if (claim.status === 'already_processed') {
       context.fail(CallbackRejectionReasons.Replayed);
 
       return;
     }
 
-    context.expected = expected;
+    context.expected = claim.payment;
 
-    if (!this.matches(expected, context.payload)) {
-      context.fail(CallbackRejectionReasons.DetailsMismatch);
-    } else {
+    if (this.matches(claim.payment, context.payload)) {
       await next();
+    } else {
+      context.fail(CallbackRejectionReasons.DetailsMismatch);
     }
 
     await this.correlation.markProcessed(
@@ -54,7 +54,7 @@ export class MatchExpectedPayment implements StatelessCallbackPipe {
     );
   }
 
-  private matches(expected: CorrelatedPayment, payload: CallbackPayload): boolean {
+  private matches(expected: ExpectedPayment, payload: CallbackPayload): boolean {
     return (
       toThousandths(expected.amount) === toThousandths(payload.amount) &&
       (!payload.currencyProvided ||

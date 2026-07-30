@@ -1,12 +1,15 @@
 import type { CallbackOutcome } from '../../src/core/contracts/callback-verifier';
 import type {
-  CorrelatedPayment,
+  CorrelationClaim,
+  ExpectedPayment,
   PaymentCorrelationStore,
 } from '../../src/core/contracts/payment-correlation-store';
 import type { PaymentRequest } from '../../src/domain/value-objects/payment-request';
 
 export class InMemoryPaymentCorrelationStore implements PaymentCorrelationStore {
-  private readonly rows = new Map<string, CorrelatedPayment>();
+  private readonly rows = new Map<string, ExpectedPayment>();
+
+  private readonly claimed = new Set<string>();
 
   readonly recorded: PaymentRequest[] = [];
 
@@ -18,12 +21,24 @@ export class InMemoryPaymentCorrelationStore implements PaymentCorrelationStore 
       amount: request.amount,
       currency: request.currency,
       transactionCode: request.transactionCode,
-      processedAt: null,
     });
   }
 
-  async find(merchantRef: string, merchantSession: string): Promise<CorrelatedPayment | null> {
-    return this.rows.get(key(merchantRef, merchantSession)) ?? null;
+  async claim(merchantRef: string, merchantSession: string): Promise<CorrelationClaim> {
+    const id = key(merchantRef, merchantSession);
+    const payment = this.rows.get(id);
+
+    if (payment === undefined) {
+      return { status: 'missing' };
+    }
+
+    if (this.claimed.has(id)) {
+      return { status: 'already_processed' };
+    }
+
+    this.claimed.add(id);
+
+    return { status: 'claimed', payment };
   }
 
   async markProcessed(
@@ -31,14 +46,7 @@ export class InMemoryPaymentCorrelationStore implements PaymentCorrelationStore 
     merchantSession: string,
     outcome: CallbackOutcome,
   ): Promise<void> {
-    const id = key(merchantRef, merchantSession);
-    const row = this.rows.get(id);
-
-    this.processed.push({ key: id, outcome });
-
-    if (row) {
-      this.rows.set(id, { ...row, processedAt: new Date() });
-    }
+    this.processed.push({ key: key(merchantRef, merchantSession), outcome });
   }
 }
 

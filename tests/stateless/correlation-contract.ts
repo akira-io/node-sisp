@@ -38,54 +38,67 @@ export function runCorrelationStoreContract(
       store = await makeStore();
     });
 
-    it('returns null for a pair it never recorded', async () => {
-      expect(await store.find('MISSING', 'S1')).toBeNull();
+    it('reports a pair it never recorded as missing', async () => {
+      expect(await store.claim('MISSING', 'S1')).toEqual({ status: 'missing' });
     });
 
-    it('finds what it recorded, keyed on ref and session together', async () => {
+    it('claims what it recorded, keyed on ref and session together', async () => {
       await store.record(paymentRequestFixture());
 
-      const found = await store.find('REF123', 'S20260730120000');
+      const claim = await store.claim('REF123', 'S20260730120000');
 
-      expect(found).not.toBeNull();
-      expect(found?.amount).toBe(1500);
-      expect(found?.currency).toBe('132');
-      expect(found?.transactionCode).toBe('1');
-      expect(await store.find('REF123', 'OTHER_SESSION')).toBeNull();
+      expect(claim.status).toBe('claimed');
+      expect(claim.status === 'claimed' ? claim.payment.amount : null).toBe(1500);
+      expect(claim.status === 'claimed' ? claim.payment.currency : null).toBe('132');
+      expect(claim.status === 'claimed' ? claim.payment.transactionCode : null).toBe('1');
     });
 
-    it('reports an unprocessed record as unprocessed', async () => {
+    it('does not claim a recorded ref under a different session', async () => {
       await store.record(paymentRequestFixture());
 
-      const found = await store.find('REF123', 'S20260730120000');
-
-      expect(found?.processedAt ?? null).toBeNull();
+      expect(await store.claim('REF123', 'OTHER_SESSION')).toEqual({ status: 'missing' });
     });
 
-    it('marks a record processed on a verified outcome', async () => {
+    it('reports a second claim of the same pair as already processed', async () => {
       await store.record(paymentRequestFixture());
-      await store.markProcessed('REF123', 'S20260730120000', {
-        verified: true,
-        reason: null,
-        payload: callbackPayloadFrom({ messageType: '8' }),
+
+      expect((await store.claim('REF123', 'S20260730120000')).status).toBe('claimed');
+      expect(await store.claim('REF123', 'S20260730120000')).toEqual({
+        status: 'already_processed',
       });
-
-      const found = await store.find('REF123', 'S20260730120000');
-
-      expect(found?.processedAt ?? null).not.toBeNull();
     });
 
-    it('marks a record processed on a rejected outcome too', async () => {
+    it('yields exactly one claim under concurrent claims of the same pair', async () => {
       await store.record(paymentRequestFixture());
-      await store.markProcessed('REF123', 'S20260730120000', {
-        verified: false,
-        reason: CallbackRejectionReasons.DetailsMismatch,
-        payload: callbackPayloadFrom({ messageType: '6' }),
-      });
 
-      const found = await store.find('REF123', 'S20260730120000');
+      const results = await Promise.all([
+        store.claim('REF123', 'S20260730120000'),
+        store.claim('REF123', 'S20260730120000'),
+      ]);
+      const statuses = results.map((result) => result.status).sort();
 
-      expect(found?.processedAt ?? null).not.toBeNull();
+      expect(statuses).toEqual(['already_processed', 'claimed']);
+    });
+
+    it('records the outcome of a claimed pair, verified or rejected', async () => {
+      await store.record(paymentRequestFixture());
+      await store.claim('REF123', 'S20260730120000');
+
+      await expect(
+        store.markProcessed('REF123', 'S20260730120000', {
+          verified: true,
+          reason: null,
+          payload: callbackPayloadFrom({ messageType: '8' }),
+        }),
+      ).resolves.toBeUndefined();
+
+      await expect(
+        store.markProcessed('REF123', 'S20260730120000', {
+          verified: false,
+          reason: CallbackRejectionReasons.DetailsMismatch,
+          payload: callbackPayloadFrom({ messageType: '6' }),
+        }),
+      ).resolves.toBeUndefined();
     });
 
     it('tolerates markProcessed for a pair it never recorded', async () => {
