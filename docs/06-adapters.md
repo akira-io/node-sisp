@@ -110,6 +110,6 @@ await app.register(statelessSispFastifyPlugin, { sisp: statelessSisp, prefix: '/
 export class AppModule {}
 ```
 
-Express and Fastify mount `POST /payment` and `POST /payment/intent` only when `correlation` is configured, and mount `GET /callback` only when `appKey` is configured; everything else 404s. Nest cannot mount conditionally, so `StatelessSispModule` always declares every stateless route and relies on `CorrelationRequiredError` / a plain redirect at request time instead. Configure both `correlation` and `appKey` before mounting `StatelessSispModule` under Nest, or do not mount it.
+Express and Fastify mount `POST /payment` and `POST /payment/intent` only when `correlation` is configured, and mount `GET /callback` only when `appKey` is configured; the stateful-only routes (refund, retry, cancel, transactions, transaction-status) 404 in every configuration, since they do not exist in stateless mode. `POST /callback`, `GET /countries`, and the sandbox routes are always mounted regardless of configuration. Nest cannot mount conditionally, so `StatelessSispModule` always declares every stateless route and relies on `CorrelationRequiredError` / a plain redirect at request time instead. Configure both `correlation` and `appKey` before mounting `StatelessSispModule` under Nest, or do not mount it.
 
 **Next:** [Security](07-security.md)

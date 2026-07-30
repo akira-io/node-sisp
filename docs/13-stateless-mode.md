@@ -80,7 +80,7 @@ Zero rows back means the pair either does not exist or was already claimed; dist
 
 `markProcessed` runs after verification completes, on success and on failure alike, recording the outcome on the row `claim` already reserved.
 
-Claiming before verifying makes callback handling at-most-once rather than at-least-once: a process that dies between `claim` and `markProcessed` leaves a claimed row with no recorded outcome, and that callback cannot be reprocessed. Verifying first and claiming after would reopen the concurrency hole, so this is the deliberate trade. If you need recovery from a mid-callback crash, add a claim expiry in your own schema; the package does not model leases.
+The gateway fingerprint is verified first; `claim` runs after, inside the pipe that matches amount, currency, and transaction code against the original request. Claiming before that amount/currency/code match makes callback handling at-most-once rather than at-least-once: a process that dies between `claim` and `markProcessed` leaves a claimed row with no recorded outcome, and that callback cannot be reprocessed. Matching first and claiming after would reopen the concurrency hole, so this is the deliberate trade. If you need recovery from a mid-callback crash, add a claim expiry in your own schema; the package does not model leases.
 
 ### Knex, against a consumer-owned `orders` table
 
@@ -231,7 +231,7 @@ export class PrismaOrdersCorrelationStore implements PaymentCorrelationStore {
 |---|---|---|
 | `POST /payment` | `correlation` present | validate input, build `PaymentRequest`, `await correlation.record(request)`, render auto-submit form |
 | `POST /payment/intent` | `correlation` present | same, returns `{ action, fields, ref }` as JSON for SPA clients |
-| `POST /callback` | always | verifier, then redirect |
+| `POST /callback` | always | verifier; redirects to the signed result URL when `appKey` is configured, otherwise returns the result as JSON |
 | `GET /callback` | `appKey` present | validate signature, return the result as JSON |
 | `GET /countries` | always | `allCountries()` |
 | `POST /sandbox`, `GET /sandbox` | `sandbox: true` | unchanged |
@@ -242,7 +242,7 @@ Refund, retry, cancel, transactions and transaction-status routes do not exist i
 
 The adapter names: `statelessSispRoutes` (Express), `statelessSispFastifyPlugin` (Fastify), `StatelessSispModule` / `StatelessSispController` / `STATELESS_SISP` (Nest), mirroring the stateful `sispRoutes`, `sispFastifyPlugin`, and `SispModule`.
 
-`UserCancelled` is read from the request body or query before any fingerprint check, in both stateless and stateful mode. A client controlling its own callback submission can therefore mark its own transaction cancelled and skip verification entirely. The blast radius is limited to the submitting client's own transaction, and the behaviour mirrors the existing stateful handler; it is called out here rather than left implicit.
+`UserCancelled` is read from the request body or query before any fingerprint check, in both stateless and stateful mode. A client controlling its own callback submission can therefore mark its own transaction cancelled and skip verification entirely. In stateful mode the blast radius is limited: the cancel handler looks the transaction up by `merchantRef` and `merchantSession` before acting. The stateless `callback:rejected` event carries no such guarantee: `rejectCancelled` does no store lookup at all, and `merchantRef` in the event payload is whatever the caller submitted, unauthenticated. A consumer that cancels an order purely because it received this event is acting on caller-supplied input, not a verified fact. Guessing another customer's `merchantRef`/`merchantSession` pair is not practically feasible either way: `generateMerchantSession` produces `'S'` followed by the base36 millisecond timestamp and roughly five characters drawn from `crypto.randomInt` over a 36-symbol alphabet, but that is a property of the generator, not of the stateless cancel path, which does not check the pair against anything.
 
 ## Security posture
 
@@ -258,6 +258,8 @@ The adapter names: `statelessSispRoutes` (Express), `statelessSispFastifyPlugin`
 > Without a `correlation` store, verification is fingerprint-only. Cross-transaction amount tampering and callback replay are both your responsibility to guard against.
 
 Rate limiting, blacklisting, and submission idempotency are absent from stateless mode on purpose: they are perimeter concerns that your framework's own middleware already solves (`express-rate-limit`, Fastify hooks, Nest guards), none of which need the package's tables. Submission idempotency specifically cannot work here even if the package tried: it needs the idempotency key from your request body, and `record()` writes a row keyed by a freshly generated `merchantRef`/`merchantSession` that is new on every submission, so there is nothing to deduplicate against.
+
+The signed `GET /callback` result URL expires 5 minutes after it is issued. Every field in it is already inside the signature, so an expired URL is not a forgery risk, but without an expiry it would be a standing bearer assertion: once it sits in a customer's browser history or a `Referer` header, it would keep returning `{ verified: true }` indefinitely. A short TTL bounds that window to the immediate redirect the URL is built for.
 
 `ScopedSisp` (multi-merchant, stateful-only) now emits `callback:*` through the shared verifier as well; previously it emitted no callback events at all.
 
