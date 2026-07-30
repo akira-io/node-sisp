@@ -122,6 +122,10 @@ export class SispModule {
 
 export const STATELESS_SISP = 'STATELESS_SISP';
 
+export interface StatelessSispModuleOptions {
+  sisp: StatelessSisp;
+}
+
 @Controller('sisp')
 export class StatelessSispController {
   constructor(@Inject(STATELESS_SISP) private readonly sisp: StatelessSisp) {}
@@ -162,15 +166,14 @@ export class StatelessSispController {
   }
 }
 
-@Module({
-  controllers: [StatelessSispController],
-  providers: [
-    {
-      provide: STATELESS_SISP,
-      useFactory: (): StatelessSisp => {
-        throw new Error('STATELESS_SISP provider is not configured.');
-      },
-    },
-  ],
-})
-export class StatelessSispModule {}
+@Module({})
+export class StatelessSispModule {
+  static forRoot(options: StatelessSispModuleOptions): DynamicModule {
+    return {
+      module: StatelessSispModule,
+      controllers: [StatelessSispController],
+      providers: [{ provide: STATELESS_SISP, useValue: options.sisp }],
+      exports: [STATELESS_SISP],
+    };
+  }
+}

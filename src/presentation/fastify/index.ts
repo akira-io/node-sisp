@@ -22,9 +22,11 @@ export async function sispFastifyPlugin(
   const { sisp } = options;
   const authorizeRefund = options.authorizeRefund ?? (() => false);
 
-  await fastify.register(formbody, {
-    parser: (body) => qs.parse(body) as Record<string, unknown>,
-  });
+  if (!fastify.hasContentTypeParser('application/x-www-form-urlencoded')) {
+    await fastify.register(formbody, {
+      parser: (body) => qs.parse(body) as Record<string, unknown>,
+    });
+  }
 
   fastify.post(
     '/payment',
@@ -94,6 +96,12 @@ export async function statelessSispFastifyPlugin(
   options: StatelessSispFastifyOptions,
 ): Promise<void> {
   const { sisp } = options;
+
+  if (!fastify.hasContentTypeParser('application/x-www-form-urlencoded')) {
+    await fastify.register(formbody, {
+      parser: (body) => qs.parse(body) as Record<string, unknown>,
+    });
+  }
 
   if (sisp.correlationConfigured) {
     fastify.post(

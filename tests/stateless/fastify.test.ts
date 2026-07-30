@@ -1,4 +1,6 @@
+import formbody from '@fastify/formbody';
 import Fastify, { type FastifyInstance } from 'fastify';
+import qs from 'qs';
 import { describe, expect, it } from 'vitest';
 import { createStatelessSisp } from '../../src/application/create-stateless-sisp';
 import { statelessSispFastifyPlugin } from '../../src/presentation/fastify';
@@ -107,6 +109,43 @@ describe('statelessSispFastifyPlugin', () => {
 
     expect((await app.inject({ method: 'GET', url: '/sisp/sandbox' })).statusCode).toBe(404);
     expect((await app.inject({ method: 'POST', url: '/sisp/sandbox' })).statusCode).toBe(404);
+
+    await app.close();
+  });
+
+  it('accepts a form-urlencoded POST /payment when formbody is not pre-registered', async () => {
+    const correlation = new InMemoryPaymentCorrelationStore();
+    const app = await server(correlation);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/sisp/payment',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      payload: qs.stringify(paymentBody),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toMatch(/html/);
+    expect(correlation.recorded).toHaveLength(1);
+
+    await app.close();
+  });
+
+  it('does not throw when formbody is already registered by the consumer', async () => {
+    const sisp = createStatelessSisp({
+      posId: '90000045',
+      posAutCode: 'code',
+      sandbox: true,
+      appKey: 'app-key',
+      baseUrl: 'https://shop.test',
+      correlation: new InMemoryPaymentCorrelationStore(),
+    });
+    const app = Fastify();
+
+    await app.register(formbody);
+    app.register(statelessSispFastifyPlugin, { sisp, prefix: '/sisp' });
+
+    await expect(app.ready()).resolves.not.toThrow();
 
     await app.close();
   });

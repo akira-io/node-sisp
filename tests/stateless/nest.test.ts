@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import supertest from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createStatelessSisp } from '../../src/application/create-stateless-sisp';
-import { STATELESS_SISP, StatelessSispModule } from '../../src/presentation/nest';
+import { StatelessSispModule } from '../../src/presentation/nest';
 import { InMemoryPaymentCorrelationStore } from './in-memory-correlation-store';
 
 let app: INestApplication | null = null;
@@ -26,10 +26,9 @@ async function boot(
     baseUrl: 'https://shop.test',
     ...(correlation === null ? {} : { correlation }),
   });
-  const moduleRef = await Test.createTestingModule({ imports: [StatelessSispModule] })
-    .overrideProvider(STATELESS_SISP)
-    .useValue(sisp)
-    .compile();
+  const moduleRef = await Test.createTestingModule({
+    imports: [StatelessSispModule.forRoot({ sisp })],
+  }).compile();
 
   app = moduleRef.createNestApplication();
   app.useLogger(false);
