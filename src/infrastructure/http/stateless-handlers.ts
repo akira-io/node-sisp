@@ -19,6 +19,7 @@ import { allCountries } from '../../support/countries';
 import type { UrlSigner } from '../../support/signed-url';
 import type { SispManager } from '../drivers/sisp-manager';
 import { renderAutoSubmitForm } from './auto-submit-form';
+import { booleanFromInput } from './callback-processing';
 import { buildGatewayFormAction } from './gateway-form-action';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
@@ -203,8 +204,4 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
 
     return json(data);
   }
-}
-
-function booleanFromInput(value: unknown): boolean {
-  return value === true || value === 'true' || value === '1' || value === 1;
 }

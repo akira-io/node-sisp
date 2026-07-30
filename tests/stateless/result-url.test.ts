@@ -73,6 +73,17 @@ describe('stateless result url', () => {
 
     expect(readStatelessResult(signer, PATH, { ...query, reason: 'invented' })).toBeNull();
   });
+
+  it('rejects a result url signed with an expiry already in the past', () => {
+    const expiredAt = new Date(Date.now() - 60_000);
+    const signedPath = signer.sign(
+      PATH,
+      { ref: 'REF123', verified: '1', messageType: '' },
+      expiredAt,
+    );
+
+    expect(readStatelessResult(signer, PATH, queryOf(signedPath))).toBeNull();
+  });
 });
 
 function queryOf(url: string): Record<string, string> {

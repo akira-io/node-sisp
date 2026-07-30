@@ -6,6 +6,8 @@ import type { CallbackPayload } from '../../domain/value-objects/callback-payloa
 import type { UrlSigner } from '../../support/signed-url';
 import { type PaymentErrorData, structuredErrorFrom } from './payment-response';
 
+const RESULT_URL_TTL_MINUTES = 5;
+
 export interface StatelessPaymentResponseData {
   merchant_ref: string;
   verified: boolean;
@@ -41,7 +43,7 @@ export function signStatelessResult(
     params.reason = data.reason;
   }
 
-  return signer.sign(path, params);
+  return signer.sign(path, params, new Date(Date.now() + RESULT_URL_TTL_MINUTES * 60_000));
 }
 
 export function readStatelessResult(

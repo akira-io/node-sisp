@@ -143,6 +143,7 @@ describe('StatelessSispHttpHandlers', () => {
 
     expect(result.type).toBe('redirect');
     expect(result.type === 'redirect' ? result.location : '').toContain('signature=');
+    expect(result.type === 'redirect' ? result.location : '').toContain('verified=1');
   });
 
   it('returns JSON from a POST callback when no appKey is configured', async () => {
@@ -166,6 +167,20 @@ describe('StatelessSispHttpHandlers', () => {
 
     const result = await handlers.handleCallback(
       request({ method: 'POST', path: '/sisp/callback', body: { UserCancelled: 'true' } }),
+    );
+
+    expect(result.type).toBe('redirect');
+    expect(rejected.mock.calls[0]?.[0].reason).toBe('user_cancelled');
+  });
+
+  it('treats UserCancelled=on as cancelled, matching the stateful handler', async () => {
+    const { handlers, events } = build(null);
+    const rejected = vi.fn();
+
+    events.on('callback:rejected', rejected);
+
+    const result = await handlers.handleCallback(
+      request({ method: 'POST', path: '/sisp/callback', body: { UserCancelled: 'on' } }),
     );
 
     expect(result.type).toBe('redirect');
