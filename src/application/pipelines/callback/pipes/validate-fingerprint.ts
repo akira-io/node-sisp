@@ -1,12 +1,11 @@
 import type { CredentialsResolver } from '../../../../core/contracts/credentials-resolver';
 import type { CallbackPipe } from '../../../../core/contracts/pipes';
+import { CallbackRejectionReasons } from '../../../../domain/enums/callback-rejection-reason';
 import { validateCallbackFingerprint } from '../../../../infrastructure/fingerprints/callback-fingerprint';
 import { computeToken } from '../../../../infrastructure/fingerprints/token';
 import type { FailTransactionAction } from '../../../actions/fail-transaction';
 import type { SispEventEmitter } from '../../../events';
 import type { CallbackContext } from '../callback-context';
-
-const INVALID_FINGERPRINT = 'invalid_callback_fingerprint';
 
 export class ValidateFingerprint implements CallbackPipe {
   constructor(
@@ -27,7 +26,7 @@ export class ValidateFingerprint implements CallbackPipe {
     const failed = await this.failTransaction.handle(
       context.requireTransaction(),
       context.payload,
-      INVALID_FINGERPRINT,
+      CallbackRejectionReasons.InvalidFingerprint,
       context.requireAttempt(),
     );
     context.transactionStatusPropagated = failed.propagated;
@@ -40,6 +39,6 @@ export class ValidateFingerprint implements CallbackPipe {
       });
     }
 
-    context.fail(INVALID_FINGERPRINT);
+    context.fail(CallbackRejectionReasons.InvalidFingerprint);
   }
 }

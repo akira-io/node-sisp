@@ -1,5 +1,6 @@
 import type { CredentialsResolver } from '../../../../core/contracts/credentials-resolver';
 import type { CallbackPipe } from '../../../../core/contracts/pipes';
+import { CallbackRejectionReasons } from '../../../../domain/enums/callback-rejection-reason';
 import type { CallbackPayload } from '../../../../domain/value-objects/callback-payload';
 import type {
   TransactionAttemptRecord,
@@ -10,8 +11,6 @@ import type { FailTransactionAction } from '../../../actions/fail-transaction';
 import type { ResolvedSispConfig } from '../../../config';
 import type { SispEventEmitter } from '../../../events';
 import type { CallbackContext } from '../callback-context';
-
-const DETAILS_MISMATCH = 'callback_details_mismatch';
 
 export class EnsureCallbackMatchesTransaction implements CallbackPipe {
   constructor(
@@ -32,7 +31,7 @@ export class EnsureCallbackMatchesTransaction implements CallbackPipe {
       const failed = await this.failTransaction.handle(
         context.requireTransaction(),
         context.payload,
-        DETAILS_MISMATCH,
+        CallbackRejectionReasons.DetailsMismatch,
         context.requireAttempt(),
       );
       context.transactionStatusPropagated = failed.propagated;
@@ -45,7 +44,7 @@ export class EnsureCallbackMatchesTransaction implements CallbackPipe {
         });
       }
 
-      context.fail(DETAILS_MISMATCH);
+      context.fail(CallbackRejectionReasons.DetailsMismatch);
 
       return;
     }

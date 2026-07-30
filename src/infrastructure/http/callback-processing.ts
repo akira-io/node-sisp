@@ -4,6 +4,7 @@ import type {
   TransactionAttemptRepository,
   TransactionRepository,
 } from '../../core/contracts/storage';
+import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
 import type { UrlSigner } from '../../support/signed-url';
 import type { HttpRequestInfo } from './request-info';
 
@@ -76,7 +77,7 @@ export async function cancelUserCancelledTransaction(
     return;
   }
 
-  await cancelTransaction.handle(transaction, 'user_cancelled');
+  await cancelTransaction.handle(transaction, CallbackRejectionReasons.UserCancelled);
 }
 
 export function textFromInput(value: unknown): string {

@@ -10,6 +10,7 @@ import type {
   TransactionAttemptRepository,
   TransactionRepository,
 } from '../../core/contracts/storage';
+import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
 import {
   PaymentRetryLimitExceededError,
   SispError,
@@ -118,7 +119,9 @@ export class LifecycleHandlers {
     }
 
     const reason =
-      typeof request.query.reason === 'string' ? request.query.reason : 'user_cancelled';
+      typeof request.query.reason === 'string'
+        ? request.query.reason
+        : CallbackRejectionReasons.UserCancelled;
 
     try {
       const cancelled = await cancelTransaction.handle(transaction, reason);

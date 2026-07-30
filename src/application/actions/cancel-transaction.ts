@@ -1,4 +1,5 @@
 import type { TransactionRepository } from '../../core/contracts/storage';
+import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { TransactionStateError } from '../../domain/errors/exceptions';
 import { runWithLogSource } from '../../infrastructure/storage/knex/log-context';
@@ -18,7 +19,7 @@ export class CancelTransactionAction {
 
   async handle(
     transaction: TransactionRecord,
-    reason = 'user_cancelled',
+    reason: string = CallbackRejectionReasons.UserCancelled,
   ): Promise<TransactionRecord> {
     if (NOT_CANCELLABLE.includes(transaction.status)) {
       throw new TransactionStateError(

@@ -11,6 +11,7 @@ import type {
   TransactionLogRepository,
   TransactionRepository,
 } from '../core/contracts/storage';
+import { CallbackRejectionReasons } from '../domain/enums/callback-rejection-reason';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
 import type { PaymentRequest } from '../domain/value-objects/payment-request';
 import type { PaymentRequestData } from '../domain/value-objects/payment-request-data';
@@ -135,12 +136,15 @@ export class Sisp {
 
   async cancel(
     transaction: TransactionRecord,
-    reason = 'user_cancelled',
+    reason: string = CallbackRejectionReasons.UserCancelled,
   ): Promise<TransactionRecord> {
     return this.cancelTransaction.handle(transaction, reason);
   }
 
-  signedCancelUrl(merchantRef: string, reason = 'user_cancelled'): string {
+  signedCancelUrl(
+    merchantRef: string,
+    reason: string = CallbackRejectionReasons.UserCancelled,
+  ): string {
     const signedPath = this.urlSigner.signAction(
       `${this.config.basePath}/cancel`,
       {
