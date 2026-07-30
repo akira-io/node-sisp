@@ -44,3 +44,5 @@ export class TransactionStatusTransportError extends SispError {
     super(message);
   }
 }
+
+export class CorrelationRequiredError extends SispError {}

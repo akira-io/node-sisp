@@ -52,6 +52,7 @@ import { PaymentContextResolver } from './payment-context-resolver';
 import { paymentResponseData } from './payment-response';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
+import type { StatelessHttpHandlers } from './stateless-handlers';
 import { validatePaymentInput } from './validate-payment-input';
 
 export interface SispHandlersDeps {
@@ -76,7 +77,7 @@ export interface SispHandlersDeps {
   urlSigner: UrlSigner;
 }
 
-export class SispHttpHandlers {
+export class SispHttpHandlers implements StatelessHttpHandlers {
   private readonly config: ResolvedSispConfig;
   private readonly manager: SispManager;
   private readonly callbackPipeline: HandleCallbackPipeline;
