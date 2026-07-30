@@ -108,4 +108,8 @@ const sisp = await createSisp({
 
 Custom generators may keep using date-based values. The package does not require a specific format, but identifiers must stay within SISP's 15-character limit and pass the database uniqueness checks within the configured retry limit.
 
+## No database at all
+
+`createSisp` still requires either `storage` or `database`; that check has not changed. If you already own transaction tables and want the gateway protocol handled without the package persisting anything of its own, use `createStatelessSisp` instead. See [Stateless Mode](13-stateless-mode.md).
+
 **Next:** [Quick Start](03-quick-start.md)

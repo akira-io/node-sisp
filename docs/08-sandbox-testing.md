@@ -20,7 +20,7 @@ const payload = sisp.generateSandboxPayload(
   'failed',
 );
 
-await sisp.handlePaymentCallback(payload);
+await sisp.handleCallback(payload);
 ```
 
 ## Testing your integration
@@ -58,7 +58,7 @@ it('completes sandbox payments', async () => {
     merchantSession: 'S1',
   });
 
-  const transaction = await sisp.handlePaymentCallback(payload);
+  const { transaction } = await sisp.handleCallback(payload);
 
   expect(transaction.status).toBe('completed');
 });

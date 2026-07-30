@@ -2,6 +2,8 @@
 
 The persistence layer sits behind `SispStorage`, an ORM-neutral port defined in `src/core/contracts/storage.ts`. It describes nine entity repositories plus a `transaction()` unit-of-work, an optional `migrate?()`, and `destroy()`. No engine types leak through the port.
 
+This port is for consumers who want the package's own tables (`sisp_transactions` and friends). If you already own transaction tables and want none of these nine repositories, see [Stateless Mode](13-stateless-mode.md) instead.
+
 ## Default adapter: knex
 
 When you pass a `database` config to `createSisp`, the package builds a `KnexStorage` instance internally:
@@ -133,4 +135,4 @@ const sisp = await createSisp({
 
 Drizzle, Sequelize, TypeORM, and any other ORM follow the same pattern.
 
-**Previous:** [Idempotency and Attempts](11-idempotency.md) | **Next:** [Index](00-index.md)
+**Previous:** [Idempotency and Attempts](11-idempotency.md) | **Next:** [Stateless Mode](13-stateless-mode.md)

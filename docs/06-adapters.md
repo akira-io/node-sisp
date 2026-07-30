@@ -91,4 +91,25 @@ export class BillingService {
 }
 ```
 
+## Stateless adapters
+
+Each framework also exports a stateless counterpart, taking a `StatelessSisp` (from `createStatelessSisp`) instead of a `Sisp`. See [Stateless Mode](13-stateless-mode.md) for the route table and the security trade-offs.
+
+```ts
+import { statelessSispRoutes } from '@akira-io/sisp/express';
+import { statelessSispFastifyPlugin } from '@akira-io/sisp/fastify';
+import { StatelessSispModule } from '@akira-io/sisp/nest';
+
+app.use('/sisp', statelessSispRoutes(statelessSisp));
+
+await app.register(statelessSispFastifyPlugin, { sisp: statelessSisp, prefix: '/sisp' });
+
+@Module({
+  imports: [StatelessSispModule.forRoot({ sisp: statelessSisp })],
+})
+export class AppModule {}
+```
+
+Express and Fastify mount `POST /payment` and `POST /payment/intent` only when `correlation` is configured, and mount `GET /callback` only when `appKey` is configured; everything else 404s. Nest cannot mount conditionally, so `StatelessSispModule` always declares every stateless route and relies on `CorrelationRequiredError` / a plain redirect at request time instead. Configure both `correlation` and `appKey` before mounting `StatelessSispModule` under Nest, or do not mount it.
+
 **Next:** [Security](07-security.md)
