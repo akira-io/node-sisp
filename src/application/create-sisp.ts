@@ -27,6 +27,7 @@ import { EnsureIpIsNotBlacklisted } from './pipelines/payment/pipes/ensure-ip-is
 import { PersistTransaction } from './pipelines/payment/pipes/persist-transaction';
 import { ProcessPaymentPipeline } from './pipelines/payment/process-payment-pipeline';
 import { Sisp, type SispModels } from './sisp';
+import { StatefulCallbackVerifier } from './verifiers/stateful-callback-verifier';
 import { customizePipes, wireCredentialScopedServices } from './wiring';
 
 export async function createSisp(config: SispConfig): Promise<Sisp> {
@@ -117,7 +118,10 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     refundTransaction,
     rateLimits,
     urlSigner,
+    events,
   });
+
+  const statefulVerifier = new StatefulCallbackVerifier(services.callbackPipeline, events);
 
   return new Sisp(
     resolved,
@@ -130,11 +134,11 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     credentialsResolver,
     services.buildRequestPayload,
     services.buildSandboxPayload,
-    services.callbackPipeline,
     cancelTransaction,
     refundTransaction,
     services.reconcileTransaction,
     urlSigner,
+    statefulVerifier,
   );
 }
 

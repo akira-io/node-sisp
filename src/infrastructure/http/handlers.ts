@@ -7,7 +7,7 @@ import type { RetryPaymentAction } from '../../application/actions/retry-payment
 import type { StoreRequestMetadataAction } from '../../application/actions/store-request-metadata';
 import type { UpdateInvoiceStatusAction } from '../../application/actions/update-invoice-status';
 import { type ResolvedSispConfig, routeUrl } from '../../application/config';
-import { CallbackContext } from '../../application/pipelines/callback/callback-context';
+import type { SispEventEmitter } from '../../application/events';
 import type { HandleCallbackPipeline } from '../../application/pipelines/callback/handle-callback-pipeline';
 import type { ProcessPaymentPipeline } from '../../application/pipelines/payment/process-payment-pipeline';
 import type { BuildSandboxPayloadAction } from '../../application/sandbox';
@@ -23,12 +23,8 @@ import {
   PaymentIntentAlreadyProcessingError,
   PaymentRetryLimitExceededError,
   RateLimitExceededError,
-  TransactionNotFoundError,
 } from '../../domain/errors/exceptions';
-import {
-  callbackPayloadFrom,
-  callbackPayloadToFormFields,
-} from '../../domain/value-objects/callback-payload';
+import { callbackPayloadToFormFields } from '../../domain/value-objects/callback-payload';
 import {
   type PaymentRequest,
   paymentRequestToFormFields,
@@ -39,17 +35,10 @@ import type { UrlSigner } from '../../support/signed-url';
 import { fromCents } from '../../support/sisp-amount';
 import type { SispManager } from '../drivers/sisp-manager';
 import { renderAutoSubmitForm } from './auto-submit-form';
-import {
-  booleanFromInput,
-  cancelUserCancelledTransaction,
-  frontendResultUrl,
-  isAlreadyProcessed,
-  signedCallbackResultUrl,
-} from './callback-processing';
+import { CallbackHandlers } from './callback-handlers';
 import { buildGatewayFormAction } from './gateway-form-action';
 import { LifecycleHandlers } from './lifecycle-handlers';
 import { PaymentContextResolver } from './payment-context-resolver';
-import { paymentResponseData } from './payment-response';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
 import type { StatelessHttpHandlers } from './stateless-handlers';
@@ -75,35 +64,23 @@ export interface SispHandlersDeps {
   refundTransaction: RefundTransactionAction;
   rateLimits: RateLimitRepository;
   urlSigner: UrlSigner;
+  events: SispEventEmitter;
 }
 
 export class SispHttpHandlers implements StatelessHttpHandlers {
   private readonly config: ResolvedSispConfig;
   private readonly manager: SispManager;
-  private readonly callbackPipeline: HandleCallbackPipeline;
   private readonly transactions: TransactionRepository;
-  private readonly attempts: TransactionAttemptRepository;
-  private readonly invoices: InvoiceRepository;
-  private readonly storeMetadata: StoreRequestMetadataAction;
-  private readonly updateInvoiceStatus: UpdateInvoiceStatusAction;
   private readonly buildSandboxPayload: BuildSandboxPayloadAction;
   private readonly lifecycle: LifecycleHandlers;
   private readonly paymentContexts: PaymentContextResolver;
-  private readonly urlSigner: UrlSigner;
-  private readonly cancelTransaction: CancelTransactionAction;
+  private readonly callbackHandlers: CallbackHandlers;
 
   constructor(deps: SispHandlersDeps) {
     this.config = deps.config;
     this.manager = deps.manager;
-    this.callbackPipeline = deps.callbackPipeline;
     this.transactions = deps.transactions;
-    this.cancelTransaction = deps.cancelTransaction;
-    this.attempts = deps.attempts;
-    this.invoices = deps.invoices;
-    this.storeMetadata = deps.storeMetadata;
-    this.updateInvoiceStatus = deps.updateInvoiceStatus;
     this.buildSandboxPayload = deps.buildSandboxPayload;
-    this.urlSigner = deps.urlSigner;
     this.paymentContexts = new PaymentContextResolver({
       config: deps.config,
       paymentPipeline: deps.paymentPipeline,
@@ -126,6 +103,19 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
       refundTransaction: deps.refundTransaction,
       rateLimits: deps.rateLimits,
       urlSigner: deps.urlSigner,
+    });
+    this.callbackHandlers = new CallbackHandlers({
+      config: deps.config,
+      transactions: deps.transactions,
+      attempts: deps.attempts,
+      invoices: deps.invoices,
+      callbackPipeline: deps.callbackPipeline,
+      storeMetadata: deps.storeMetadata,
+      updateInvoiceStatus: deps.updateInvoiceStatus,
+      cancelTransaction: deps.cancelTransaction,
+      urlSigner: deps.urlSigner,
+      events: deps.events,
+      lifecycle: this.lifecycle,
     });
   }
 
@@ -199,19 +189,7 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
   }
 
   async handleCallback(request: HttpRequestInfo): Promise<HttpResult> {
-    if (booleanFromInput(request.body.UserCancelled ?? request.query.UserCancelled)) {
-      await this.runQuietly(() =>
-        cancelUserCancelledTransaction(this.transactions, this.cancelTransaction, request),
-      );
-
-      return redirect(this.config.redirectUrl);
-    }
-
-    if (request.method.toUpperCase() === 'GET') {
-      return this.handleCallbackResult(request);
-    }
-
-    return this.handleCallbackNotification(request);
+    return this.callbackHandlers.handle(request);
   }
 
   async handleSandbox(request: HttpRequestInfo): Promise<HttpResult> {
@@ -238,71 +216,6 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
 
   handleCountries(): HttpResult {
     return json(allCountries());
-  }
-
-  private async handleCallbackResult(request: HttpRequestInfo): Promise<HttpResult> {
-    if (!this.urlSigner.validate(`${this.config.basePath}/callback`, request.query)) {
-      return redirect(this.config.redirectUrl);
-    }
-
-    const transactionId = Number(request.query.transaction);
-
-    if (!Number.isInteger(transactionId)) {
-      return redirect(this.config.redirectUrl);
-    }
-
-    const transaction = await this.transactions.findById(transactionId);
-
-    if (transaction === null) {
-      return redirect(this.config.redirectUrl);
-    }
-
-    const invoice = await this.invoices.findByTransaction(transaction.id);
-    const retry = await this.lifecycle.retryAvailability(transaction);
-
-    return json(paymentResponseData(transaction, invoice, retry));
-  }
-
-  private async handleCallbackNotification(request: HttpRequestInfo): Promise<HttpResult> {
-    const payload = callbackPayloadFrom(request.body);
-
-    if (payload.merchantRef === '' || payload.merchantSession === '') {
-      return redirect(this.config.redirectUrl);
-    }
-
-    if (
-      await isAlreadyProcessed(
-        this.transactions,
-        this.attempts,
-        payload.merchantRef,
-        payload.merchantSession,
-      )
-    ) {
-      return redirect(this.config.redirectUrl);
-    }
-
-    let context: CallbackContext;
-
-    try {
-      context = await this.callbackPipeline.run(new CallbackContext(payload));
-    } catch (error) {
-      if (error instanceof TransactionNotFoundError) {
-        return redirect(this.config.redirectUrl);
-      }
-
-      throw error;
-    }
-
-    const transaction = context.requireTransaction();
-
-    await this.runQuietly(() => this.storeMetadata.handle(request, transaction.id));
-    await this.runQuietly(() => this.updateInvoiceStatus.handle(transaction));
-
-    if (this.config.frontendResultUrl) {
-      return redirect(frontendResultUrl(this.config.frontendResultUrl, transaction.merchant_ref));
-    }
-
-    return redirect(signedCallbackResultUrl(this.config, this.urlSigner, transaction.id));
   }
 
   private async isDuplicateSubmission(body: Record<string, unknown>): Promise<boolean> {
@@ -344,11 +257,5 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
       return json({ message: error.message }, 409);
     }
     throw error;
-  }
-
-  private async runQuietly(operation: () => Promise<void>): Promise<void> {
-    try {
-      await operation();
-    } catch {}
   }
 }

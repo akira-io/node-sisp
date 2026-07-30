@@ -1,3 +1,4 @@
+import type { StoredCallbackOutcome } from '../core/contracts/callback-verifier';
 import { StaticCredentialsResolver } from '../core/contracts/credentials-resolver';
 import type { SispStorage } from '../core/contracts/storage';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
@@ -11,9 +12,9 @@ import type { TransactionRecord } from '../infrastructure/storage/knex/records';
 import { PaymentBuilder } from './builders/payment-builder';
 import type { ResolvedSispConfig } from './config';
 import type { SispEventEmitter } from './events';
-import { CallbackContext } from './pipelines/callback/callback-context';
 import type { SandboxStatus } from './sandbox';
 import type { SispModels } from './sisp';
+import { StatefulCallbackVerifier } from './verifiers/stateful-callback-verifier';
 import { type CredentialScopedServices, wireCredentialScopedServices } from './wiring';
 
 export class ScopedSisp {
@@ -22,7 +23,7 @@ export class ScopedSisp {
   constructor(
     storage: SispStorage,
     config: ResolvedSispConfig,
-    events: SispEventEmitter,
+    private readonly events: SispEventEmitter,
     models: SispModels,
     readonly credentials: SispCredentials,
   ) {
@@ -47,10 +48,10 @@ export class ScopedSisp {
     return validateCallbackFingerprint(computeToken(this.credentials.posAutCode), payload);
   }
 
-  async handlePaymentCallback(payload: CallbackPayload): Promise<TransactionRecord> {
-    const context = await this.services.callbackPipeline.run(new CallbackContext(payload));
-
-    return context.requireTransaction();
+  async handleCallback(payload: CallbackPayload): Promise<StoredCallbackOutcome> {
+    return new StatefulCallbackVerifier(this.services.callbackPipeline, this.events).verify(
+      payload,
+    );
   }
 
   generateSandboxPayload(

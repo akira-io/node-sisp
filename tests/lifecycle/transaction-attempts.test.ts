@@ -247,7 +247,7 @@ describe('transaction attempts', () => {
       throw new Error('Old attempt was not found.');
     }
 
-    await sisp.handlePaymentCallback(
+    await sisp.handleCallback(
       sisp.generateSandboxPayload(
         {
           amount: 1500,
@@ -277,7 +277,7 @@ describe('transaction attempts', () => {
       throw new Error('Old attempt was not found.');
     }
 
-    await sisp.handlePaymentCallback(
+    await sisp.handleCallback(
       sisp.generateSandboxPayload({
         amount: 1500,
         merchantRef: oldAttempt.merchant_ref,
