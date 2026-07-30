@@ -42,39 +42,41 @@ describe('callback event parity across modes', () => {
       },
     });
 
-    stateful.on('callback:verified', listener);
+    try {
+      stateful.on('callback:verified', listener);
 
-    const paymentResult = await stateful.handlers.handlePayment({
-      ip: '127.0.0.1',
-      method: 'POST',
-      path: '/sisp/payment',
-      headers: {},
-      query: {},
-      body: { amount: '1500', items },
-    });
+      const paymentResult = await stateful.handlers.handlePayment({
+        ip: '127.0.0.1',
+        method: 'POST',
+        path: '/sisp/payment',
+        headers: {},
+        query: {},
+        body: { amount: '1500', items },
+      });
 
-    if (paymentResult.type !== 'html') {
-      throw new Error(`Expected an auto-submit form, got ${paymentResult.type}.`);
+      if (paymentResult.type !== 'html') {
+        throw new Error(`Expected an auto-submit form, got ${paymentResult.type}.`);
+      }
+
+      const { fields } = extractForm(paymentResult.html);
+      const merchantRef = fields.merchantRef;
+      const merchantSession = fields.merchantSession;
+
+      if (merchantRef === undefined || merchantSession === undefined) {
+        throw new Error('Payment form did not include merchantRef/merchantSession.');
+      }
+
+      await stateful.handleCallback(
+        stateful.generateSandboxPayload({ amount: 1500, merchantRef, merchantSession }),
+      );
+
+      expect(seen).toHaveLength(2);
+      expect(Object.keys(seen[0] ?? {}).sort()).toEqual(Object.keys(seen[1] ?? {}).sort());
+      expect(seen[0]?.reason).toBeNull();
+      expect(seen[1]?.reason).toBeNull();
+    } finally {
+      await stateful.destroy();
     }
-
-    const { fields } = extractForm(paymentResult.html);
-    const merchantRef = fields.merchantRef;
-    const merchantSession = fields.merchantSession;
-
-    if (merchantRef === undefined || merchantSession === undefined) {
-      throw new Error('Payment form did not include merchantRef/merchantSession.');
-    }
-
-    await stateful.handleCallback(
-      stateful.generateSandboxPayload({ amount: 1500, merchantRef, merchantSession }),
-    );
-
-    expect(seen).toHaveLength(2);
-    expect(Object.keys(seen[0] ?? {}).sort()).toEqual(Object.keys(seen[1] ?? {}).sort());
-    expect(seen[0]?.reason).toBeNull();
-    expect(seen[1]?.reason).toBeNull();
-
-    await stateful.destroy();
   });
 
   it('fires callback:rejected with user_cancelled in both modes', async () => {
@@ -103,14 +105,18 @@ describe('callback event parity across modes', () => {
       },
     });
 
-    stateful.on('callback:rejected', statefulListener);
-    await stateful.handlers.handleCallback(cancelBody);
+    try {
+      stateful.on('callback:rejected', statefulListener);
+      await stateful.handlers.handleCallback(cancelBody);
 
-    expect(statelessListener.mock.calls[0]?.[0].reason).toBe(
-      CallbackRejectionReasons.UserCancelled,
-    );
-    expect(statefulListener.mock.calls[0]?.[0].reason).toBe(CallbackRejectionReasons.UserCancelled);
-
-    await stateful.destroy();
+      expect(statelessListener.mock.calls[0]?.[0].reason).toBe(
+        CallbackRejectionReasons.UserCancelled,
+      );
+      expect(statefulListener.mock.calls[0]?.[0].reason).toBe(
+        CallbackRejectionReasons.UserCancelled,
+      );
+    } finally {
+      await stateful.destroy();
+    }
   });
 });
