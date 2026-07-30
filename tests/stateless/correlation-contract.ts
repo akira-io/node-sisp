@@ -31,9 +31,11 @@ export function paymentRequestFixture(overrides: Partial<PaymentRequest> = {}): 
 export function runCorrelationStoreContract<TStore extends PaymentCorrelationStore>(
   name: string,
   makeStore: () => Promise<TStore> | TStore,
-  readProcessed: (
+  readLastProcessed: (
     store: TStore,
-  ) => Promise<readonly CallbackOutcome[]> | readonly CallbackOutcome[],
+    merchantRef: string,
+    merchantSession: string,
+  ) => Promise<CallbackOutcome | null> | CallbackOutcome | null,
 ): void {
   describe(`PaymentCorrelationStore contract: ${name}`, () => {
     let store: TStore;
@@ -84,7 +86,7 @@ export function runCorrelationStoreContract<TStore extends PaymentCorrelationSto
       expect(statuses).toEqual(['already_processed', 'claimed']);
     });
 
-    it('records the outcome of a claimed pair, verified or rejected', async () => {
+    it('records the outcome of a claimed pair, verified then rejected', async () => {
       await store.record(paymentRequestFixture());
       await store.claim('REF123', 'S20260730120000');
 
@@ -93,19 +95,22 @@ export function runCorrelationStoreContract<TStore extends PaymentCorrelationSto
         reason: null,
         payload: callbackPayloadFrom({ messageType: '8' }),
       });
+
+      const afterVerified = await readLastProcessed(store, 'REF123', 'S20260730120000');
+
+      expect(afterVerified?.verified).toBe(true);
+      expect(afterVerified?.reason).toBeNull();
+
       await store.markProcessed('REF123', 'S20260730120000', {
         verified: false,
         reason: CallbackRejectionReasons.DetailsMismatch,
         payload: callbackPayloadFrom({ messageType: '6' }),
       });
 
-      const recorded = await readProcessed(store);
+      const afterRejected = await readLastProcessed(store, 'REF123', 'S20260730120000');
 
-      expect(recorded).toHaveLength(2);
-      expect(recorded[0]?.verified).toBe(true);
-      expect(recorded[0]?.reason).toBeNull();
-      expect(recorded[1]?.verified).toBe(false);
-      expect(recorded[1]?.reason).toBe(CallbackRejectionReasons.DetailsMismatch);
+      expect(afterRejected?.verified).toBe(false);
+      expect(afterRejected?.reason).toBe(CallbackRejectionReasons.DetailsMismatch);
     });
 
     it('tolerates markProcessed for a pair it never recorded', async () => {
