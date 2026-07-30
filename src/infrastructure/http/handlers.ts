@@ -8,9 +8,12 @@ import type { StoreRequestMetadataAction } from '../../application/actions/store
 import type { UpdateInvoiceStatusAction } from '../../application/actions/update-invoice-status';
 import { type ResolvedSispConfig, routeUrl } from '../../application/config';
 import type { SispEventEmitter } from '../../application/events';
-import type { HandleCallbackPipeline } from '../../application/pipelines/callback/handle-callback-pipeline';
 import type { ProcessPaymentPipeline } from '../../application/pipelines/payment/process-payment-pipeline';
 import type { BuildSandboxPayloadAction } from '../../application/sandbox';
+import type {
+  CallbackVerifier,
+  StoredCallbackOutcome,
+} from '../../core/contracts/callback-verifier';
 import type {
   InvoiceRepository,
   PaymentIntentRepository,
@@ -49,7 +52,7 @@ export interface SispHandlersDeps {
   db: Knex;
   manager: SispManager;
   paymentPipeline: ProcessPaymentPipeline;
-  callbackPipeline: HandleCallbackPipeline;
+  callbackVerifier: CallbackVerifier<StoredCallbackOutcome>;
   transactions: TransactionRepository;
   attempts: TransactionAttemptRepository;
   paymentIntents: PaymentIntentRepository;
@@ -109,7 +112,7 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
       transactions: deps.transactions,
       attempts: deps.attempts,
       invoices: deps.invoices,
-      callbackPipeline: deps.callbackPipeline,
+      verifier: deps.callbackVerifier,
       storeMetadata: deps.storeMetadata,
       updateInvoiceStatus: deps.updateInvoiceStatus,
       cancelTransaction: deps.cancelTransaction,

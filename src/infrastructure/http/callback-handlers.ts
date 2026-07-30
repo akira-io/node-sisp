@@ -3,8 +3,10 @@ import type { StoreRequestMetadataAction } from '../../application/actions/store
 import type { UpdateInvoiceStatusAction } from '../../application/actions/update-invoice-status';
 import type { ResolvedSispConfig } from '../../application/config';
 import type { SispEventEmitter } from '../../application/events';
-import { CallbackContext } from '../../application/pipelines/callback/callback-context';
-import type { HandleCallbackPipeline } from '../../application/pipelines/callback/handle-callback-pipeline';
+import type {
+  CallbackVerifier,
+  StoredCallbackOutcome,
+} from '../../core/contracts/callback-verifier';
 import type {
   InvoiceRepository,
   TransactionAttemptRepository,
@@ -31,7 +33,7 @@ export interface CallbackHandlersDeps {
   transactions: TransactionRepository;
   attempts: TransactionAttemptRepository;
   invoices: InvoiceRepository;
-  callbackPipeline: HandleCallbackPipeline;
+  verifier: CallbackVerifier<StoredCallbackOutcome>;
   storeMetadata: StoreRequestMetadataAction;
   updateInvoiceStatus: UpdateInvoiceStatusAction;
   cancelTransaction: CancelTransactionAction;
@@ -100,7 +102,7 @@ export class CallbackHandlers {
       config,
       transactions,
       attempts,
-      callbackPipeline,
+      verifier,
       storeMetadata,
       updateInvoiceStatus,
       urlSigner,
@@ -117,10 +119,10 @@ export class CallbackHandlers {
       return redirect(config.redirectUrl);
     }
 
-    let context: CallbackContext;
+    let outcome: StoredCallbackOutcome;
 
     try {
-      context = await callbackPipeline.run(new CallbackContext(payload));
+      outcome = await verifier.verify(payload);
     } catch (error) {
       if (error instanceof TransactionNotFoundError) {
         return redirect(config.redirectUrl);
@@ -129,7 +131,7 @@ export class CallbackHandlers {
       throw error;
     }
 
-    const transaction = context.requireTransaction();
+    const transaction = outcome.transaction;
 
     await this.runQuietly(() => storeMetadata.handle(request, transaction.id));
     await this.runQuietly(() => updateInvoiceStatus.handle(transaction));

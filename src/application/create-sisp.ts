@@ -98,12 +98,14 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     events,
   );
 
+  const statefulVerifier = new StatefulCallbackVerifier(services.callbackPipeline, events);
+
   const handlers = new SispHttpHandlers({
     config: resolved,
     db,
     manager: services.manager,
     paymentPipeline,
-    callbackPipeline: services.callbackPipeline,
+    callbackVerifier: statefulVerifier,
     transactions: models.transactions,
     attempts: models.transactionAttempts,
     paymentIntents: models.paymentIntents,
@@ -120,8 +122,6 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     urlSigner,
     events,
   });
-
-  const statefulVerifier = new StatefulCallbackVerifier(services.callbackPipeline, events);
 
   return new Sisp(
     resolved,
