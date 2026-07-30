@@ -4,6 +4,11 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     passWithNoTests: true,
+    typecheck: {
+      enabled: true,
+      include: ['tests/**/*.test-d.ts'],
+      tsconfig: './tsconfig.json',
+    },
     coverage: {
       provider: 'v8',
       include: ['src/**'],

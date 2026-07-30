@@ -55,7 +55,8 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:types": "vitest run --typecheck"
   },
   "dependencies": {
     "knex": "^3.1.0",
