@@ -4,6 +4,10 @@ import { VerifyFingerprint } from '../../src/application/pipelines/callback/stat
 import { StatelessCallbackContext } from '../../src/application/pipelines/callback/stateless/stateless-callback-context';
 import { StatelessCallbackPipeline } from '../../src/application/pipelines/callback/stateless/stateless-callback-pipeline';
 import { StaticCredentialsResolver } from '../../src/core/contracts/credentials-resolver';
+import type {
+  CorrelationClaim,
+  PaymentCorrelationStore,
+} from '../../src/core/contracts/payment-correlation-store';
 import { CallbackRejectionReasons } from '../../src/domain/enums/callback-rejection-reason';
 import { TransactionStatus } from '../../src/domain/enums/transaction-status';
 import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
@@ -134,4 +138,32 @@ describe('StatelessCallbackPipeline', () => {
 
     expect(context.toOutcome().verified).toBe(true);
   });
+
+  it('treats a null amount from a nullable store column as a mismatch instead of throwing', async () => {
+    const store = new NullAmountCorrelationStore();
+    const matchExpectedPayment = new MatchExpectedPayment(store, credentialsResolver);
+    const context = new StatelessCallbackContext(signedPayload());
+
+    await expect(matchExpectedPayment.handle(context, async () => {})).resolves.toBeUndefined();
+
+    expect(context.toOutcome().reason).toBe(CallbackRejectionReasons.DetailsMismatch);
+    expect(store.processedCalls).toHaveLength(1);
+  });
 });
+
+class NullAmountCorrelationStore implements PaymentCorrelationStore {
+  processedCalls: string[] = [];
+
+  async record(): Promise<void> {}
+
+  async claim(): Promise<CorrelationClaim> {
+    return {
+      status: 'claimed',
+      payment: { amount: null as unknown as number },
+    };
+  }
+
+  async markProcessed(merchantRef: string, merchantSession: string): Promise<void> {
+    this.processedCalls.push(`${merchantRef}::${merchantSession}`);
+  }
+}

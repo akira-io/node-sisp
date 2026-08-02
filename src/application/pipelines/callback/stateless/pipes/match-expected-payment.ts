@@ -55,8 +55,11 @@ export class MatchExpectedPayment implements StatelessCallbackPipe {
   }
 
   private matches(expected: ExpectedPayment, payload: CallbackPayload): boolean {
+    const expectedThousandths = safeThousandths(expected.amount);
+
     return (
-      toThousandths(expected.amount) === toThousandths(payload.amount) &&
+      expectedThousandths !== null &&
+      expectedThousandths === toThousandths(payload.amount) &&
       (!payload.currencyProvided ||
         expected.currency === undefined ||
         expected.currency === payload.currency) &&
@@ -65,5 +68,17 @@ export class MatchExpectedPayment implements StatelessCallbackPipe {
         expected.transactionCode === payload.transactionCode) &&
       (!payload.posIDProvided || this.credentialsResolver.resolve().posId === payload.posID)
     );
+  }
+}
+
+function safeThousandths(amount: unknown): number | null {
+  if (typeof amount !== 'string' && typeof amount !== 'number') {
+    return null;
+  }
+
+  try {
+    return toThousandths(amount);
+  } catch {
+    return null;
   }
 }

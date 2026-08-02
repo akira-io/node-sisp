@@ -3,7 +3,7 @@ import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
 import { UnableToGenerateUniquePaymentIdentifiersError } from '../../src/domain/errors/exceptions';
 import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
-import { knexOf } from '../../src/infrastructure/storage/knex';
+import { requireKnex } from '../helpers/knex';
 
 let sisp: Sisp | null = null;
 
@@ -125,8 +125,8 @@ describe('transaction attempts', () => {
       UnableToGenerateUniquePaymentIdentifiersError,
     );
 
-    const transactions = await knexOf(sisp)(sisp.config.tables.transactions);
-    const attempts = await knexOf(sisp)(sisp.config.tables.transactionAttempts);
+    const transactions = await requireKnex(sisp)(sisp.config.tables.transactions);
+    const attempts = await requireKnex(sisp)(sisp.config.tables.transactionAttempts);
 
     expect(transactions).toHaveLength(1);
     expect(attempts).toHaveLength(1);

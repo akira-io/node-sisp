@@ -120,4 +120,12 @@ describe('stateful handleCallback', () => {
 
     await sisp.destroy();
   });
+
+  it('reports correlationConfigured true so statelessSispRoutes mounts POST /payment for a stateful Sisp', async () => {
+    const sisp = await statefulSisp();
+
+    expect(sisp.correlationConfigured).toBe(true);
+
+    await sisp.destroy();
+  });
 });

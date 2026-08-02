@@ -32,6 +32,7 @@ export {
   type TransactionCancelledEvent,
   type TransactionRefundedEvent,
 } from './application/events';
+export type { StatelessCallbackPipe } from './application/pipelines/callback/stateless/stateless-callback-pipeline';
 export { BuildSandboxPayloadAction, type SandboxStatus } from './application/sandbox';
 export { Sisp, type SispModels } from './application/sisp';
 export type {

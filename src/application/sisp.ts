@@ -85,6 +85,7 @@ export class Sisp extends StatelessSisp {
       buildRequestPayloadAction,
       buildSandboxPayloadAction,
       statefulVerifier,
+      true,
     );
     this.statefulVerifier = statefulVerifier;
   }

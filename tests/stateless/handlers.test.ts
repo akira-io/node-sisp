@@ -146,6 +146,39 @@ describe('StatelessSispHttpHandlers', () => {
     expect(result.type === 'redirect' ? result.location : '').toContain('verified=1');
   });
 
+  it('builds the POST callback payload from the body alone, ignoring the query string, matching the stateful handler', async () => {
+    const correlation = new InMemoryPaymentCorrelationStore();
+    const { handlers } = build(correlation);
+
+    const payment = await handlers.handlePayment(request({ body: { amount: '1500', items } }));
+    const form = extractForm(payment.type === 'html' ? payment.html : '');
+    const sandbox = await handlers.handleSandbox(
+      request({
+        method: 'GET',
+        query: {
+          amount: '1500',
+          merchantRef: form.fields.merchantRef,
+          merchantSession: form.fields.merchantSession,
+          status: 'success',
+        },
+      }),
+    );
+    const callbackForm = extractForm(sandbox.type === 'html' ? sandbox.html : '');
+    const { posID: _posID, ...bodyWithoutPosID } = callbackForm.fields;
+
+    const result = await handlers.handleCallback(
+      request({
+        method: 'POST',
+        path: '/sisp/callback',
+        query: { posID: 'attacker-supplied-posid' },
+        body: bodyWithoutPosID,
+      }),
+    );
+
+    expect(result.type).toBe('redirect');
+    expect(result.type === 'redirect' ? result.location : '').toContain('verified=1');
+  });
+
   it('returns JSON from a POST callback when no appKey is configured', async () => {
     const { handlers } = build(null, null);
 

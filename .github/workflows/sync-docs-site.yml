@@ -24,7 +24,7 @@ jobs:
           path: node-sisp-docs
 
       - name: Mirror docs into _docs_src
-        run: rsync -a --delete docs/ node-sisp-docs/_docs_src/
+        run: rsync -a --delete --exclude 'superpowers/' docs/ node-sisp-docs/_docs_src/
 
       - name: Commit and push
         working-directory: node-sisp-docs

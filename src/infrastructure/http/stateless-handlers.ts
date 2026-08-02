@@ -110,7 +110,7 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
       return this.readResult(request);
     }
 
-    const payload = callbackPayloadFrom({ ...request.query, ...request.body });
+    const payload = callbackPayloadFrom(request.body);
     const outcome = await this.callbackVerifier.verify(payload);
 
     return this.respondWithOutcome(outcome);
