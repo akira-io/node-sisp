@@ -72,10 +72,7 @@ export interface TransactionStatusConfig {
   reconcileLimit: number;
 }
 
-export type SispDatabaseConnection =
-  | string
-  | Record<string, unknown>
-  | (() => Record<string, unknown> | Promise<Record<string, unknown>>);
+export type SispDatabaseConnection = string | object | (() => object | Promise<object>);
 export interface SispDatabaseConfig {
   client: 'better-sqlite3' | 'pg' | 'mysql2';
   connection: SispDatabaseConnection;

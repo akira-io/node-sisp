@@ -84,7 +84,8 @@
 
 Knex-typed surfaces kept off the main entry so a stateless consumer never needs `knex` installed to typecheck. See [Storage Adapters](12-storage-adapters.md).
 
-- `knexOf(sisp)` returns the typed `Knex` instance backing a `Sisp` (`undefined` at runtime when a non-knex storage is injected).
+- `knexOf(sisp)` returns the typed `Knex` instance backing a `Sisp`, or `undefined` at runtime when a non-knex storage is injected - the return type is `Knex | undefined`, matching that.
+- `SispKnexDatabaseConfig` - `SispDatabaseConfig` with `connection` typed as knex's own `Knex.Config['connection']`, including the connection-provider function form. Assignable to `createSisp`'s `database` option.
 - `createKnexInstance(config)`, `runMigrations(db, tables)`, `MIGRATIONS_TABLE`, `PayloadCipher`, `runWithLogSource(source, callback)`.
 
 ## CLI

@@ -29,7 +29,7 @@ value.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `database` | required | `{ client, connection, autoMigrate }` passed to knex. `connection` is typed `string \| Record<string, unknown>` on the main entry so consumers do not need `knex` installed to typecheck; import `@akira-io/sisp/knex` for the fully-typed knex connection shapes |
+| `database` | required | `{ client, connection, autoMigrate }` passed to knex. `connection` is typed loosely (`string \| object \| (() => object \| Promise<object>)`) on the main entry so consumers do not need `knex` installed to typecheck; import `SispKnexDatabaseConfig` from `@akira-io/sisp/knex` for the fully-typed knex connection shapes, including knex's connection-provider function form for rotating credentials |
 | `appKey` | `null` | Key for payload encryption (AES-256-GCM) and signed URLs |
 | `baseUrl` | `''` | Absolute origin used when building route URLs |
 | `basePath` | `'/sisp'` | Mount path of the HTTP routes |
