@@ -23,7 +23,6 @@ export interface StatelessSispConfig {
   posAutCode: string;
   correlation?: PaymentCorrelationStore;
   url?: string;
-  merchantId?: string;
   driver?: string;
   sandbox?: boolean;
   currency?: string;
@@ -55,7 +54,6 @@ export function resolveStatelessConfig(config: StatelessSispConfig): ResolvedSta
     posAutCode: config.posAutCode,
     correlation: config.correlation ?? null,
     url: config.url ?? '',
-    merchantId: config.merchantId ?? '',
     driver: config.driver ?? null,
     sandbox: booleanSetting(config.sandbox, false),
     currency: config.currency ?? '132',

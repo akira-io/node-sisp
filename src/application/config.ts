@@ -92,7 +92,6 @@ export interface SispConfig {
   storage?: SispStorage;
   database?: SispDatabaseConfig;
   url?: string;
-  merchantId?: string;
   driver?: string;
   sandbox?: boolean;
   currency?: string;
@@ -124,7 +123,6 @@ export interface ResolvedSharedConfig {
   posId: string;
   posAutCode: string;
   url: string;
-  merchantId: string;
   driver: string | null;
   sandbox: boolean;
   currency: string;
@@ -228,7 +226,6 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     posAutCode: config.posAutCode,
     database,
     url: config.url ?? '',
-    merchantId: config.merchantId ?? '',
     driver: config.driver ?? null,
     sandbox,
     currency: config.currency ?? '132',
@@ -273,7 +270,6 @@ export function credentialsFromConfig(config: ResolvedSharedConfig): SispCredent
     posId: config.posId,
     posAutCode: config.posAutCode,
     currency: config.currency,
-    merchantId: config.merchantId,
     url: config.url,
     languageMessages: config.languageMessages,
     fingerprintVersion: config.fingerprintVersion,
