@@ -16,7 +16,7 @@
 | `payment()` | `PaymentBuilder` with fluent setters and `build()` |
 | `buildRequestPayload(data)` | Signed `PaymentRequest` from raw data |
 | `validateCallback(payload)` | Constant-time fingerprint check |
-| `handleCallback(payload)` | Runs the callback pipeline, returns `{ verified, reason, payload }` |
+| `handleCallback(payload)` | Runs the callback pipeline, returns `{ verified, status, reason, payload }`. `verified` means the callback is authentic (fingerprint and, with `correlation`, amount/currency/code all matched); it is not a payment verdict. Check `status` for that - see [Stateless Mode](13-stateless-mode.md#verified-is-authenticity-not-a-payment-verdict) |
 | `generateSandboxPayload(data, status?)` | Signed fake callback |
 | `queryTransactionStatus(merchantRef)` | POS transaction-status API call |
 | `driver(name?)` | Resolves the active or a named `SispDriver` |
@@ -34,7 +34,7 @@
 | `models` | `transactions`, `transactionItems`, `transactionAttempts`, `paymentIntents`, `invoices`, `transactionLogs`, `blacklist` |
 | `db` | Typed `unknown` on this entry. Pass `sisp` to `knexOf(sisp)` from `@akira-io/sisp/knex` to get the typed knex instance |
 | `handlers` | `SispHttpHandlers` - framework-agnostic HTTP handlers used by the adapters. Key methods: `handlePayment`, `handlePaymentIntent`, `handleCallback`, `handleRetryPayment`, `handleCancel`, `handleRefund`, `handleSandbox` |
-| `handleCallback(payload)` | Runs the callback pipeline, returns `{ verified, reason, payload, transaction }` |
+| `handleCallback(payload)` | Runs the callback pipeline, returns `{ verified, status, reason, payload, transaction }`. Same caveat as the stateless entry: `verified` is authenticity, not a payment verdict |
 | `queryTransactionStatus(transactionOrRef)` | POS transaction-status API call |
 | `reconcileTransactionStatus(transaction)` | Applies the gateway verdict to one pending transaction |
 | `reconcilePending(options?)` | Batch reconciliation, `{ skipped, checked, reconciled }` |
@@ -47,7 +47,7 @@
 | Event | Payload |
 |-------|---------|
 | `payment:completed` / `payment:failed` / `payment:pending` | `{ transaction, payload }` |
-| `callback:verified` / `callback:rejected` | `{ payload, reason }`, emitted in both stateless and stateful mode |
+| `callback:verified` / `callback:rejected` | `{ payload, status, reason }`, emitted in both stateless and stateful mode. `callback:verified` fires for every authentic, matching callback, including declines - check `status`, not the event name, before fulfilling anything |
 | `transaction:cancelled` | `{ transaction, reason }` |
 | `transaction:refunded` | `{ transaction, amount, reason }` |
 

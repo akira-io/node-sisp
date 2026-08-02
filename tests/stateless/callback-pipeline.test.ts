@@ -5,6 +5,7 @@ import { StatelessCallbackContext } from '../../src/application/pipelines/callba
 import { StatelessCallbackPipeline } from '../../src/application/pipelines/callback/stateless/stateless-callback-pipeline';
 import { StaticCredentialsResolver } from '../../src/core/contracts/credentials-resolver';
 import { CallbackRejectionReasons } from '../../src/domain/enums/callback-rejection-reason';
+import { TransactionStatus } from '../../src/domain/enums/transaction-status';
 import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
 import { sispCredentials } from '../../src/domain/value-objects/sisp-credentials';
 import { generateCallbackFingerprint } from '../../src/infrastructure/fingerprints/callback-fingerprint';
@@ -53,9 +54,24 @@ describe('StatelessCallbackPipeline', () => {
 
     expect(context.toOutcome()).toEqual({
       verified: true,
+      status: TransactionStatus.Completed,
       reason: null,
       payload: context.payload,
     });
+  });
+
+  it('verifies but reports a failed status for a correctly signed decline', async () => {
+    const store = new InMemoryPaymentCorrelationStore();
+    await store.record(paymentRequestFixture());
+
+    const context = await pipeline(store).run(
+      new StatelessCallbackContext(signedPayload({ messageType: '6' })),
+    );
+    const outcome = context.toOutcome();
+
+    expect(outcome.verified).toBe(true);
+    expect(outcome.reason).toBeNull();
+    expect(outcome.status).toBe(TransactionStatus.Failed);
   });
 
   it('rejects a tampered fingerprint without consulting the store', async () => {

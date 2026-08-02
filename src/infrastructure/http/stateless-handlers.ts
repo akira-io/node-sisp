@@ -4,6 +4,7 @@ import type { BuildSandboxPayloadAction } from '../../application/sandbox';
 import type { ResolvedStatelessConfig } from '../../application/stateless-config';
 import type { CallbackOutcome, CallbackVerifier } from '../../core/contracts/callback-verifier';
 import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
+import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { CorrelationRequiredError } from '../../domain/errors/exceptions';
 import { callbackPayloadFrom } from '../../domain/value-objects/callback-payload';
 import {
@@ -146,6 +147,7 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
   private rejectCancelled(request: HttpRequestInfo): HttpResult {
     this.events.emit('callback:rejected', {
       payload: callbackPayloadFrom({ ...request.query, ...request.body }),
+      status: TransactionStatus.Cancelled,
       reason: CallbackRejectionReasons.UserCancelled,
     });
 
@@ -155,6 +157,7 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
   private respondWithOutcome(outcome: CallbackOutcome): HttpResult {
     const data = statelessResultData(
       outcome.payload,
+      outcome.status,
       outcome.reason,
       this.config.languageMessages.slice(0, 2).toLowerCase(),
     );

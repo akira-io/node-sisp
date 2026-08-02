@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
 import { CallbackRejectionReasons } from '../../src/domain/enums/callback-rejection-reason';
+import { TransactionStatus } from '../../src/domain/enums/transaction-status';
 import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
 import { extractForm } from '../helpers/auto-submit-form';
 
@@ -78,6 +79,23 @@ describe('stateful handleCallback', () => {
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener.mock.calls[0]?.[0].reason).toBeNull();
+
+    await sisp.destroy();
+  });
+
+  it('verifies but reports a failed status for an authentic decline', async () => {
+    const sisp = await statefulSisp();
+    const { merchantRef, merchantSession } = await submitPayment(sisp);
+
+    const payload = sisp.generateSandboxPayload(
+      { amount: 1500, merchantRef, merchantSession },
+      'failed',
+    );
+    const outcome = await sisp.handleCallback(payload);
+
+    expect(outcome.verified).toBe(true);
+    expect(outcome.reason).toBeNull();
+    expect(outcome.status).toBe(TransactionStatus.Failed);
 
     await sisp.destroy();
   });

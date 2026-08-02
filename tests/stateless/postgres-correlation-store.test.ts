@@ -1,5 +1,6 @@
 import knexFactory, { type Knex } from 'knex';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mapTransactionStatus } from '../../src/application/actions/map-transaction-status';
 import type { CallbackOutcome } from '../../src/core/contracts/callback-verifier';
 import type {
   CorrelationClaim,
@@ -130,10 +131,13 @@ describe.skipIf(connectionString === undefined)('PaymentCorrelationStore against
         return null;
       }
 
+      const messageType = row.processed_verified ? '8' : '6';
+
       return {
         verified: row.processed_verified,
+        status: mapTransactionStatus(messageType),
         reason: row.processed_reason,
-        payload: callbackPayloadFrom({ messageType: row.processed_verified ? '8' : '6' }),
+        payload: callbackPayloadFrom({ messageType }),
       };
     },
   );

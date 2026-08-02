@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CallbackRejectionReasons } from '../../src/domain/enums/callback-rejection-reason';
+import { TransactionStatus } from '../../src/domain/enums/transaction-status';
 import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
 import {
   readStatelessResult,
@@ -15,6 +16,7 @@ describe('stateless result url', () => {
   it('round-trips a verified result', () => {
     const data = statelessResultData(
       callbackPayloadFrom({ merchantRespMerchantRef: 'REF123', messageType: '8' }),
+      TransactionStatus.Completed,
       null,
       'pt',
     );
@@ -24,14 +26,34 @@ describe('stateless result url', () => {
     expect(readStatelessResult(signer, PATH, query)).toEqual({
       merchant_ref: 'REF123',
       verified: true,
+      status: TransactionStatus.Completed,
       reason: null,
       error: null,
     });
   });
 
+  it('round-trips a verified-but-declined result with its own status', () => {
+    const data = statelessResultData(
+      callbackPayloadFrom({ merchantRespMerchantRef: 'REF123', messageType: '6' }),
+      TransactionStatus.Failed,
+      null,
+      'pt',
+    );
+    const restored = readStatelessResult(
+      signer,
+      PATH,
+      queryOf(signStatelessResult(signer, PATH, data)),
+    );
+
+    expect(restored?.verified).toBe(true);
+    expect(restored?.reason).toBeNull();
+    expect(restored?.status).toBe(TransactionStatus.Failed);
+  });
+
   it('round-trips a rejected result with its structured error', () => {
     const data = statelessResultData(
       callbackPayloadFrom({ merchantRespMerchantRef: 'REF123', messageType: '6' }),
+      TransactionStatus.Failed,
       CallbackRejectionReasons.DetailsMismatch,
       'en',
     );
@@ -49,6 +71,7 @@ describe('stateless result url', () => {
   it('rejects a tampered query', () => {
     const data = statelessResultData(
       callbackPayloadFrom({ merchantRespMerchantRef: 'REF123', messageType: '8' }),
+      TransactionStatus.Completed,
       null,
       'pt',
     );
@@ -65,8 +88,20 @@ describe('stateless result url', () => {
     const signedPath = signer.sign(PATH, {
       ref: 'REF123',
       verified: '0',
+      status: TransactionStatus.Failed,
       messageType: '',
       reason: 'invented',
+    });
+
+    expect(readStatelessResult(signer, PATH, queryOf(signedPath))).toBeNull();
+  });
+
+  it('rejects a status outside the known union', () => {
+    const signedPath = signer.sign(PATH, {
+      ref: 'REF123',
+      verified: '1',
+      status: 'invented',
+      messageType: '',
     });
 
     expect(readStatelessResult(signer, PATH, queryOf(signedPath))).toBeNull();
@@ -76,7 +111,7 @@ describe('stateless result url', () => {
     const expiredAt = new Date(Date.now() - 60_000);
     const signedPath = signer.sign(
       PATH,
-      { ref: 'REF123', verified: '1', messageType: '' },
+      { ref: 'REF123', verified: '1', status: TransactionStatus.Completed, messageType: '' },
       expiredAt,
     );
 

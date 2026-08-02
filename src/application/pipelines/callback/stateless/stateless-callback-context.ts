@@ -2,6 +2,7 @@ import type { CallbackOutcome } from '../../../../core/contracts/callback-verifi
 import type { ExpectedPayment } from '../../../../core/contracts/payment-correlation-store';
 import type { CallbackRejectionReason } from '../../../../domain/enums/callback-rejection-reason';
 import type { CallbackPayload } from '../../../../domain/value-objects/callback-payload';
+import { mapTransactionStatus } from '../../../actions/map-transaction-status';
 
 export class StatelessCallbackContext {
   reason: CallbackRejectionReason | null = null;
@@ -21,6 +22,11 @@ export class StatelessCallbackContext {
   }
 
   toOutcome(): CallbackOutcome {
-    return { verified: !this.failed(), reason: this.reason, payload: this.payload };
+    return {
+      verified: !this.failed(),
+      status: mapTransactionStatus(this.payload.messageType),
+      reason: this.reason,
+      payload: this.payload,
+    };
   }
 }

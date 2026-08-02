@@ -16,6 +16,7 @@ export class StatelessCallbackVerifier implements CallbackVerifier<CallbackOutco
 
     this.events.emit(outcome.verified ? 'callback:verified' : 'callback:rejected', {
       payload: outcome.payload,
+      status: outcome.status,
       reason: outcome.reason,
     });
 

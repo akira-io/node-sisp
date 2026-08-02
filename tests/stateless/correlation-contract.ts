@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { CallbackOutcome } from '../../src/core/contracts/callback-verifier';
 import type { PaymentCorrelationStore } from '../../src/core/contracts/payment-correlation-store';
 import { CallbackRejectionReasons } from '../../src/domain/enums/callback-rejection-reason';
+import { TransactionStatus } from '../../src/domain/enums/transaction-status';
 import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
 import type { PaymentRequest } from '../../src/domain/value-objects/payment-request';
 
@@ -92,6 +93,7 @@ export function runCorrelationStoreContract<TStore extends PaymentCorrelationSto
 
       await store.markProcessed('REF123', 'S20260730120000', {
         verified: true,
+        status: TransactionStatus.Completed,
         reason: null,
         payload: callbackPayloadFrom({ messageType: '8' }),
       });
@@ -103,6 +105,7 @@ export function runCorrelationStoreContract<TStore extends PaymentCorrelationSto
 
       await store.markProcessed('REF123', 'S20260730120000', {
         verified: false,
+        status: TransactionStatus.Failed,
         reason: CallbackRejectionReasons.DetailsMismatch,
         payload: callbackPayloadFrom({ messageType: '6' }),
       });
@@ -117,6 +120,7 @@ export function runCorrelationStoreContract<TStore extends PaymentCorrelationSto
       await expect(
         store.markProcessed('GHOST', 'S9', {
           verified: true,
+          status: TransactionStatus.Completed,
           reason: null,
           payload: callbackPayloadFrom({ messageType: '8' }),
         }),

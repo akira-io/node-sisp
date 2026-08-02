@@ -1,3 +1,4 @@
+import { mapTransactionStatus } from '../../application/actions/map-transaction-status';
 import type {
   CallbackVerifier,
   StoredCallbackOutcome,
@@ -19,6 +20,7 @@ export class StatefulCallbackVerifier implements CallbackVerifier<StoredCallback
     const reason = isCallbackRejectionReason(context.failureReason) ? context.failureReason : null;
     const outcome: StoredCallbackOutcome = {
       verified: !context.failed(),
+      status: mapTransactionStatus(payload.messageType),
       reason,
       payload,
       transaction: context.requireTransaction(),
@@ -27,6 +29,7 @@ export class StatefulCallbackVerifier implements CallbackVerifier<StoredCallback
 
     this.events.emit(outcome.verified ? 'callback:verified' : 'callback:rejected', {
       payload: outcome.payload,
+      status: outcome.status,
       reason: outcome.reason,
     });
 

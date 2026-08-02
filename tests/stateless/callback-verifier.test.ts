@@ -6,6 +6,7 @@ import { StatelessCallbackPipeline } from '../../src/application/pipelines/callb
 import { StatelessCallbackVerifier } from '../../src/application/verifiers/stateless-callback-verifier';
 import { StaticCredentialsResolver } from '../../src/core/contracts/credentials-resolver';
 import { CallbackRejectionReasons } from '../../src/domain/enums/callback-rejection-reason';
+import { TransactionStatus } from '../../src/domain/enums/transaction-status';
 import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
 import { sispCredentials } from '../../src/domain/value-objects/sisp-credentials';
 import { generateCallbackFingerprint } from '../../src/infrastructure/fingerprints/callback-fingerprint';
@@ -27,12 +28,13 @@ function verifier(events: SispEventEmitter): StatelessCallbackVerifier {
   );
 }
 
-function signedPayload() {
+function signedPayload(overrides: Record<string, unknown> = {}) {
   const post = {
     merchantRespMerchantRef: 'REF123',
     merchantRespMerchantSession: 'S1',
     merchantRespPurchaseAmount: 1500,
     messageType: '8',
+    ...overrides,
   };
   const fingerprint = generateCallbackFingerprint(
     computeToken(POS_AUT_CODE),
@@ -54,8 +56,17 @@ describe('StatelessCallbackVerifier', () => {
     const payload = signedPayload();
     const outcome = await verifier(events).verify(payload);
 
-    expect(outcome).toEqual({ verified: true, reason: null, payload });
-    expect(verified).toHaveBeenCalledWith({ payload, reason: null });
+    expect(outcome).toEqual({
+      verified: true,
+      status: TransactionStatus.Completed,
+      reason: null,
+      payload,
+    });
+    expect(verified).toHaveBeenCalledWith({
+      payload,
+      status: TransactionStatus.Completed,
+      reason: null,
+    });
     expect(rejected).not.toHaveBeenCalled();
   });
 
@@ -72,7 +83,25 @@ describe('StatelessCallbackVerifier', () => {
     expect(outcome.reason).toBe(CallbackRejectionReasons.InvalidFingerprint);
     expect(rejected).toHaveBeenCalledWith({
       payload,
+      status: TransactionStatus.Failed,
       reason: CallbackRejectionReasons.InvalidFingerprint,
     });
+  });
+
+  it('reports a failed status for an authentic decline instead of reading as a success', async () => {
+    const events = new SispEventEmitter();
+    const verified = vi.fn();
+
+    events.on('callback:verified', verified);
+
+    const payload = signedPayload({ messageType: '6' });
+    const outcome = await verifier(events).verify(payload);
+
+    expect(outcome.verified).toBe(true);
+    expect(outcome.reason).toBeNull();
+    expect(outcome.status).toBe(TransactionStatus.Failed);
+    expect(verified).toHaveBeenCalledWith(
+      expect.objectContaining({ status: TransactionStatus.Failed }),
+    );
   });
 });

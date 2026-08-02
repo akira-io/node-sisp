@@ -13,6 +13,7 @@ import type {
   TransactionRepository,
 } from '../../core/contracts/storage';
 import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
+import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { TransactionNotFoundError } from '../../domain/errors/exceptions';
 import { callbackPayloadFrom } from '../../domain/value-objects/callback-payload';
 import type { UrlSigner } from '../../support/signed-url';
@@ -66,6 +67,7 @@ export class CallbackHandlers {
 
     events.emit('callback:rejected', {
       payload: callbackPayloadFrom({ ...request.query, ...request.body }),
+      status: TransactionStatus.Cancelled,
       reason: CallbackRejectionReasons.UserCancelled,
     });
 

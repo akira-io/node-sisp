@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { type CallbackEvent, type PaymentEvent, SispEventEmitter } from '../src/application/events';
 import { CallbackRejectionReasons } from '../src/domain/enums/callback-rejection-reason';
+import { TransactionStatus } from '../src/domain/enums/transaction-status';
 import { callbackPayloadFrom } from '../src/domain/value-objects/callback-payload';
 import type { TransactionRecord } from '../src/infrastructure/storage/knex/records';
 
@@ -78,6 +79,7 @@ describe('SispEventEmitter', () => {
 describe('callback events', () => {
   const callbackEvent: CallbackEvent = {
     payload: callbackPayloadFrom({ messageType: '8' }),
+    status: TransactionStatus.Completed,
     reason: null,
   };
 
@@ -96,6 +98,7 @@ describe('callback events', () => {
     const listener = vi.fn();
     const rejected: CallbackEvent = {
       payload: callbackPayloadFrom({ messageType: '6' }),
+      status: TransactionStatus.Failed,
       reason: CallbackRejectionReasons.InvalidFingerprint,
     };
 

@@ -41,6 +41,38 @@ const sisp = createStatelessSisp({
 app.use('/sisp', statelessSispRoutes(sisp));
 ```
 
+## `verified` is authenticity, not a payment verdict
+
+`verified` means the callback's fingerprint checked out and, with a `correlation` store configured, its amount/currency/transaction code matched the original request. It says nothing about whether the gateway approved or declined the payment. A correctly signed decline is still `verified: true`, because nothing about a decline breaks the fingerprint or the amount match:
+
+```
+{ merchant_ref: 'R123', verified: true, status: 'failed', reason: null, error: { code: '6', ... } }
+```
+
+Check `status` for the gateway's verdict instead:
+
+```ts
+const outcome = await sisp.handleCallback(payload);
+
+if (outcome.verified && outcome.status === TransactionStatus.Completed) {
+  fulfilOrder(outcome.payload.merchantRef);
+}
+```
+
+The same applies to the `callback:verified` event: it fires on every authentic, matching callback, declines included. Do not fulfil an order from the event name alone; read `event.status`:
+
+```ts
+import { TransactionStatus } from '@akira-io/sisp';
+
+sisp.on('callback:verified', (event) => {
+  if (event.status === TransactionStatus.Completed) {
+    fulfilOrder(event.payload.merchantRef);
+  }
+});
+```
+
+`GET /callback`, the signed stateless result, and `StatelessPaymentResponseData` all carry the same `status` field, derived from `mapTransactionStatus`. This applies equally to stateful `Sisp`: `outcome.transaction.status` already exposed the gateway verdict there, and `outcome.status` now mirrors it on the return value of `handleCallback` and on the `callback:*` events too, so the same check works unchanged after [growing into stateful](#growing-into-stateful).
+
 ## The correlation port
 
 ```ts
@@ -242,7 +274,7 @@ Refund, retry, cancel, transactions and transaction-status routes do not exist i
 
 The adapter names: `statelessSispRoutes` (Express), `statelessSispFastifyPlugin` (Fastify), `StatelessSispModule` / `StatelessSispController` / `STATELESS_SISP` (Nest), mirroring the stateful `sispRoutes`, `sispFastifyPlugin`, and `SispModule`.
 
-`UserCancelled` is read from the request body or query before any fingerprint check, in both stateless and stateful mode. A client controlling its own callback submission can therefore mark its own transaction cancelled and skip verification entirely. In stateful mode the blast radius is limited: the cancel handler looks the transaction up by `merchantRef` and `merchantSession` before acting. The stateless `callback:rejected` event carries no such guarantee: `rejectCancelled` does no store lookup at all, and `merchantRef` in the event payload is whatever the caller submitted, unauthenticated. A consumer that cancels an order purely because it received this event is acting on caller-supplied input, not a verified fact. Guessing another customer's `merchantRef`/`merchantSession` pair is not practically feasible either way: `generateMerchantSession` produces `'S'` followed by the base36 millisecond timestamp and roughly five characters drawn from `crypto.randomInt` over a 36-symbol alphabet, but that is a property of the generator, not of the stateless cancel path, which does not check the pair against anything.
+`UserCancelled` is read from the request body or query before any fingerprint check, in both stateless and stateful mode. A client controlling its own callback submission can therefore mark its own transaction cancelled and skip verification entirely. Neither mode gives the `callback:rejected` event a verified `merchantRef`: in stateful mode, `CallbackHandlers.handleUserCancelled` runs the transaction lookup and cancellation inside `runQuietly`, discarding the result whether it found a matching transaction or not, then emits `callback:rejected` unconditionally with the caller-supplied `merchantRef`. The stateless `rejectCancelled` does no store lookup at all and emits the same way. A consumer that cancels an order, revokes access, or otherwise acts purely because it received this event is acting on caller-supplied input in both modes, not a verified fact. Guessing another customer's `merchantRef`/`merchantSession` pair is not practically feasible either way: `generateMerchantSession` produces `'S'` followed by the base36 millisecond timestamp and roughly five characters drawn from `crypto.randomInt` over a 36-symbol alphabet, but that is a property of the generator, not of either cancel path, neither of which checks the pair against anything before emitting.
 
 ## Security posture
 
@@ -259,7 +291,7 @@ The adapter names: `statelessSispRoutes` (Express), `statelessSispFastifyPlugin`
 
 Rate limiting, blacklisting, and submission idempotency are absent from stateless mode on purpose: they are perimeter concerns that your framework's own middleware already solves (`express-rate-limit`, Fastify hooks, Nest guards), none of which need the package's tables. Submission idempotency specifically cannot work here even if the package tried: it needs the idempotency key from your request body, and `record()` writes a row keyed by a freshly generated `merchantRef`/`merchantSession` that is new on every submission, so there is nothing to deduplicate against.
 
-The signed `GET /callback` result URL expires 5 minutes after it is issued. Every field in it is already inside the signature, so an expired URL is not a forgery risk, but without an expiry it would be a standing bearer assertion: once it sits in a customer's browser history or a `Referer` header, it would keep returning `{ verified: true }` indefinitely. A short TTL bounds that window to the immediate redirect the URL is built for.
+The signed `GET /callback` result URL expires 5 minutes after it is issued. Every field in it is already inside the signature, so an expired URL is not a forgery risk, but without an expiry it would be a standing bearer assertion: once it sits in a customer's browser history or a `Referer` header, replaying it would keep confirming the callback's authenticity indefinitely, regardless of what the transaction's status was by the time someone replayed it. A short TTL bounds that window to the immediate redirect the URL is built for.
 
 `ScopedSisp` (multi-merchant, stateful-only) now emits `callback:*` through the shared verifier as well; previously it emitted no callback events at all.
 

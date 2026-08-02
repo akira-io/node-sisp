@@ -1,9 +1,11 @@
 import type { CallbackRejectionReason } from '../../domain/enums/callback-rejection-reason';
+import type { TransactionStatus } from '../../domain/enums/transaction-status';
 import type { TransactionRecord } from '../../domain/records';
 import type { CallbackPayload } from '../../domain/value-objects/callback-payload';
 
 export interface CallbackOutcome {
   verified: boolean;
+  status: TransactionStatus;
   reason: CallbackRejectionReason | null;
   payload: CallbackPayload;
 }
