@@ -32,6 +32,7 @@
 | `cancel(transaction, reason?)` | Cancels and emits `transaction:cancelled` |
 | `manager` | `SispManager` with `extend(name, factory)` |
 | `models` | `transactions`, `transactionItems`, `transactionAttempts`, `paymentIntents`, `invoices`, `transactionLogs`, `blacklist` |
+| `db` | Typed `unknown` on this entry. Pass `sisp` to `knexOf(sisp)` from `@akira-io/sisp/knex` to get the typed knex instance |
 | `handlers` | `SispHttpHandlers` - framework-agnostic HTTP handlers used by the adapters. Key methods: `handlePayment`, `handlePaymentIntent`, `handleCallback`, `handleRetryPayment`, `handleCancel`, `handleRefund`, `handleSandbox` |
 | `handleCallback(payload)` | Runs the callback pipeline, returns `{ verified, reason, payload, transaction }` |
 | `queryTransactionStatus(transactionOrRef)` | POS transaction-status API call |
@@ -52,7 +53,9 @@
 
 ### Utilities
 
-`fromCents`, `toCents`, `toThousandths`, `computeToken`, `generatePaymentFingerprint`, `generateCallbackFingerprint`, `generateRefundFingerprint`, `validateCallbackFingerprint`, `callbackPayloadFrom`, `callbackPayloadToFormFields`, `paymentRequestToFormFields`, `paymentRequestDataFrom`, `validatePaymentInput`, `allCountries`, `findCountryByNumeric`, `getCountryName`, `getCountryFlag`, `getCountryNumericCode`, `mapTransactionStatus`, `errorMessageTypeFromValue` and label helpers, `runMigrations`, `createKnexInstance`, `PayloadCipher`, `runWithLogSource`, `booleanSetting`, `structuredErrorFrom`, `resolveStatelessConfig`, `readStatelessResult`, `signStatelessResult`, `statelessResultData`, `isCallbackRejectionReason`.
+`fromCents`, `toCents`, `toThousandths`, `computeToken`, `generatePaymentFingerprint`, `generateCallbackFingerprint`, `generateRefundFingerprint`, `validateCallbackFingerprint`, `callbackPayloadFrom`, `callbackPayloadToFormFields`, `paymentRequestToFormFields`, `paymentRequestDataFrom`, `validatePaymentInput`, `allCountries`, `findCountryByNumeric`, `getCountryName`, `getCountryFlag`, `getCountryNumericCode`, `mapTransactionStatus`, `errorMessageTypeFromValue` and label helpers, `booleanSetting`, `structuredErrorFrom`, `resolveStatelessConfig`, `readStatelessResult`, `signStatelessResult`, `statelessResultData`, `isCallbackRejectionReason`.
+
+`runMigrations`, `createKnexInstance`, `PayloadCipher`, and `runWithLogSource` moved to `@akira-io/sisp/knex` (see below) so the main entry stays knex-free at the type level.
 
 ### Errors
 
@@ -76,6 +79,13 @@
 
 - `SispModule.forRoot({ sisp, authorizeRefund? })` dynamic module, `SispController`, and the `SISP` injection token.
 - `StatelessSispModule.forRoot({ sisp: statelessSisp })` dynamic module, `StatelessSispController`, and the `STATELESS_SISP` injection token.
+
+## `@akira-io/sisp/knex`
+
+Knex-typed surfaces kept off the main entry so a stateless consumer never needs `knex` installed to typecheck. See [Storage Adapters](12-storage-adapters.md).
+
+- `knexOf(sisp)` returns the typed `Knex` instance backing a `Sisp` (`undefined` at runtime when a non-knex storage is injected).
+- `createKnexInstance(config)`, `runMigrations(db, tables)`, `MIGRATIONS_TABLE`, `PayloadCipher`, `runWithLogSource(source, callback)`.
 
 ## CLI
 

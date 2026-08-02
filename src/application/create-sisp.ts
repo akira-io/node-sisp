@@ -102,7 +102,6 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
 
   const handlers = new SispHttpHandlers({
     config: resolved,
-    db,
     manager: services.manager,
     paymentPipeline,
     callbackVerifier: statefulVerifier,

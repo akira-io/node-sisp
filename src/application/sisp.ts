@@ -1,4 +1,3 @@
-import type { Knex } from 'knex';
 import type { CallbackVerifier, StoredCallbackOutcome } from '../core/contracts/callback-verifier';
 import type { CredentialsResolver } from '../core/contracts/credentials-resolver';
 import type {
@@ -62,7 +61,7 @@ export class Sisp extends StatelessSisp {
 
   constructor(
     config: ResolvedSispConfig,
-    readonly db: Knex,
+    readonly db: unknown,
     private readonly _storage: SispStorage,
     events: SispEventEmitter,
     manager: SispManager,

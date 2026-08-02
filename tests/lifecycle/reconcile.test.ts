@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
 import { SispError } from '../../src/domain/errors/exceptions';
+import { knexOf } from '../../src/infrastructure/storage/knex';
 
 const fetchMock = vi.fn();
 
@@ -48,8 +49,9 @@ async function createPendingTransaction(merchantRef = 'R20260612100000', ageMinu
     amount: 1500,
   });
 
-  await sisp
-    .db(sisp.config.tables.transactions)
+  const db = knexOf(sisp);
+
+  await db(sisp.config.tables.transactions)
     .where('id', transaction.id)
     .update({ created_at: new Date(Date.now() - ageMinutes * 60_000).toISOString() });
 

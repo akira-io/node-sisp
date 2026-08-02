@@ -58,7 +58,7 @@ The payment form, the auto-submitting gateway hop, the callback flow, and the li
 ## Notes
 
 - The package does not run Prisma migrations; you own the schema via `prisma migrate`.
-- `sisp.db` (the raw knex instance) is unavailable when a non-knex storage is injected; use `sisp.models` / `sisp.storage` instead.
+- `knexOf(sisp)` (from `@akira-io/sisp/knex`) returns `undefined` when a non-knex storage is injected; use `sisp.models` / `sisp.storage` instead.
 - Other ORMs (Drizzle, Sequelize, TypeORM) can implement the same `SispStorage` port. See [Storage adapters](../../12-storage-adapters.md).
 
 **Next:** [Server-side rendering](03-ssr.md)

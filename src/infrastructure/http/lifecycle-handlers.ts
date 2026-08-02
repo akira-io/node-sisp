@@ -1,4 +1,3 @@
-import type { Knex } from 'knex';
 import type { CanRetryPaymentAction } from '../../application/actions/can-retry-payment';
 import type { CancelTransactionAction } from '../../application/actions/cancel-transaction';
 import type { CreateRetryPaymentAttemptAction } from '../../application/actions/create-retry-payment-attempt';
@@ -32,7 +31,6 @@ import { type HttpResult, html, json, redirect } from './results';
 
 export interface LifecycleHandlersDeps {
   config: ResolvedSispConfig;
-  db: Knex;
   manager: SispManager;
   transactions: TransactionRepository;
   attempts: TransactionAttemptRepository;

@@ -43,6 +43,11 @@
       "types": "./dist/prisma/index.d.ts",
       "import": "./dist/prisma/index.js",
       "require": "./dist/prisma/index.cjs"
+    },
+    "./knex": {
+      "types": "./dist/knex/index.d.ts",
+      "import": "./dist/knex/index.js",
+      "require": "./dist/knex/index.cjs"
     }
   },
   "files": [

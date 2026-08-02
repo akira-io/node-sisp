@@ -9,6 +9,7 @@ export type {
   SecuritySettings,
   SispConfig,
   SispDatabaseConfig,
+  SispDatabaseConnection,
   SispGenerators,
   SispPipelineCustomizers,
   SispTables,
@@ -147,10 +148,6 @@ export {
   statelessResultData,
 } from './infrastructure/http/stateless-result-url';
 export { validatePaymentInput } from './infrastructure/http/validate-payment-input';
-export { MIGRATIONS_TABLE, runMigrations } from './infrastructure/storage/knex/auto-migrate';
-export { createKnexInstance } from './infrastructure/storage/knex/create-knex';
-export { PayloadCipher } from './infrastructure/storage/knex/encryption';
-export { runWithLogSource } from './infrastructure/storage/knex/log-context';
 export {
   allCountries,
   type Country,

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
 import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
+import { knexOf } from '../../src/infrastructure/storage/knex';
 
 let sisp: Sisp | null = null;
 
@@ -61,15 +62,14 @@ describe('payment intents', () => {
 
     expect(first.type).toBe('html');
 
-    const [transaction] = await sisp.db(sisp.config.tables.transactions);
-
+    const [transaction] = await knexOf(sisp)(sisp.config.tables.transactions);
     const second = await sisp.handlers.handlePayment(
       paymentRequest({ checkout_intent_id: 'checkout-intent-duplicate' }),
     );
 
-    const transactions = await sisp.db(sisp.config.tables.transactions);
-    const attempts = await sisp.db(sisp.config.tables.transactionAttempts);
-    const intents = await sisp.db(sisp.config.tables.paymentIntents);
+    const transactions = await knexOf(sisp)(sisp.config.tables.transactions);
+    const attempts = await knexOf(sisp)(sisp.config.tables.transactionAttempts);
+    const intents = await knexOf(sisp)(sisp.config.tables.paymentIntents);
 
     expect(second.type).toBe('html');
     expect(second.type === 'html' ? second.html : '').toContain(transaction.merchant_ref);
@@ -86,9 +86,9 @@ describe('payment intents', () => {
       sisp.handlers.handlePayment(paymentRequest({ checkout_intent_id: 'checkout-intent-race' })),
       sisp.handlers.handlePayment(paymentRequest({ checkout_intent_id: 'checkout-intent-race' })),
     ]);
-    const transactions = await sisp.db(sisp.config.tables.transactions);
-    const attempts = await sisp.db(sisp.config.tables.transactionAttempts);
-    const intents = await sisp.db(sisp.config.tables.paymentIntents);
+    const transactions = await knexOf(sisp)(sisp.config.tables.transactions);
+    const attempts = await knexOf(sisp)(sisp.config.tables.transactionAttempts);
+    const intents = await knexOf(sisp)(sisp.config.tables.paymentIntents);
 
     expect(responses.some((response) => response.type === 'html')).toBe(true);
     expect(transactions).toHaveLength(1);
@@ -113,14 +113,14 @@ describe('payment intents', () => {
 
     expect(first.type).toBe('html');
 
-    const [created] = await sisp.db(sisp.config.tables.transactions);
+    const [created] = await knexOf(sisp)(sisp.config.tables.transactions);
     const oldSession = String(created.merchant_session);
 
     await markTransactionFailed(Number(created.id));
     const second = await sisp.handlers.handlePayment(paymentRequest(checkoutIntent));
     const transaction = await sisp.models.transactions.findById(Number(created.id));
     const attempts = await sisp.models.transactionAttempts.listByTransaction(Number(created.id));
-    const intents = await sisp.db(sisp.config.tables.paymentIntents);
+    const intents = await knexOf(sisp)(sisp.config.tables.paymentIntents);
 
     expect(second.type).toBe('html');
     expect(transaction?.status).toBe('pending');
@@ -154,8 +154,8 @@ describe('payment intents', () => {
       status: 403,
       data: { message: 'Payment request blocked.' },
     });
-    expect(await sisp.db(sisp.config.tables.transactions)).toHaveLength(1);
-    expect(await sisp.db(sisp.config.tables.transactionAttempts)).toHaveLength(1);
+    expect(await knexOf(sisp)(sisp.config.tables.transactions)).toHaveLength(1);
+    expect(await knexOf(sisp)(sisp.config.tables.transactionAttempts)).toHaveLength(1);
   });
 
   it('runs rate-limit checks before reusing an existing checkout intent', async () => {
@@ -178,8 +178,8 @@ describe('payment intents', () => {
     }
 
     expect(second.status).toBe(429);
-    expect(await sisp.db(sisp.config.tables.transactions)).toHaveLength(1);
-    expect(await sisp.db(sisp.config.tables.transactionAttempts)).toHaveLength(1);
+    expect(await knexOf(sisp)(sisp.config.tables.transactions)).toHaveLength(1);
+    expect(await knexOf(sisp)(sisp.config.tables.transactionAttempts)).toHaveLength(1);
   });
 
   it('rejects checkout-intent retry replays after the retry cap is reached', async () => {
@@ -198,7 +198,7 @@ describe('payment intents', () => {
 
     expect(first.type).toBe('html');
 
-    const [created] = await sisp.db(sisp.config.tables.transactions);
+    const [created] = await knexOf(sisp)(sisp.config.tables.transactions);
 
     await markTransactionFailed(Number(created.id));
     const second = await sisp.handlers.handlePayment(paymentRequest(checkoutIntent));
@@ -220,7 +220,7 @@ describe('payment intents', () => {
   it('rejects a duplicate checkout intent while the first request is still being reserved', async () => {
     sisp = await createSisp(baseConfig());
 
-    await sisp.db(sisp.config.tables.paymentIntents).insert({
+    await knexOf(sisp)(sisp.config.tables.paymentIntents).insert({
       idempotency_key: 'checkout-intent-processing',
       status: 'processing',
       created_at: new Date().toISOString(),
@@ -236,14 +236,14 @@ describe('payment intents', () => {
       status: 409,
       data: { message: 'Payment is already being processed.' },
     });
-    expect(await sisp.db(sisp.config.tables.transactions)).toHaveLength(0);
-    expect(await sisp.db(sisp.config.tables.transactionAttempts)).toHaveLength(0);
+    expect(await knexOf(sisp)(sisp.config.tables.transactions)).toHaveLength(0);
+    expect(await knexOf(sisp)(sisp.config.tables.transactionAttempts)).toHaveLength(0);
   });
 
   it('reclaims a failed checkout intent that never reached a transaction', async () => {
     sisp = await createSisp(baseConfig());
 
-    await sisp.db(sisp.config.tables.paymentIntents).insert({
+    await knexOf(sisp)(sisp.config.tables.paymentIntents).insert({
       idempotency_key: 'checkout-intent-failed',
       status: 'failed',
       failure_reason: 'temporary database timeout',
@@ -255,8 +255,8 @@ describe('payment intents', () => {
       paymentRequest({ checkout_intent_id: 'checkout-intent-failed' }),
     );
 
-    const transactions = await sisp.db(sisp.config.tables.transactions);
-    const intents = await sisp.db(sisp.config.tables.paymentIntents);
+    const transactions = await knexOf(sisp)(sisp.config.tables.transactions);
+    const intents = await knexOf(sisp)(sisp.config.tables.paymentIntents);
 
     expect(response.type).toBe('html');
     expect(transactions).toHaveLength(1);
@@ -287,9 +287,9 @@ describe('payment intents', () => {
     const retry = await sisp.handlers.handlePayment(
       paymentRequest({ checkout_intent_id: 'checkout-intent-saved' }),
     );
-    const transactions = await sisp.db(sisp.config.tables.transactions);
-    const attempts = await sisp.db(sisp.config.tables.transactionAttempts);
-    const intents = await sisp.db(sisp.config.tables.paymentIntents);
+    const transactions = await knexOf(sisp)(sisp.config.tables.transactions);
+    const attempts = await knexOf(sisp)(sisp.config.tables.transactionAttempts);
+    const intents = await knexOf(sisp)(sisp.config.tables.paymentIntents);
 
     expect(retry.type).toBe('html');
     expect(transactions).toHaveLength(1);

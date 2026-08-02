@@ -1,4 +1,3 @@
-import type { Knex } from 'knex';
 import type { CanRetryPaymentAction } from '../../application/actions/can-retry-payment';
 import type { CancelTransactionAction } from '../../application/actions/cancel-transaction';
 import type { CreateRetryPaymentAttemptAction } from '../../application/actions/create-retry-payment-attempt';
@@ -49,7 +48,6 @@ import { validatePaymentInput } from './validate-payment-input';
 
 export interface SispHandlersDeps {
   config: ResolvedSispConfig;
-  db: Knex;
   manager: SispManager;
   paymentPipeline: ProcessPaymentPipeline;
   callbackVerifier: CallbackVerifier<StoredCallbackOutcome>;
@@ -95,7 +93,6 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
     });
     this.lifecycle = new LifecycleHandlers({
       config: deps.config,
-      db: deps.db,
       manager: deps.manager,
       transactions: deps.transactions,
       attempts: deps.attempts,

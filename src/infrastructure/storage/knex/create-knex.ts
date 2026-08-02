@@ -7,7 +7,7 @@ export async function createKnexInstance(config: SispDatabaseConfig): Promise<Kn
 
   return knexFactory({
     client: config.client,
-    connection: config.connection,
+    connection: config.connection as Knex.Config['connection'],
     useNullAsDefault: sqlite,
     pool: sqlite ? { min: 1, max: 1 } : undefined,
   });

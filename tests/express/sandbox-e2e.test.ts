@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
+import { knexOf } from '../../src/infrastructure/storage/knex';
 import { sispRoutes } from '../../src/presentation/express';
 import { extractForm } from '../helpers/auto-submit-form';
 
@@ -170,8 +171,8 @@ describe('sandbox end-to-end payment flow', () => {
       request(app).post('/sisp/callback').type('form').send(callbackForm.fields).expect(302),
     ]);
     const locations = responses.map((response) => response.headers.location as string);
-    const transactions = await sisp.db(sisp.config.tables.transactions);
-    const attempts = await sisp.db(sisp.config.tables.transactionAttempts);
+    const transactions = await knexOf(sisp)(sisp.config.tables.transactions);
+    const attempts = await knexOf(sisp)(sisp.config.tables.transactionAttempts);
 
     expect(
       locations.some(
