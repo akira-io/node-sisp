@@ -42,12 +42,12 @@ export class KnexStorage implements SispStorage {
     this.requestMetadata = new RequestMetadata(db, tables);
   }
 
-  static create(
+  static async create(
     database: Required<SispDatabaseConfig>,
     tables: SispTables,
     appKey: string | null,
-  ): KnexStorage {
-    const db = createKnexInstance(database);
+  ): Promise<KnexStorage> {
+    const db = await createKnexInstance(database);
     const cipher = new PayloadCipher(appKey);
 
     return new KnexStorage(db, database, tables, cipher);

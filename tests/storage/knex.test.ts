@@ -5,7 +5,7 @@ import { runStorageContract } from './contract';
 
 describe('KnexStorage', () => {
   runStorageContract(async () => {
-    const storage = KnexStorage.create(
+    const storage = await KnexStorage.create(
       {
         client: 'better-sqlite3',
         connection: { filename: ':memory:' },

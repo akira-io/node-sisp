@@ -59,7 +59,6 @@
     "test:types": "vitest run --typecheck"
   },
   "dependencies": {
-    "knex": "^3.1.0",
     "qs": "^6.15.2"
   },
   "peerDependencies": {
@@ -69,6 +68,7 @@
     "better-sqlite3": ">=11",
     "express": ">=4.18",
     "fastify": ">=4.27",
+    "knex": "^3.1.0",
     "mysql2": ">=3",
     "pg": ">=8"
   },
@@ -89,6 +89,9 @@
       "optional": true
     },
     "express": {
+      "optional": true
+    },
+    "knex": {
       "optional": true
     },
     "mysql2": {
@@ -115,6 +118,7 @@
     "better-sqlite3": "^12.4.0",
     "express": "^5.1.0",
     "fastify": "^5.8.5",
+    "knex": "^3.1.0",
     "pg": "^8.16.3",
     "prisma": "^6.19.3",
     "reflect-metadata": "^0.2.2",

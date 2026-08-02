@@ -34,11 +34,11 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   const resolved = resolveConfig(config);
   const storage =
     config.storage ??
-    KnexStorage.create(
+    (await KnexStorage.create(
       resolved.database as Required<SispDatabaseConfig>,
       resolved.tables,
       resolved.appKey,
-    );
+    ));
 
   if (!config.storage && resolved.database?.autoMigrate) {
     await storage.migrate?.();

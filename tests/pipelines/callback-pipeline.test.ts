@@ -47,7 +47,7 @@ beforeEach(async () => {
 
   if (!database) throw new Error('database config missing');
 
-  storage = KnexStorage.create(database, config.tables, config.appKey);
+  storage = await KnexStorage.create(database, config.tables, config.appKey);
   db = storage.raw;
   await runMigrations(db, config.tables);
 

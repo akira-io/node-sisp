@@ -9,8 +9,8 @@ import { createKnexInstance } from '../../src/infrastructure/storage/knex/create
 
 let db: Knex;
 
-beforeEach(() => {
-  db = createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
+beforeEach(async () => {
+  db = await createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
 });
 
 afterEach(async () => {

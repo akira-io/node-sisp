@@ -13,7 +13,7 @@ let transactions: Transaction;
 let logs: TransactionLog;
 
 beforeEach(async () => {
-  db = createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
+  db = await createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
   await runMigrations(db, DEFAULT_TABLES);
   transactions = new Transaction(db, DEFAULT_TABLES, new PayloadCipher('app-key'));
   logs = new TransactionLog(db, DEFAULT_TABLES);
