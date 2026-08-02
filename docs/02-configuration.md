@@ -16,6 +16,16 @@
 | `is3DSec` | `'0'` | Set `'1'` to require 3D Secure customer data |
 | `transactionCode` | `'1'` | Default transaction type (purchase) |
 
+`posId` and `merchantId` are two different numbers, both issued by SISP, and mixing them up is the
+easiest mistake to make here. `posId` is hashed into every payment request fingerprint, so passing the
+merchant id in its place makes the gateway reject each attempt before it reaches the card form,
+answering with `messageType 6` and `Fingerprint Invalid`. The error names the fingerprint, not the
+field, so it reads like a broken signature rather than a swapped value.
+
+`merchantId` is currently accepted and stored on the resolved credentials, but nothing reads it: it is
+not sent to the gateway and not part of any fingerprint. The Laravel package behaves the same way.
+Set it if you like, but it changes nothing today.
+
 ## Application wiring
 
 | Key | Default | Description |
