@@ -47,7 +47,7 @@
 | Event | Payload |
 |-------|---------|
 | `payment:completed` / `payment:failed` / `payment:pending` | `{ transaction, payload }` |
-| `callback:verified` / `callback:rejected` | `{ payload, status, reason }`, emitted in both stateless and stateful mode. `callback:verified` fires for every authentic, matching callback, including declines - check `status`, not the event name, before fulfilling anything |
+| `callback:verified` / `callback:rejected` | `{ payload, status, reason }`, emitted in both stateless and stateful mode. `callback:verified` fires for every authentic, matching callback, including declines - check `status`, not the event name, before fulfilling anything. For a `UserCancelled` request, `callback:rejected` fires only when the reference matches a payment the consumer recorded (see [Stateless mode](13-stateless-mode.md) for exact conditions in each mode) |
 | `transaction:cancelled` | `{ transaction, reason }` |
 | `transaction:refunded` | `{ transaction, amount, reason }` |
 

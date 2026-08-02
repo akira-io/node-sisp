@@ -159,22 +159,30 @@ describe('callback event parity across modes', () => {
     }
   });
 
-  it('fires callback:rejected with user_cancelled in both modes', async () => {
+  it('fires callback:rejected with user_cancelled in both modes for a payment the consumer created', async () => {
     const statelessListener = vi.fn();
     const statefulListener = vi.fn();
-    const cancelBody = {
+
+    const correlation = new InMemoryPaymentCorrelationStore();
+    const stateless = createStatelessSisp({ ...CONFIG, correlation });
+
+    stateless.on('callback:rejected', statelessListener);
+
+    const statelessRequest = stateless.payment().amount(1500).build();
+
+    await correlation.record(statelessRequest);
+    await stateless.handlers.handleCallback({
       ip: '127.0.0.1',
       method: 'POST',
       path: '/sisp/callback',
       headers: {},
       query: {},
-      body: { UserCancelled: 'true' },
-    };
-
-    const stateless = createStatelessSisp(CONFIG);
-
-    stateless.on('callback:rejected', statelessListener);
-    await stateless.handlers.handleCallback(cancelBody);
+      body: {
+        UserCancelled: 'true',
+        merchantRespMerchantRef: statelessRequest.merchantRef,
+        merchantRespMerchantSession: statelessRequest.merchantSession,
+      },
+    });
 
     const stateful = await createSisp({
       ...CONFIG,
@@ -187,7 +195,25 @@ describe('callback event parity across modes', () => {
 
     try {
       stateful.on('callback:rejected', statefulListener);
-      await stateful.handlers.handleCallback(cancelBody);
+
+      const transaction = await stateful.models.transactions.create({
+        merchantRef: 'R20260730120000',
+        merchantSession: 'S20260730120000',
+        amount: 1500,
+      });
+
+      await stateful.handlers.handleCallback({
+        ip: '127.0.0.1',
+        method: 'POST',
+        path: '/sisp/callback',
+        headers: {},
+        query: {},
+        body: {
+          UserCancelled: 'true',
+          merchantRef: transaction.merchant_ref,
+          merchantSession: transaction.merchant_session,
+        },
+      });
 
       expect(statelessListener.mock.calls[0]?.[0].reason).toBe(
         CallbackRejectionReasons.UserCancelled,
@@ -195,6 +221,55 @@ describe('callback event parity across modes', () => {
       expect(statefulListener.mock.calls[0]?.[0].reason).toBe(
         CallbackRejectionReasons.UserCancelled,
       );
+    } finally {
+      await stateful.destroy();
+    }
+  });
+
+  it('does not fire callback:rejected in either mode for a forged reference nobody created, but still redirects', async () => {
+    const statelessListener = vi.fn();
+    const statefulListener = vi.fn();
+    const forgedCancelBody = {
+      ip: '127.0.0.1',
+      method: 'POST',
+      path: '/sisp/callback',
+      headers: {},
+      query: {},
+      body: {
+        UserCancelled: 'true',
+        merchantRespMerchantRef: 'FORGED',
+        merchantRespMerchantSession: 'FORGED-SESSION',
+        merchantRef: 'FORGED',
+        merchantSession: 'FORGED-SESSION',
+      },
+    };
+
+    const correlation = new InMemoryPaymentCorrelationStore();
+    const stateless = createStatelessSisp({ ...CONFIG, correlation });
+
+    stateless.on('callback:rejected', statelessListener);
+
+    const statelessResult = await stateless.handlers.handleCallback(forgedCancelBody);
+
+    expect(statelessResult.type).toBe('redirect');
+    expect(statelessListener).not.toHaveBeenCalled();
+
+    const stateful = await createSisp({
+      ...CONFIG,
+      database: {
+        client: 'better-sqlite3',
+        connection: { filename: ':memory:' },
+        autoMigrate: true,
+      },
+    });
+
+    try {
+      stateful.on('callback:rejected', statefulListener);
+
+      const statefulResult = await stateful.handlers.handleCallback(forgedCancelBody);
+
+      expect(statefulResult.type).toBe('redirect');
+      expect(statefulListener).not.toHaveBeenCalled();
     } finally {
       await stateful.destroy();
     }

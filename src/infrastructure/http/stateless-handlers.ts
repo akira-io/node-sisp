@@ -103,7 +103,7 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
 
   async handleCallback(request: HttpRequestInfo): Promise<HttpResult> {
     if (booleanFromInput(request.body.UserCancelled ?? request.query.UserCancelled)) {
-      return this.rejectCancelled(request);
+      return await this.rejectCancelled(request);
     }
 
     if (request.method.toUpperCase() === 'GET') {
@@ -144,12 +144,30 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
     return paymentRequest;
   }
 
-  private rejectCancelled(request: HttpRequestInfo): HttpResult {
-    this.events.emit('callback:rejected', {
-      payload: callbackPayloadFrom({ ...request.query, ...request.body }),
-      status: TransactionStatus.Cancelled,
-      reason: CallbackRejectionReasons.UserCancelled,
-    });
+  private async rejectCancelled(request: HttpRequestInfo): Promise<HttpResult> {
+    const payload = callbackPayloadFrom({ ...request.query, ...request.body });
+
+    if (this.config.correlation !== null) {
+      const claim = await this.config.correlation.claim(
+        payload.merchantRef,
+        payload.merchantSession,
+      );
+
+      if (claim.status === 'claimed') {
+        this.events.emit('callback:rejected', {
+          payload,
+          status: TransactionStatus.Cancelled,
+          reason: CallbackRejectionReasons.UserCancelled,
+        });
+
+        await this.config.correlation.markProcessed(payload.merchantRef, payload.merchantSession, {
+          verified: false,
+          status: TransactionStatus.Cancelled,
+          reason: CallbackRejectionReasons.UserCancelled,
+          payload,
+        });
+      }
+    }
 
     return redirect(this.config.redirectUrl);
   }

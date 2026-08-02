@@ -61,15 +61,18 @@ export class CallbackHandlers {
   private async handleUserCancelled(request: HttpRequestInfo): Promise<HttpResult> {
     const { transactions, cancelTransaction, events, config } = this.deps;
 
-    await this.runQuietly(() =>
-      cancelUserCancelledTransaction(transactions, cancelTransaction, request),
+    const cancelled = await this.runQuietly(
+      () => cancelUserCancelledTransaction(transactions, cancelTransaction, request),
+      false,
     );
 
-    events.emit('callback:rejected', {
-      payload: callbackPayloadFrom({ ...request.query, ...request.body }),
-      status: TransactionStatus.Cancelled,
-      reason: CallbackRejectionReasons.UserCancelled,
-    });
+    if (cancelled) {
+      events.emit('callback:rejected', {
+        payload: callbackPayloadFrom({ ...request.query, ...request.body }),
+        status: TransactionStatus.Cancelled,
+        reason: CallbackRejectionReasons.UserCancelled,
+      });
+    }
 
     return redirect(config.redirectUrl);
   }
@@ -139,8 +142,8 @@ export class CallbackHandlers {
 
     const transaction = outcome.transaction;
 
-    await this.runQuietly(() => storeMetadata.handle(request, transaction.id));
-    await this.runQuietly(() => updateInvoiceStatus.handle(transaction));
+    await this.runQuietly(() => storeMetadata.handle(request, transaction.id), undefined);
+    await this.runQuietly(() => updateInvoiceStatus.handle(transaction), undefined);
 
     if (config.frontendResultUrl) {
       return redirect(frontendResultUrl(config.frontendResultUrl, transaction.merchant_ref));
@@ -149,9 +152,11 @@ export class CallbackHandlers {
     return redirect(signedCallbackResultUrl(config, urlSigner, transaction.id));
   }
 
-  private async runQuietly(operation: () => Promise<void>): Promise<void> {
+  private async runQuietly<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
     try {
-      await operation();
-    } catch {}
+      return await operation();
+    } catch {
+      return fallback;
+    }
   }
 }
