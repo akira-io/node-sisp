@@ -62,16 +62,14 @@ describe('stateless result url', () => {
   });
 
   it('rejects a reason outside the known union', () => {
-    const query = queryOf(
-      signStatelessResult(signer, PATH, {
-        merchant_ref: 'REF123',
-        verified: false,
-        reason: null,
-        error: null,
-      }),
-    );
+    const signedPath = signer.sign(PATH, {
+      ref: 'REF123',
+      verified: '0',
+      messageType: '',
+      reason: 'invented',
+    });
 
-    expect(readStatelessResult(signer, PATH, { ...query, reason: 'invented' })).toBeNull();
+    expect(readStatelessResult(signer, PATH, queryOf(signedPath))).toBeNull();
   });
 
   it('rejects a result url signed with an expiry already in the past', () => {

@@ -95,6 +95,22 @@ describe('statelessSispFastifyPlugin', () => {
     await app.close();
   });
 
+  it('registers the sandbox routes in sandbox mode', async () => {
+    const app = await server(null);
+
+    const getResponse = await app.inject({ method: 'GET', url: '/sisp/sandbox' });
+
+    expect(getResponse.statusCode).toBe(200);
+    expect(getResponse.headers['content-type']).toMatch(/html/);
+
+    const postResponse = await app.inject({ method: 'POST', url: '/sisp/sandbox' });
+
+    expect(postResponse.statusCode).toBe(200);
+    expect(postResponse.headers['content-type']).toMatch(/html/);
+
+    await app.close();
+  });
+
   it('does not register the sandbox routes outside sandbox mode', async () => {
     const sisp = createStatelessSisp({
       posId: '90000045',

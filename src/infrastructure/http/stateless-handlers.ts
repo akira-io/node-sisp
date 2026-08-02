@@ -1,21 +1,16 @@
 import type { BuildRequestPayloadAction } from '../../application/actions/build-request-payload';
-import { routeUrl } from '../../application/config';
 import type { SispEventEmitter } from '../../application/events';
 import type { BuildSandboxPayloadAction } from '../../application/sandbox';
 import type { ResolvedStatelessConfig } from '../../application/stateless-config';
 import type { CallbackOutcome, CallbackVerifier } from '../../core/contracts/callback-verifier';
 import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
 import { CorrelationRequiredError } from '../../domain/errors/exceptions';
-import {
-  callbackPayloadFrom,
-  callbackPayloadToFormFields,
-} from '../../domain/value-objects/callback-payload';
+import { callbackPayloadFrom } from '../../domain/value-objects/callback-payload';
 import {
   type PaymentRequest,
   paymentRequestToFormFields,
 } from '../../domain/value-objects/payment-request';
 import { paymentRequestDataFrom } from '../../domain/value-objects/payment-request-data';
-import { allCountries } from '../../support/countries';
 import type { UrlSigner } from '../../support/signed-url';
 import type { SispManager } from '../drivers/sisp-manager';
 import { renderAutoSubmitForm } from './auto-submit-form';
@@ -23,6 +18,7 @@ import { booleanFromInput } from './callback-processing';
 import { buildGatewayFormAction } from './gateway-form-action';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
+import { SandboxHandlers } from './sandbox-handlers';
 import {
   readStatelessResult,
   signStatelessResult,
@@ -52,19 +48,22 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
   private readonly config: ResolvedStatelessConfig;
   private readonly manager: SispManager;
   private readonly buildRequestPayload: BuildRequestPayloadAction;
-  private readonly buildSandboxPayload: BuildSandboxPayloadAction;
   private readonly callbackVerifier: CallbackVerifier;
   private readonly urlSigner: UrlSigner;
   private readonly events: SispEventEmitter;
+  private readonly sandboxHandlers: SandboxHandlers;
 
   constructor(deps: StatelessHandlersDeps) {
     this.config = deps.config;
     this.manager = deps.manager;
     this.buildRequestPayload = deps.buildRequestPayload;
-    this.buildSandboxPayload = deps.buildSandboxPayload;
     this.callbackVerifier = deps.callbackVerifier;
     this.urlSigner = deps.urlSigner;
     this.events = deps.events;
+    this.sandboxHandlers = new SandboxHandlers({
+      config: deps.config,
+      buildSandboxPayload: deps.buildSandboxPayload,
+    });
   }
 
   async handlePayment(request: HttpRequestInfo): Promise<HttpResult> {
@@ -117,28 +116,11 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
   }
 
   async handleSandbox(request: HttpRequestInfo): Promise<HttpResult> {
-    if (!this.config.sandbox) {
-      return json({ message: 'Not Found' }, 404);
-    }
-
-    const input = { ...request.query, ...request.body };
-    const status = typeof input.status === 'string' ? input.status : 'success';
-    const payload = this.buildSandboxPayload.handle(
-      paymentRequestDataFrom({ ...input, amount: input.amount ?? '0' }),
-      status,
-    );
-
-    return html(
-      renderAutoSubmitForm(
-        routeUrl(this.config, 'callback'),
-        callbackPayloadToFormFields(payload),
-        'SISP Sandbox - Processing',
-      ),
-    );
+    return this.sandboxHandlers.handleSandbox(request);
   }
 
   handleCountries(): HttpResult {
-    return json(allCountries());
+    return this.sandboxHandlers.handleCountries();
   }
 
   private async prepare(request: HttpRequestInfo): Promise<PaymentRequest | HttpResult> {

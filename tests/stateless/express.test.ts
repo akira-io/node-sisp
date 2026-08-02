@@ -76,6 +76,18 @@ describe('statelessSispRoutes', () => {
     await supertest(server).get('/sisp/callback').expect(404);
   });
 
+  it('mounts the sandbox routes in sandbox mode', async () => {
+    await supertest(app(null).server)
+      .get('/sisp/sandbox')
+      .expect(200)
+      .expect('Content-Type', /html/);
+
+    await supertest(app(null).server)
+      .post('/sisp/sandbox')
+      .expect(200)
+      .expect('Content-Type', /html/);
+  });
+
   it('does not mount the sandbox routes outside sandbox mode', async () => {
     const sisp = createStatelessSisp({
       posId: '90000045',

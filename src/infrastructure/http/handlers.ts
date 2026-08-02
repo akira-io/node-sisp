@@ -5,7 +5,7 @@ import type { RefundTransactionAction } from '../../application/actions/refund-t
 import type { RetryPaymentAction } from '../../application/actions/retry-payment';
 import type { StoreRequestMetadataAction } from '../../application/actions/store-request-metadata';
 import type { UpdateInvoiceStatusAction } from '../../application/actions/update-invoice-status';
-import { type ResolvedSispConfig, routeUrl } from '../../application/config';
+import type { ResolvedSispConfig } from '../../application/config';
 import type { SispEventEmitter } from '../../application/events';
 import type { ProcessPaymentPipeline } from '../../application/pipelines/payment/process-payment-pipeline';
 import type { BuildSandboxPayloadAction } from '../../application/sandbox';
@@ -26,13 +26,10 @@ import {
   PaymentRetryLimitExceededError,
   RateLimitExceededError,
 } from '../../domain/errors/exceptions';
-import { callbackPayloadToFormFields } from '../../domain/value-objects/callback-payload';
 import {
   type PaymentRequest,
   paymentRequestToFormFields,
 } from '../../domain/value-objects/payment-request';
-import { paymentRequestDataFrom } from '../../domain/value-objects/payment-request-data';
-import { allCountries } from '../../support/countries';
 import type { UrlSigner } from '../../support/signed-url';
 import { fromCents } from '../../support/sisp-amount';
 import type { SispManager } from '../drivers/sisp-manager';
@@ -43,6 +40,7 @@ import { LifecycleHandlers } from './lifecycle-handlers';
 import { PaymentContextResolver } from './payment-context-resolver';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
+import { SandboxHandlers } from './sandbox-handlers';
 import type { StatelessHttpHandlers } from './stateless-handlers';
 import { validatePaymentInput } from './validate-payment-input';
 
@@ -72,16 +70,19 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
   private readonly config: ResolvedSispConfig;
   private readonly manager: SispManager;
   private readonly transactions: TransactionRepository;
-  private readonly buildSandboxPayload: BuildSandboxPayloadAction;
   private readonly lifecycle: LifecycleHandlers;
   private readonly paymentContexts: PaymentContextResolver;
   private readonly callbackHandlers: CallbackHandlers;
+  private readonly sandboxHandlers: SandboxHandlers;
 
   constructor(deps: SispHandlersDeps) {
     this.config = deps.config;
     this.manager = deps.manager;
     this.transactions = deps.transactions;
-    this.buildSandboxPayload = deps.buildSandboxPayload;
+    this.sandboxHandlers = new SandboxHandlers({
+      config: deps.config,
+      buildSandboxPayload: deps.buildSandboxPayload,
+    });
     this.paymentContexts = new PaymentContextResolver({
       config: deps.config,
       paymentPipeline: deps.paymentPipeline,
@@ -193,29 +194,11 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
   }
 
   async handleSandbox(request: HttpRequestInfo): Promise<HttpResult> {
-    if (!this.config.sandbox) {
-      return json({ message: 'Not Found' }, 404);
-    }
-
-    const input = { ...request.query, ...request.body };
-    const status = typeof input.status === 'string' ? input.status : 'success';
-
-    const payload = this.buildSandboxPayload.handle(
-      paymentRequestDataFrom({ ...input, amount: input.amount ?? '0' }),
-      status,
-    );
-
-    return html(
-      renderAutoSubmitForm(
-        routeUrl(this.config, 'callback'),
-        callbackPayloadToFormFields(payload),
-        'SISP Sandbox - Processing',
-      ),
-    );
+    return this.sandboxHandlers.handleSandbox(request);
   }
 
   handleCountries(): HttpResult {
-    return json(allCountries());
+    return this.sandboxHandlers.handleCountries();
   }
 
   private async isDuplicateSubmission(body: Record<string, unknown>): Promise<boolean> {
