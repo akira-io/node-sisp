@@ -13,6 +13,8 @@ export class CallbackContext {
 
   transactionStatusPropagated = true;
 
+  replay = false;
+
   constructor(readonly payload: CallbackPayload) {}
 
   requireTransaction(): TransactionRecord {

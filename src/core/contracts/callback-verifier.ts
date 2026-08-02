@@ -10,6 +10,7 @@ export interface CallbackOutcome {
 
 export interface StoredCallbackOutcome extends CallbackOutcome {
   transaction: TransactionRecord;
+  replay: boolean;
 }
 
 export interface CallbackVerifier<T extends CallbackOutcome = CallbackOutcome> {

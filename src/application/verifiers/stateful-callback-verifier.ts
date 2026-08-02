@@ -22,6 +22,7 @@ export class StatefulCallbackVerifier implements CallbackVerifier<StoredCallback
       reason,
       payload,
       transaction: context.requireTransaction(),
+      replay: context.replay,
     };
 
     this.events.emit(outcome.verified ? 'callback:verified' : 'callback:rejected', {

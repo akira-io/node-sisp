@@ -131,6 +131,10 @@ export class CallbackHandlers {
       throw error;
     }
 
+    if (outcome.replay) {
+      return redirect(config.redirectUrl);
+    }
+
     const transaction = outcome.transaction;
 
     await this.runQuietly(() => storeMetadata.handle(request, transaction.id));
