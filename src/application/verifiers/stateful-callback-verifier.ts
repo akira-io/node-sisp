@@ -3,7 +3,10 @@ import type {
   CallbackVerifier,
   StoredCallbackOutcome,
 } from '../../core/contracts/callback-verifier';
-import { isCallbackRejectionReason } from '../../domain/enums/callback-rejection-reason';
+import {
+  CallbackRejectionReasons,
+  isCallbackRejectionReason,
+} from '../../domain/enums/callback-rejection-reason';
 import type { CallbackPayload } from '../../domain/value-objects/callback-payload';
 import type { SispEventEmitter } from '../events';
 import { CallbackContext } from '../pipelines/callback/callback-context';
@@ -19,9 +22,9 @@ export class StatefulCallbackVerifier implements CallbackVerifier<StoredCallback
     const context = await this.pipeline.run(new CallbackContext(payload));
     const reason = isCallbackRejectionReason(context.failureReason) ? context.failureReason : null;
     const outcome: StoredCallbackOutcome = {
-      verified: !context.failed(),
+      verified: !context.failed() && !context.replay,
       status: mapTransactionStatus(payload.messageType),
-      reason,
+      reason: context.replay ? CallbackRejectionReasons.Replayed : reason,
       payload,
       transaction: context.requireTransaction(),
       replay: context.replay,
