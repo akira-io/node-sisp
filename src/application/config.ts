@@ -1,4 +1,3 @@
-import type { Knex } from 'knex';
 import type { CallbackPipe, PaymentPipe } from '../core/contracts/pipes';
 import type { SispStorage } from '../core/contracts/storage';
 import {
@@ -13,6 +12,12 @@ import {
 } from '../support/generators';
 import { booleanSetting } from '../support/settings';
 import type { EventErrorHandler } from './events';
+import {
+  type DeepPartial,
+  type RateLimiting,
+  type RateLimitRule,
+  resolveRateLimiting,
+} from './rate-limiting';
 
 export interface SispPipelineCustomizers {
   payment?: (defaults: PaymentPipe[]) => PaymentPipe[];
@@ -51,19 +56,6 @@ export interface IdempotencyConfig {
   requestKeys: string[];
 }
 
-export interface RateLimitRule {
-  enabled: boolean;
-  limit: number;
-  windowSeconds: number;
-}
-
-export interface RateLimiting {
-  enabled: boolean;
-  perIp: RateLimitRule;
-  perMerchant: RateLimitRule;
-  perUser: RateLimitRule;
-}
-
 export interface SecuritySettings {
   collectMetadata: boolean;
 }
@@ -80,9 +72,10 @@ export interface TransactionStatusConfig {
   reconcileLimit: number;
 }
 
+export type SispDatabaseConnection = string | Record<string, unknown>;
 export interface SispDatabaseConfig {
   client: 'better-sqlite3' | 'pg' | 'mysql2';
-  connection: Knex.Config['connection'];
+  connection: SispDatabaseConnection;
   autoMigrate?: boolean;
 }
 
@@ -154,9 +147,6 @@ export interface ResolvedSispConfig extends ResolvedSharedConfig {
   pipelines: SispPipelineCustomizers;
 }
 
-type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
-};
 export const DEFAULT_TABLES: SispTables = {
   transactions: 'sisp_transactions',
   transactionItems: 'sisp_transaction_items',
@@ -179,13 +169,6 @@ export const DEFAULT_TRANSACTION_STATUS: TransactionStatusConfig = {
   reconcileAfterMinutes: 5,
   reconcileLimit: 50,
 };
-const DEFAULT_RATE_LIMITING: RateLimiting = {
-  enabled: true,
-  perIp: { enabled: true, limit: 100, windowSeconds: 3600 },
-  perMerchant: { enabled: true, limit: 500, windowSeconds: 3600 },
-  perUser: { enabled: true, limit: 50, windowSeconds: 3600 },
-};
-
 const DEFAULT_IDENTIFIER_GENERATION: IdentifierGenerationConfig = {
   maxAttempts: 5,
   collisionRetrySleepMs: 1000,
@@ -283,22 +266,4 @@ export function routeUrl(config: ResolvedSharedConfig, route: string): string {
   return `${config.baseUrl}${config.basePath}/${route}`;
 }
 
-function resolveRateLimiting(overrides: DeepPartial<RateLimiting> | undefined): RateLimiting {
-  return {
-    enabled: booleanSetting(overrides?.enabled, DEFAULT_RATE_LIMITING.enabled),
-    perIp: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perIp, overrides?.perIp),
-    perMerchant: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perMerchant, overrides?.perMerchant),
-    perUser: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perUser, overrides?.perUser),
-  };
-}
-
-function resolveRateLimitRule(
-  defaults: RateLimitRule,
-  overrides: Partial<RateLimitRule> | undefined,
-): RateLimitRule {
-  return {
-    enabled: booleanSetting(overrides?.enabled, defaults.enabled),
-    limit: overrides?.limit ?? defaults.limit,
-    windowSeconds: overrides?.windowSeconds ?? defaults.windowSeconds,
-  };
-}
+export type { DeepPartial, RateLimiting, RateLimitRule };
