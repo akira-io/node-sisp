@@ -1,13 +1,6 @@
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { beforeAll, describe, expect, it } from 'vitest';
-
-const root = fileURLToPath(new URL('../..', import.meta.url));
-
-beforeAll(() => {
-  execFileSync('npm', ['run', 'build'], { cwd: root, stdio: 'inherit' });
-}, 180_000);
+import { describe, expect, it } from 'vitest';
 
 function distFile(path: string): string {
   return readFileSync(fileURLToPath(new URL(`../../dist/${path}`, import.meta.url)), 'utf8');
