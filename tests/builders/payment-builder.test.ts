@@ -91,6 +91,20 @@ describe('PaymentBuilder', () => {
     );
   });
 
+  it('rejects unsupported billing countries for 3-D Secure payments', () => {
+    expect(() =>
+      builderFor({ is3DSec: '1' })
+        .amount(100)
+        .customerEmail('a@b.cv')
+        .customerCountry('ZZ')
+        .customerCity('Praia')
+        .customerAddress('Rua 1')
+        .customerPostalCode('7600')
+        .customerPhone('9911223')
+        .build(),
+    ).toThrow('Unsupported 3-D Secure billing country: ZZ.');
+  });
+
   it('builds the base64 purchaseRequest for 3-D Secure payments', () => {
     const request = builderFor({ is3DSec: '1' })
       .amount(100)

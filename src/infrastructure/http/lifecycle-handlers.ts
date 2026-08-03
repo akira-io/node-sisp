@@ -151,7 +151,7 @@ export class LifecycleHandlers {
 
     const amount = Number(request.body.amount ?? 0);
 
-    if (!Number.isFinite(amount)) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       return json({ success: false, message: 'Refund amount must be greater than 0.' }, 400);
     }
 
