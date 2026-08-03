@@ -5,6 +5,7 @@ import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-pay
 import { generateCallbackFingerprint } from '../../src/infrastructure/fingerprints/callback-fingerprint';
 import { computeToken } from '../../src/infrastructure/fingerprints/token';
 import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
+import { requireKnex } from '../helpers/knex';
 
 let sisp: Sisp | null = null;
 
@@ -76,7 +77,7 @@ describe('HTTP side effect errors', () => {
     const onError = vi.fn();
     sisp = await createSisp(baseConfig(onError));
 
-    await sisp.db.schema.dropTable(sisp.config.tables.invoices);
+    await requireKnex(sisp).schema.dropTable(sisp.config.tables.invoices);
 
     const response = await sisp.handlers.handlePayment(paymentRequest());
 
@@ -96,7 +97,47 @@ describe('HTTP side effect errors', () => {
     });
 
     await sisp.models.transactionAttempts.createFromTransaction(transaction);
-    await sisp.db.schema.dropTable(sisp.config.tables.requestMetadata);
+    await requireKnex(sisp).schema.dropTable(sisp.config.tables.requestMetadata);
+
+    const response = await sisp.handlers.handleCallback(
+      callbackRequest(signedCallbackBody(transaction.merchant_ref, transaction.merchant_session)),
+    );
+    const stored = await sisp.models.transactions.findById(transaction.id);
+
+    expect(response.type).toBe('redirect');
+    expect(stored?.status).toBe('completed');
+    expect(onError).toHaveBeenCalledWith('payment:completed', expect.any(Error));
+  });
+
+  it('does not let a throwing error handler halt the payment pipeline', async () => {
+    const onError = vi.fn(() => {
+      throw new Error('handler exploded');
+    });
+    sisp = await createSisp(baseConfig(onError));
+
+    await requireKnex(sisp).schema.dropTable(sisp.config.tables.invoices);
+
+    const response = await sisp.handlers.handlePayment(paymentRequest());
+
+    expect(response.type).toBe('html');
+    expect(onError).toHaveBeenCalledWith('payment:pending', expect.any(Error));
+  });
+
+  it('does not let a throwing error handler break the callback redirect', async () => {
+    const onError = vi.fn(() => {
+      throw new Error('handler exploded');
+    });
+    sisp = await createSisp(baseConfig(onError));
+    const transaction = await sisp.models.transactions.create({
+      merchantRef: 'R20260612100001',
+      merchantSession: 'S20260612100001',
+      amount: 1500,
+      currency: '132',
+      transactionCode: '1',
+    });
+
+    await sisp.models.transactionAttempts.createFromTransaction(transaction);
+    await requireKnex(sisp).schema.dropTable(sisp.config.tables.requestMetadata);
 
     const response = await sisp.handlers.handleCallback(
       callbackRequest(signedCallbackBody(transaction.merchant_ref, transaction.merchant_session)),

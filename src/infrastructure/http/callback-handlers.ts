@@ -2,7 +2,7 @@ import type { CancelTransactionAction } from '../../application/actions/cancel-t
 import type { StoreRequestMetadataAction } from '../../application/actions/store-request-metadata';
 import type { UpdateInvoiceStatusAction } from '../../application/actions/update-invoice-status';
 import type { ResolvedSispConfig } from '../../application/config';
-import type { SispEventEmitter } from '../../application/events';
+import type { SispEventEmitter, SispEventName } from '../../application/events';
 import type {
   CallbackVerifier,
   StoredCallbackOutcome,
@@ -15,6 +15,7 @@ import type {
 import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { TransactionNotFoundError } from '../../domain/errors/exceptions';
+import type { TransactionRecord } from '../../domain/records';
 import { callbackPayloadFrom } from '../../domain/value-objects/callback-payload';
 import type { UrlSigner } from '../../support/signed-url';
 import {
@@ -64,6 +65,7 @@ export class CallbackHandlers {
     const cancelled = await this.runQuietly(
       () => cancelUserCancelledTransaction(transactions, cancelTransaction, request),
       false,
+      'transaction:cancelled',
     );
 
     if (cancelled) {
@@ -141,9 +143,14 @@ export class CallbackHandlers {
     }
 
     const transaction = outcome.transaction;
+    const eventName = paymentEventNameFor(transaction);
 
-    await this.runQuietly(() => storeMetadata.handle(request, transaction.id), undefined);
-    await this.runQuietly(() => updateInvoiceStatus.handle(transaction), undefined);
+    await this.runQuietly(
+      () => storeMetadata.handle(request, transaction.id),
+      undefined,
+      eventName,
+    );
+    await this.runQuietly(() => updateInvoiceStatus.handle(transaction), undefined, eventName);
 
     if (config.frontendResultUrl) {
       return redirect(frontendResultUrl(config.frontendResultUrl, transaction.merchant_ref));
@@ -152,11 +159,31 @@ export class CallbackHandlers {
     return redirect(signedCallbackResultUrl(config, urlSigner, transaction.id));
   }
 
-  private async runQuietly<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
+  private async runQuietly<T>(
+    operation: () => Promise<T>,
+    fallback: T,
+    eventName: SispEventName,
+  ): Promise<T> {
     try {
       return await operation();
-    } catch {
+    } catch (error) {
+      try {
+        this.deps.config.onEventListenerError?.(eventName, error);
+      } catch {}
+
       return fallback;
     }
   }
+}
+
+function paymentEventNameFor(transaction: TransactionRecord): SispEventName {
+  if (transaction.status === TransactionStatus.Completed) {
+    return 'payment:completed';
+  }
+
+  if (transaction.status === TransactionStatus.Failed) {
+    return 'payment:failed';
+  }
+
+  return 'payment:pending';
 }
