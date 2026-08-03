@@ -1,9 +1,17 @@
+import type { CallbackRejectionReason } from '../domain/enums/callback-rejection-reason';
+import type { TransactionStatus } from '../domain/enums/transaction-status';
+import type { TransactionRecord } from '../domain/records';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
-import type { TransactionRecord } from '../infrastructure/storage/knex/records';
 
 export interface PaymentEvent {
   transaction: TransactionRecord;
   payload: CallbackPayload;
+}
+
+export interface CallbackEvent {
+  payload: CallbackPayload;
+  status: TransactionStatus;
+  reason: CallbackRejectionReason | null;
 }
 
 export interface TransactionCancelledEvent {
@@ -21,32 +29,39 @@ export interface SispEventMap {
   'payment:completed': PaymentEvent;
   'payment:failed': PaymentEvent;
   'payment:pending': PaymentEvent;
+  'callback:verified': CallbackEvent;
+  'callback:rejected': CallbackEvent;
   'transaction:cancelled': TransactionCancelledEvent;
   'transaction:refunded': TransactionRefundedEvent;
 }
 
 export type SispEventName = keyof SispEventMap;
 
-type Listener<K extends SispEventName> = (event: SispEventMap[K]) => unknown;
+type AnyEventMap = object;
 
-export type EventErrorHandler = (eventName: SispEventName, error: unknown) => void;
+type Listener<TMap extends AnyEventMap, K extends keyof TMap> = (event: TMap[K]) => unknown;
 
-export class SispEventEmitter {
-  private readonly listeners = new Map<SispEventName, Set<Listener<SispEventName>>>();
+export type EventErrorHandler<TMap extends AnyEventMap = SispEventMap> = (
+  eventName: keyof TMap,
+  error: unknown,
+) => void;
 
-  constructor(private readonly onListenerError: EventErrorHandler = () => {}) {}
+export class SispEventEmitter<TMap extends AnyEventMap = SispEventMap> {
+  private readonly listeners = new Map<keyof TMap, Set<Listener<TMap, keyof TMap>>>();
 
-  on<K extends SispEventName>(eventName: K, listener: Listener<K>): this {
+  constructor(private readonly onListenerError: EventErrorHandler<TMap> = () => {}) {}
+
+  on<K extends keyof TMap>(eventName: K, listener: Listener<TMap, K>): this {
     const registered = this.listeners.get(eventName) ?? new Set();
 
-    registered.add(listener as Listener<SispEventName>);
+    registered.add(listener as Listener<TMap, keyof TMap>);
     this.listeners.set(eventName, registered);
 
     return this;
   }
 
-  once<K extends SispEventName>(eventName: K, listener: Listener<K>): this {
-    const wrapped: Listener<K> = (event) => {
+  once<K extends keyof TMap>(eventName: K, listener: Listener<TMap, K>): this {
+    const wrapped: Listener<TMap, K> = (event) => {
       this.off(eventName, wrapped);
 
       return listener(event);
@@ -55,13 +70,13 @@ export class SispEventEmitter {
     return this.on(eventName, wrapped);
   }
 
-  off<K extends SispEventName>(eventName: K, listener: Listener<K>): this {
-    this.listeners.get(eventName)?.delete(listener as Listener<SispEventName>);
+  off<K extends keyof TMap>(eventName: K, listener: Listener<TMap, K>): this {
+    this.listeners.get(eventName)?.delete(listener as Listener<TMap, keyof TMap>);
 
     return this;
   }
 
-  emit<K extends SispEventName>(eventName: K, event: SispEventMap[K]): void {
+  emit<K extends keyof TMap>(eventName: K, event: TMap[K]): void {
     const registered = this.listeners.get(eventName);
 
     if (!registered) {
@@ -73,13 +88,13 @@ export class SispEventEmitter {
     }
   }
 
-  private invoke<K extends SispEventName>(
+  private invoke<K extends keyof TMap>(
     eventName: K,
-    listener: Listener<SispEventName>,
-    event: SispEventMap[K],
+    listener: Listener<TMap, keyof TMap>,
+    event: TMap[K],
   ): void {
     try {
-      const result = listener(event);
+      const result = listener(event as TMap[keyof TMap]);
 
       if (result instanceof Promise) {
         result.catch((error) => this.onListenerError(eventName, error));

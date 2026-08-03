@@ -9,18 +9,27 @@
 | `posId` | required | Virtual POS terminal id issued by SISP |
 | `posAutCode` | required | Virtual POS terminal password, source of every fingerprint |
 | `url` | `''` | Gateway payment URL used by the production driver |
-| `merchantId` | `''` | Merchant id issued by SISP |
 | `currency` | `'132'` | ISO 4217 numeric code, Cabo Verde Escudo |
 | `languageMessages` | `'EN'` | Language for gateway response messages |
 | `fingerprintVersion` | `'1'` | Payment request fingerprint version |
 | `is3DSec` | `'0'` | Set `'1'` to require 3D Secure customer data |
 | `transactionCode` | `'1'` | Default transaction type (purchase) |
 
+SISP issues two different numbers, and this package wants only one of them. `posId` is the Virtual POS
+terminal. The merchant id is a separate number that never leaves your records: it is not part of the
+payment payload and not part of any fingerprint, so there is no config key for it.
+
+Passing the merchant id as `posId` is the easiest mistake to make here, and the symptom does not point
+at it. `posId` is hashed into every payment request fingerprint, so the gateway rejects each attempt
+before it ever reaches the card form, answering with `messageType 6` and `Fingerprint Invalid`. The
+error names the fingerprint, not the field, so it reads like a broken signature rather than a swapped
+value.
+
 ## Application wiring
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `database` | required | `{ client, connection, autoMigrate }` passed to knex |
+| `database` | required | `{ client, connection, autoMigrate }` passed to knex. `connection` is typed loosely (`string \| object \| (() => object \| Promise<object>)`) on the main entry so consumers do not need `knex` installed to typecheck; import `SispKnexDatabaseConfig` from `@akira-io/sisp/knex` for the fully-typed knex connection shapes, including knex's connection-provider function form for rotating credentials |
 | `appKey` | `null` | Key for payload encryption (AES-256-GCM) and signed URLs |
 | `baseUrl` | `''` | Absolute origin used when building route URLs |
 | `basePath` | `'/sisp'` | Mount path of the HTTP routes |
@@ -107,5 +116,9 @@ const sisp = await createSisp({
 ```
 
 Custom generators may keep using date-based values. The package does not require a specific format, but identifiers must stay within SISP's 15-character limit and pass the database uniqueness checks within the configured retry limit.
+
+## No database at all
+
+`createSisp` still requires either `storage` or `database`; that check has not changed. If you already own transaction tables and want the gateway protocol handled without the package persisting anything of its own, use `createStatelessSisp` instead. See [Stateless Mode](13-stateless-mode.md).
 
 **Next:** [Quick Start](03-quick-start.md)

@@ -1,4 +1,4 @@
-import type { ResolvedSispConfig } from '../../application/config';
+import type { ResolvedSharedConfig } from '../../application/config';
 import type { CredentialsResolver } from '../../core/contracts/credentials-resolver';
 import type { SispDriver } from '../../core/contracts/sisp-driver';
 import { ProductionDriver } from './production-driver';
@@ -43,7 +43,7 @@ export class SispManager {
 }
 
 export function createSispManager(
-  config: ResolvedSispConfig,
+  config: ResolvedSharedConfig,
   credentialsResolver: CredentialsResolver,
   statusClient: TransactionStatusClient = new TransactionStatusClient(config, credentialsResolver),
 ): SispManager {
@@ -56,7 +56,7 @@ export function createSispManager(
 }
 
 function defaultDriverName(
-  config: ResolvedSispConfig,
+  config: ResolvedSharedConfig,
   credentialsResolver: CredentialsResolver,
 ): string {
   if (config.driver !== null && config.driver !== '') {

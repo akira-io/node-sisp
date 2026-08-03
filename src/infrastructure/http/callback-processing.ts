@@ -4,6 +4,7 @@ import type {
   TransactionAttemptRepository,
   TransactionRepository,
 } from '../../core/contracts/storage';
+import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
 import type { UrlSigner } from '../../support/signed-url';
 import type { HttpRequestInfo } from './request-info';
 
@@ -60,23 +61,25 @@ export async function cancelUserCancelledTransaction(
   transactions: TransactionRepository,
   cancelTransaction: CancelTransactionAction,
   request: HttpRequestInfo,
-): Promise<void> {
+): Promise<boolean> {
   const merchantRef = textFromInput(request.body.merchantRef ?? request.query.merchantRef);
   const merchantSession = textFromInput(
     request.body.merchantSession ?? request.query.merchantSession,
   );
 
   if (!merchantRef || !merchantSession) {
-    return;
+    return false;
   }
 
   const transaction = await transactions.findByRefAndSession(merchantRef, merchantSession);
 
   if (!transaction) {
-    return;
+    return false;
   }
 
-  await cancelTransaction.handle(transaction, 'user_cancelled');
+  await cancelTransaction.handle(transaction, CallbackRejectionReasons.UserCancelled);
+
+  return true;
 }
 
 export function textFromInput(value: unknown): string {

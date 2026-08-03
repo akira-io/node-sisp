@@ -27,17 +27,18 @@ import { EnsureIpIsNotBlacklisted } from './pipelines/payment/pipes/ensure-ip-is
 import { PersistTransaction } from './pipelines/payment/pipes/persist-transaction';
 import { ProcessPaymentPipeline } from './pipelines/payment/process-payment-pipeline';
 import { Sisp, type SispModels } from './sisp';
+import { StatefulCallbackVerifier } from './verifiers/stateful-callback-verifier';
 import { customizePipes, wireCredentialScopedServices } from './wiring';
 
 export async function createSisp(config: SispConfig): Promise<Sisp> {
   const resolved = resolveConfig(config);
   const storage =
     config.storage ??
-    KnexStorage.create(
+    (await KnexStorage.create(
       resolved.database as Required<SispDatabaseConfig>,
       resolved.tables,
       resolved.appKey,
-    );
+    ));
 
   if (!config.storage && resolved.database?.autoMigrate) {
     await storage.migrate?.();
@@ -97,12 +98,13 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     events,
   );
 
+  const statefulVerifier = new StatefulCallbackVerifier(services.callbackPipeline, events);
+
   const handlers = new SispHttpHandlers({
     config: resolved,
-    db,
     manager: services.manager,
     paymentPipeline,
-    callbackPipeline: services.callbackPipeline,
+    callbackVerifier: statefulVerifier,
     transactions: models.transactions,
     attempts: models.transactionAttempts,
     paymentIntents: models.paymentIntents,
@@ -117,6 +119,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     refundTransaction,
     rateLimits,
     urlSigner,
+    events,
   });
 
   return new Sisp(
@@ -130,11 +133,11 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
     credentialsResolver,
     services.buildRequestPayload,
     services.buildSandboxPayload,
-    services.callbackPipeline,
     cancelTransaction,
     refundTransaction,
     services.reconcileTransaction,
     urlSigner,
+    statefulVerifier,
   );
 }
 

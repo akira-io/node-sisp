@@ -1,4 +1,3 @@
-import type { Knex } from 'knex';
 import type { CanRetryPaymentAction } from '../../application/actions/can-retry-payment';
 import type { CancelTransactionAction } from '../../application/actions/cancel-transaction';
 import type { CreateRetryPaymentAttemptAction } from '../../application/actions/create-retry-payment-attempt';
@@ -10,6 +9,7 @@ import type {
   TransactionAttemptRepository,
   TransactionRepository,
 } from '../../core/contracts/storage';
+import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
 import {
   PaymentRetryLimitExceededError,
   SispError,
@@ -31,7 +31,6 @@ import { type HttpResult, html, json, redirect } from './results';
 
 export interface LifecycleHandlersDeps {
   config: ResolvedSispConfig;
-  db: Knex;
   manager: SispManager;
   transactions: TransactionRepository;
   attempts: TransactionAttemptRepository;
@@ -118,7 +117,9 @@ export class LifecycleHandlers {
     }
 
     const reason =
-      typeof request.query.reason === 'string' ? request.query.reason : 'user_cancelled';
+      typeof request.query.reason === 'string'
+        ? request.query.reason
+        : CallbackRejectionReasons.UserCancelled;
 
     try {
       const cancelled = await cancelTransaction.handle(transaction, reason);

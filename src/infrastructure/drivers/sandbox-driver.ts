@@ -1,11 +1,11 @@
-import { type ResolvedSispConfig, routeUrl } from '../../application/config';
+import { type ResolvedSharedConfig, routeUrl } from '../../application/config';
 import type { SispDriver } from '../../core/contracts/sisp-driver';
 import type { TransactionStatusResponse } from '../../domain/value-objects/transaction-status-response';
 import type { TransactionStatusClient } from './transaction-status-client';
 
 export class SandboxDriver implements SispDriver {
   constructor(
-    private readonly config: ResolvedSispConfig,
+    private readonly config: ResolvedSharedConfig,
     private readonly statusClient: TransactionStatusClient,
   ) {}
 

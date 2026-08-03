@@ -105,6 +105,23 @@ describe('resolveConfig', () => {
     expect(resolved.security.collectMetadata).toBe(false);
   });
 
+  it('accepts a connection provider function, matching knex rotating-credential support', () => {
+    const connection = (): Record<string, unknown> => ({
+      host: 'db.internal',
+      user: 'app',
+      password: 'rotated-token',
+      database: 'sisp',
+    });
+
+    const resolved = resolveConfig({
+      ...minimalConfig,
+      database: { client: 'pg', connection },
+    });
+
+    expect(resolved.database?.connection).toBe(connection);
+    expect(typeof resolved.database?.connection).toBe('function');
+  });
+
   it('defaults auto-migrate on for sandbox databases', () => {
     const resolved = resolveConfig({ ...minimalConfig, sandbox: true });
 

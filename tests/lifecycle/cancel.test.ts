@@ -120,10 +120,12 @@ describe('user cancellation callback', () => {
     });
   }
 
-  it('cancels the transaction and emits transaction:cancelled', async () => {
+  it('cancels the transaction and emits transaction:cancelled and callback:rejected', async () => {
     const transaction = await createTransaction();
     const cancelled = vi.fn();
+    const rejected = vi.fn();
     sisp.on('transaction:cancelled', cancelled);
+    sisp.on('callback:rejected', rejected);
 
     const result = await cancelCallback(transaction.merchant_ref, transaction.merchant_session);
 
@@ -134,15 +136,38 @@ describe('user cancellation callback', () => {
     expect(stored?.status).toBe('cancelled');
     expect(stored?.merchant_response).toBe('user_cancelled');
     expect(cancelled).toHaveBeenCalledOnce();
+    expect(rejected).toHaveBeenCalledOnce();
+    expect(rejected.mock.calls[0]?.[0].reason).toBe('user_cancelled');
   });
 
-  it('redirects without error for an unknown transaction', async () => {
+  it('redirects without error for an unknown transaction and does not emit callback:rejected', async () => {
     const cancelled = vi.fn();
+    const rejected = vi.fn();
     sisp.on('transaction:cancelled', cancelled);
+    sisp.on('callback:rejected', rejected);
 
     const result = await cancelCallback('R-missing', 'S-missing');
 
     expect(result.type).toBe('redirect');
     expect(cancelled).not.toHaveBeenCalled();
+    expect(rejected).not.toHaveBeenCalled();
+  });
+
+  it('does not cancel or emit callback:rejected for an already-settled transaction', async () => {
+    const transaction = await createTransaction('completed');
+    const cancelled = vi.fn();
+    const rejected = vi.fn();
+    sisp.on('transaction:cancelled', cancelled);
+    sisp.on('callback:rejected', rejected);
+
+    const result = await cancelCallback(transaction.merchant_ref, transaction.merchant_session);
+
+    expect(result.type).toBe('redirect');
+    expect(cancelled).not.toHaveBeenCalled();
+    expect(rejected).not.toHaveBeenCalled();
+
+    const stored = await sisp.models.transactions.findById(transaction.id);
+
+    expect(stored?.status).toBe('completed');
   });
 });

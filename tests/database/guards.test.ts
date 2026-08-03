@@ -11,7 +11,7 @@ let blacklist: Blacklist;
 let rateLimits: RateLimit;
 
 beforeEach(async () => {
-  db = createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
+  db = await createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
   await runMigrations(db, DEFAULT_TABLES);
   blacklist = new Blacklist(db, DEFAULT_TABLES);
   rateLimits = new RateLimit(db, DEFAULT_TABLES);

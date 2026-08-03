@@ -31,8 +31,10 @@ export async function addRateLimitUniqueIndex(db: Knex, tables: SispTables): Pro
   await mergeDuplicateRateLimits(db, tables);
 
   try {
-    await db.schema.alterTable(tables.rateLimits, (table) => {
-      table.unique(['identifier', 'limit_type', 'context']);
+    await db.transaction(async (trx) => {
+      await trx.schema.alterTable(tables.rateLimits, (table) => {
+        table.unique(['identifier', 'limit_type', 'context']);
+      });
     });
   } catch (error) {
     if (!isIndexAlreadyExistsError(error)) {

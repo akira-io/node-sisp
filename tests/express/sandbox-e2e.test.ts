@@ -5,6 +5,7 @@ import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
 import { sispRoutes } from '../../src/presentation/express';
 import { extractForm } from '../helpers/auto-submit-form';
+import { requireKnex } from '../helpers/knex';
 
 let sisp: Sisp;
 let app: express.Express;
@@ -170,8 +171,8 @@ describe('sandbox end-to-end payment flow', () => {
       request(app).post('/sisp/callback').type('form').send(callbackForm.fields).expect(302),
     ]);
     const locations = responses.map((response) => response.headers.location as string);
-    const transactions = await sisp.db(sisp.config.tables.transactions);
-    const attempts = await sisp.db(sisp.config.tables.transactionAttempts);
+    const transactions = await requireKnex(sisp)(sisp.config.tables.transactions);
+    const attempts = await requireKnex(sisp)(sisp.config.tables.transactionAttempts);
 
     expect(
       locations.some(
@@ -183,6 +184,45 @@ describe('sandbox end-to-end payment flow', () => {
     expect(transactions).toHaveLength(1);
     expect(attempts).toHaveLength(1);
     expect(attempts[0]?.gateway_transaction_id).not.toBeNull();
+  });
+
+  it('redirects the losing side of a raced duplicate callback instead of double-completing', async () => {
+    const completed = vi.fn();
+    sisp.on('payment:completed', completed);
+
+    const callbackForm = await sandboxCallbackForm();
+    const attempts = sisp.models.transactionAttempts;
+    const original = attempts.findByRefAndSession.bind(attempts);
+    let callCount = 0;
+
+    attempts.findByRefAndSession = async (ref: string, session: string) => {
+      callCount += 1;
+      const isFirstCall = callCount === 1;
+      const result = await original(ref, session);
+
+      if (isFirstCall) {
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      }
+
+      return result;
+    };
+
+    const [first, second] = await Promise.all([
+      request(app).post('/sisp/callback').type('form').send(callbackForm.fields).expect(302),
+      request(app).post('/sisp/callback').type('form').send(callbackForm.fields).expect(302),
+    ]);
+
+    attempts.findByRefAndSession = original;
+
+    const locations = [first.headers.location as string, second.headers.location as string];
+
+    expect(
+      locations.some(
+        (location) => location.startsWith('/sisp/callback?') && location.includes('signature='),
+      ),
+    ).toBe(true);
+    expect(locations.some((location) => location === '/')).toBe(true);
+    expect(completed).toHaveBeenCalledTimes(1);
   });
 
   it('does not expose callback results by merchant reference alone', async () => {

@@ -8,7 +8,7 @@ let sisp: Sisp;
 afterEach(() => sisp.destroy());
 
 it('uses an injected storage with no database config', async () => {
-  const storage = KnexStorage.create(
+  const storage = await KnexStorage.create(
     { client: 'better-sqlite3', connection: { filename: ':memory:' }, autoMigrate: true },
     DEFAULT_TABLES,
     'app-key',
@@ -30,7 +30,7 @@ it('throws when neither storage nor database is provided', async () => {
 });
 
 it('throws when both storage and database are provided', async () => {
-  const storage = KnexStorage.create(
+  const storage = await KnexStorage.create(
     { client: 'better-sqlite3', connection: { filename: ':memory:' }, autoMigrate: true },
     DEFAULT_TABLES,
     'app-key',

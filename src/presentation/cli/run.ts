@@ -86,7 +86,7 @@ async function migrate(
     throw new Error('The `migrate` command requires a `database` configuration.');
   }
 
-  const db = createKnexInstance(resolved.database);
+  const db = await createKnexInstance(resolved.database);
 
   try {
     const ran = await runMigrations(db, resolved.tables);

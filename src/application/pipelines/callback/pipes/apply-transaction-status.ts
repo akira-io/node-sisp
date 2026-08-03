@@ -30,6 +30,7 @@ export class ApplyTransactionStatus implements CallbackPipe {
           attempt: context.requireAttempt(),
           transaction: context.requireTransaction(),
           propagated: false,
+          replay: false,
         };
       }
 
@@ -44,7 +45,12 @@ export class ApplyTransactionStatus implements CallbackPipe {
       }
 
       if (isReplayCallback(lockedAttempt, payload, status)) {
-        return { attempt: lockedAttempt, transaction: lockedTransaction, propagated: false };
+        return {
+          attempt: lockedAttempt,
+          transaction: lockedTransaction,
+          propagated: false,
+          replay: true,
+        };
       }
 
       const updatedAttempt = await tx.transactionAttempts.update(
@@ -53,7 +59,12 @@ export class ApplyTransactionStatus implements CallbackPipe {
       );
 
       if (!shouldPropagateAttemptToTransaction(updatedAttempt, status)) {
-        return { attempt: updatedAttempt, transaction: lockedTransaction, propagated: false };
+        return {
+          attempt: updatedAttempt,
+          transaction: lockedTransaction,
+          propagated: false,
+          replay: false,
+        };
       }
 
       const updatedTransaction = await runWithLogSource('callback', () =>
@@ -68,12 +79,18 @@ export class ApplyTransactionStatus implements CallbackPipe {
         }),
       );
 
-      return { attempt: updatedAttempt, transaction: updatedTransaction, propagated: true };
+      return {
+        attempt: updatedAttempt,
+        transaction: updatedTransaction,
+        propagated: true,
+        replay: false,
+      };
     });
 
     context.attempt = result.attempt;
     context.transaction = result.transaction;
     context.transactionStatusPropagated = result.propagated;
+    context.replay = result.replay;
 
     if (!result.propagated) {
       await next();

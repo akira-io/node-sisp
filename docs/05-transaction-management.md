@@ -101,7 +101,8 @@ const scoped = sisp.forCredentials({ posId: '70001', posAutCode: 'other-code', s
 
 scoped.payment().amount(1000).build();
 await scoped.queryTransactionStatus('R1');
-await scoped.handlePaymentCallback(payload);
+
+const { transaction } = await scoped.handleCallback(payload);
 ```
 
 The scoped facade shares the database and the event emitter but signs and validates everything with the given credentials.

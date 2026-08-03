@@ -3,7 +3,8 @@
 ## Requirements
 
 - Node.js 20 or higher
-- A database: SQLite (better-sqlite3), PostgreSQL (pg), or MySQL (mysql2)
+- Stateful mode (`createSisp`, the package's own tables): `knex` plus one database driver - SQLite (better-sqlite3), PostgreSQL (pg), or MySQL (mysql2)
+- Stateless mode (`createStatelessSisp`, no package-owned tables): neither `knex` nor a database driver
 
 ## Install the package
 
@@ -11,13 +12,25 @@
 npm install @akira-io/sisp
 ```
 
-Install the database driver you plan to use. Drivers are optional peer dependencies, so only the one you pick gets installed:
+### Stateful mode
+
+`knex` and the database driver are both optional peer dependencies; `createSisp` needs both:
 
 ```bash
-npm install better-sqlite3   # local development and small deployments
-npm install pg               # PostgreSQL
-npm install mysql2           # MySQL
+npm install knex better-sqlite3   # local development and small deployments
+npm install knex pg               # PostgreSQL
+npm install knex mysql2           # MySQL
 ```
+
+Skipping `knex` here is the most common way to hit a runtime error on first boot - it is not a
+transitive dependency of the driver packages.
+
+### Stateless mode
+
+`createStatelessSisp` persists nothing of its own, so it needs neither `knex` nor a driver. See
+[Stateless Mode](13-stateless-mode.md).
+
+### HTTP routes
 
 If you mount the HTTP routes, install the framework adapter peer as well. Fastify is the default adapter (`fastify` plus `@fastify/formbody`); `express` and `@nestjs/common` are supported alternatives.
 

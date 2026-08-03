@@ -2,6 +2,16 @@
 
 A full payment round trip against the bundled sandbox, no SISP credentials needed.
 
+This walkthrough uses `createSisp`, the stateful entry point, which needs `knex` plus a database
+driver installed (see [Installation](01-installation.md)):
+
+```bash
+npm install knex better-sqlite3
+```
+
+If you do not want the package to own any tables, use `createStatelessSisp` instead, which needs
+neither - see [Stateless Mode](13-stateless-mode.md).
+
 ## 1. Boot the client
 
 ```ts

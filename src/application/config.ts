@@ -1,4 +1,3 @@
-import type { Knex } from 'knex';
 import type { CallbackPipe, PaymentPipe } from '../core/contracts/pipes';
 import type { SispStorage } from '../core/contracts/storage';
 import {
@@ -11,7 +10,14 @@ import {
   generateMerchantSession,
   generateTimeStamp,
 } from '../support/generators';
+import { booleanSetting } from '../support/settings';
 import type { EventErrorHandler } from './events';
+import {
+  type DeepPartial,
+  type RateLimiting,
+  type RateLimitRule,
+  resolveRateLimiting,
+} from './rate-limiting';
 
 export interface SispPipelineCustomizers {
   payment?: (defaults: PaymentPipe[]) => PaymentPipe[];
@@ -50,19 +56,6 @@ export interface IdempotencyConfig {
   requestKeys: string[];
 }
 
-export interface RateLimitRule {
-  enabled: boolean;
-  limit: number;
-  windowSeconds: number;
-}
-
-export interface RateLimiting {
-  enabled: boolean;
-  perIp: RateLimitRule;
-  perMerchant: RateLimitRule;
-  perUser: RateLimitRule;
-}
-
 export interface SecuritySettings {
   collectMetadata: boolean;
 }
@@ -79,9 +72,10 @@ export interface TransactionStatusConfig {
   reconcileLimit: number;
 }
 
+export type SispDatabaseConnection = string | object | (() => object | Promise<object>);
 export interface SispDatabaseConfig {
   client: 'better-sqlite3' | 'pg' | 'mysql2';
-  connection: Knex.Config['connection'];
+  connection: SispDatabaseConnection;
   autoMigrate?: boolean;
 }
 
@@ -91,7 +85,6 @@ export interface SispConfig {
   storage?: SispStorage;
   database?: SispDatabaseConfig;
   url?: string;
-  merchantId?: string;
   driver?: string;
   sandbox?: boolean;
   currency?: string;
@@ -119,12 +112,10 @@ export interface SispConfig {
   transactionStatus?: Partial<TransactionStatusConfig>;
 }
 
-export interface ResolvedSispConfig {
+export interface ResolvedSharedConfig {
   posId: string;
   posAutCode: string;
-  database: Required<SispDatabaseConfig> | undefined;
   url: string;
-  merchantId: string;
   driver: string | null;
   sandbox: boolean;
   currency: string;
@@ -138,23 +129,24 @@ export interface ResolvedSispConfig {
   appKey: string | null;
   baseUrl: string;
   basePath: string;
-  allowRetry: boolean;
-  tables: SispTables;
-  rateLimiting: RateLimiting;
-  security: SecuritySettings;
   generators: SispGenerators;
-  identifierGeneration: IdentifierGenerationConfig;
-  retry: RetryConfig;
-  idempotency: IdempotencyConfig;
   paymentValidation: PaymentValidationConfig;
-  pipelines: SispPipelineCustomizers;
   onEventListenerError: EventErrorHandler | null;
   transactionStatus: TransactionStatusConfig;
 }
 
-type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
-};
+export interface ResolvedSispConfig extends ResolvedSharedConfig {
+  database: Required<SispDatabaseConfig> | undefined;
+  allowRetry: boolean;
+  tables: SispTables;
+  rateLimiting: RateLimiting;
+  security: SecuritySettings;
+  identifierGeneration: IdentifierGenerationConfig;
+  retry: RetryConfig;
+  idempotency: IdempotencyConfig;
+  pipelines: SispPipelineCustomizers;
+}
+
 export const DEFAULT_TABLES: SispTables = {
   transactions: 'sisp_transactions',
   transactionItems: 'sisp_transaction_items',
@@ -166,7 +158,7 @@ export const DEFAULT_TABLES: SispTables = {
   blacklist: 'sisp_blacklist',
   transactionLogs: 'sisp_transaction_logs',
 };
-const DEFAULT_TRANSACTION_STATUS: TransactionStatusConfig = {
+export const DEFAULT_TRANSACTION_STATUS: TransactionStatusConfig = {
   url: 'https://comerciante.vinti4.cv/pos/transaction-status',
   portalId: '',
   portalPassword: '',
@@ -177,13 +169,6 @@ const DEFAULT_TRANSACTION_STATUS: TransactionStatusConfig = {
   reconcileAfterMinutes: 5,
   reconcileLimit: 50,
 };
-const DEFAULT_RATE_LIMITING: RateLimiting = {
-  enabled: true,
-  perIp: { enabled: true, limit: 100, windowSeconds: 3600 },
-  perMerchant: { enabled: true, limit: 500, windowSeconds: 3600 },
-  perUser: { enabled: true, limit: 50, windowSeconds: 3600 },
-};
-
 const DEFAULT_IDENTIFIER_GENERATION: IdentifierGenerationConfig = {
   maxAttempts: 5,
   collisionRetrySleepMs: 1000,
@@ -224,7 +209,6 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     posAutCode: config.posAutCode,
     database,
     url: config.url ?? '',
-    merchantId: config.merchantId ?? '',
     driver: config.driver ?? null,
     sandbox,
     currency: config.currency ?? '132',
@@ -264,12 +248,11 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
   };
 }
 
-export function credentialsFromConfig(config: ResolvedSispConfig): SispCredentials {
+export function credentialsFromConfig(config: ResolvedSharedConfig): SispCredentials {
   return sispCredentials({
     posId: config.posId,
     posAutCode: config.posAutCode,
     currency: config.currency,
-    merchantId: config.merchantId,
     url: config.url,
     languageMessages: config.languageMessages,
     fingerprintVersion: config.fingerprintVersion,
@@ -279,50 +262,8 @@ export function credentialsFromConfig(config: ResolvedSispConfig): SispCredentia
   });
 }
 
-export function routeUrl(config: ResolvedSispConfig, route: string): string {
+export function routeUrl(config: ResolvedSharedConfig, route: string): string {
   return `${config.baseUrl}${config.basePath}/${route}`;
 }
 
-function resolveRateLimiting(overrides: DeepPartial<RateLimiting> | undefined): RateLimiting {
-  return {
-    enabled: booleanSetting(overrides?.enabled, DEFAULT_RATE_LIMITING.enabled),
-    perIp: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perIp, overrides?.perIp),
-    perMerchant: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perMerchant, overrides?.perMerchant),
-    perUser: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perUser, overrides?.perUser),
-  };
-}
-
-function resolveRateLimitRule(
-  defaults: RateLimitRule,
-  overrides: Partial<RateLimitRule> | undefined,
-): RateLimitRule {
-  return {
-    enabled: booleanSetting(overrides?.enabled, defaults.enabled),
-    limit: overrides?.limit ?? defaults.limit,
-    windowSeconds: overrides?.windowSeconds ?? defaults.windowSeconds,
-  };
-}
-
-function booleanSetting(value: unknown, fallback: boolean): boolean {
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  if (typeof value === 'number') {
-    return value !== 0;
-  }
-
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-
-    if (['1', 'true', 'yes', 'on'].includes(normalized)) {
-      return true;
-    }
-
-    if (['0', 'false', 'no', 'off', ''].includes(normalized)) {
-      return false;
-    }
-  }
-
-  return fallback;
-}
+export type { DeepPartial, RateLimiting, RateLimitRule };

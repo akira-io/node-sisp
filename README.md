@@ -14,7 +14,7 @@
 > [!WARNING]
 > Beta software. The API may change before `1.0.0`. Install with the `beta` tag: `npm install @akira-io/sisp@beta`. Pin an exact version in production and review the [changelog](CHANGELOG.md) before upgrading.
 
-Framework-agnostic Node.js client for the SISP/Vinti4 payment gateway (Cabo Verde), ported from [akira-io/laravel-sisp](https://github.com/akira-io/laravel-sisp). Signed payment requests, callback validation, refunds, retries, reconciliation, a local sandbox gateway, and thin adapters for Express, Fastify, and NestJS, all backed by a bundled database schema with byte-for-byte fingerprint parity against the PHP implementation.
+Framework-agnostic Node.js client for the SISP/Vinti4 payment gateway (Cabo Verde), ported from [akira-io/laravel-sisp](https://github.com/akira-io/laravel-sisp). Signed payment requests, callback validation, refunds, retries, reconciliation, a local sandbox gateway, and thin adapters for Express, Fastify, and NestJS, with byte-for-byte fingerprint parity against the PHP implementation. The bundled database schema is optional: run stateless against your own transaction tables, or let the package persist everything for you.
 
 ## Install
 
@@ -77,6 +77,10 @@ await app.listen({ port: 3000 });
 
 Prefer Express or NestJS? See the [adapters guide](docs/06-adapters.md).
 
+## Stateless mode
+
+Already own transaction tables? `createStatelessSisp` runs the gateway protocol with zero database: signed payment requests, callback verification, events, no persistence of its own. A three-method `correlation` port closes the callback replay gap when you want it. See the [stateless mode guide](docs/13-stateless-mode.md).
+
 ## Documentation
 
 - [Index](docs/00-index.md)
@@ -91,6 +95,8 @@ Prefer Express or NestJS? See the [adapters guide](docs/06-adapters.md).
 - [API Reference](docs/09-api-reference.md)
 - [Architecture](docs/10-architecture.md)
 - [Idempotency and Attempts](docs/11-idempotency.md)
+- [Storage Adapters](docs/12-storage-adapters.md)
+- [Stateless Mode](docs/13-stateless-mode.md)
 
 ## Testing
 

@@ -1,6 +1,5 @@
-import type { Knex } from 'knex';
+import type { CallbackVerifier, StoredCallbackOutcome } from '../core/contracts/callback-verifier';
 import type { CredentialsResolver } from '../core/contracts/credentials-resolver';
-import type { SispDriver } from '../core/contracts/sisp-driver';
 import type {
   BlacklistRepository,
   InvoiceRepository,
@@ -11,14 +10,11 @@ import type {
   TransactionLogRepository,
   TransactionRepository,
 } from '../core/contracts/storage';
+import { CallbackRejectionReasons } from '../domain/enums/callback-rejection-reason';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
-import type { PaymentRequest } from '../domain/value-objects/payment-request';
-import type { PaymentRequestData } from '../domain/value-objects/payment-request-data';
 import { type SispCredentials, sispCredentials } from '../domain/value-objects/sisp-credentials';
 import type { TransactionStatusResponse } from '../domain/value-objects/transaction-status-response';
 import type { SispManager } from '../infrastructure/drivers/sisp-manager';
-import { validateCallbackFingerprint } from '../infrastructure/fingerprints/callback-fingerprint';
-import { computeToken } from '../infrastructure/fingerprints/token';
 import type { SispHttpHandlers } from '../infrastructure/http/handlers';
 import type { TransactionRecord } from '../infrastructure/storage/knex/records';
 import type { UrlSigner } from '../support/signed-url';
@@ -26,14 +22,12 @@ import type { BuildRequestPayloadAction } from './actions/build-request-payload'
 import type { CancelTransactionAction } from './actions/cancel-transaction';
 import type { ReconcileTransactionStatusAction } from './actions/reconcile-transaction-status';
 import type { RefundTransactionAction } from './actions/refund-transaction';
-import { PaymentBuilder } from './builders/payment-builder';
 import { RefundBuilder } from './builders/refund-builder';
 import type { ResolvedSispConfig } from './config';
-import type { SispEventEmitter, SispEventMap, SispEventName } from './events';
-import { CallbackContext } from './pipelines/callback/callback-context';
-import type { HandleCallbackPipeline } from './pipelines/callback/handle-callback-pipeline';
-import type { BuildSandboxPayloadAction, SandboxStatus } from './sandbox';
+import type { SispEventEmitter } from './events';
+import type { BuildSandboxPayloadAction } from './sandbox';
 import { ScopedSisp } from './scoped-sisp';
+import { StatelessSisp } from './stateless-sisp';
 
 const CANCEL_URL_TTL_MINUTES = 30;
 
@@ -59,27 +53,61 @@ export interface ReconcilePendingResult {
   reconciled: number;
 }
 
-export class Sisp {
+export class Sisp extends StatelessSisp {
+  private readonly statefulVerifier: CallbackVerifier<StoredCallbackOutcome>;
+
+  declare readonly config: ResolvedSispConfig;
+  declare readonly handlers: SispHttpHandlers;
+
   constructor(
-    readonly config: ResolvedSispConfig,
-    readonly db: Knex,
+    config: ResolvedSispConfig,
+    readonly db: unknown,
     private readonly _storage: SispStorage,
-    readonly events: SispEventEmitter,
-    readonly manager: SispManager,
+    events: SispEventEmitter,
+    manager: SispManager,
     readonly models: SispModels,
-    readonly handlers: SispHttpHandlers,
-    private readonly credentialsResolver: CredentialsResolver,
-    private readonly buildRequestPayloadAction: BuildRequestPayloadAction,
-    private readonly buildSandboxPayloadAction: BuildSandboxPayloadAction,
-    private readonly callbackPipeline: HandleCallbackPipeline,
+    handlers: SispHttpHandlers,
+    credentialsResolver: CredentialsResolver,
+    buildRequestPayloadAction: BuildRequestPayloadAction,
+    buildSandboxPayloadAction: BuildSandboxPayloadAction,
     private readonly cancelTransaction: CancelTransactionAction,
     private readonly refundTransaction: RefundTransactionAction,
     private readonly reconcileTransaction: ReconcileTransactionStatusAction,
     private readonly urlSigner: UrlSigner,
-  ) {}
+    statefulVerifier: CallbackVerifier<StoredCallbackOutcome>,
+  ) {
+    super(
+      config,
+      events,
+      manager,
+      handlers,
+      credentialsResolver,
+      buildRequestPayloadAction,
+      buildSandboxPayloadAction,
+      statefulVerifier,
+      true,
+    );
+    this.statefulVerifier = statefulVerifier;
+  }
 
   get storage(): SispStorage {
     return this._storage;
+  }
+
+  override async handleCallback(payload: CallbackPayload): Promise<StoredCallbackOutcome> {
+    return this.statefulVerifier.verify(payload);
+  }
+
+  override async queryTransactionStatus(
+    transaction: TransactionRecord | string,
+  ): Promise<TransactionStatusResponse> {
+    const merchantRef = typeof transaction === 'string' ? transaction : transaction.merchant_ref;
+
+    return this.manager.driver().queryTransactionStatus(merchantRef);
+  }
+
+  override async destroy(): Promise<void> {
+    await this._storage.destroy();
   }
 
   forCredentials(credentials: Partial<SispCredentials>): ScopedSisp {
@@ -90,14 +118,6 @@ export class Sisp {
       this.models,
       sispCredentials(credentials),
     );
-  }
-
-  async queryTransactionStatus(
-    transaction: TransactionRecord | string,
-  ): Promise<TransactionStatusResponse> {
-    const merchantRef = typeof transaction === 'string' ? transaction : transaction.merchant_ref;
-
-    return this.manager.driver().queryTransactionStatus(merchantRef);
   }
 
   async reconcileTransactionStatus(transaction: TransactionRecord): Promise<TransactionRecord> {
@@ -135,12 +155,15 @@ export class Sisp {
 
   async cancel(
     transaction: TransactionRecord,
-    reason = 'user_cancelled',
+    reason: string = CallbackRejectionReasons.UserCancelled,
   ): Promise<TransactionRecord> {
     return this.cancelTransaction.handle(transaction, reason);
   }
 
-  signedCancelUrl(merchantRef: string, reason = 'user_cancelled'): string {
+  signedCancelUrl(
+    merchantRef: string,
+    reason: string = CallbackRejectionReasons.UserCancelled,
+  ): string {
     const signedPath = this.urlSigner.signAction(
       `${this.config.basePath}/cancel`,
       {
@@ -155,52 +178,5 @@ export class Sisp {
 
   signedRetryUrl(transactionId: number): string {
     return this.handlers.signedRetryUrl(transactionId);
-  }
-
-  payment(): PaymentBuilder {
-    return new PaymentBuilder(this.buildRequestPayloadAction);
-  }
-
-  driver(name?: string | null): SispDriver {
-    return this.manager.driver(name);
-  }
-
-  on<K extends SispEventName>(eventName: K, listener: (event: SispEventMap[K]) => unknown): this {
-    this.events.on(eventName, listener);
-
-    return this;
-  }
-
-  off<K extends SispEventName>(eventName: K, listener: (event: SispEventMap[K]) => unknown): this {
-    this.events.off(eventName, listener);
-
-    return this;
-  }
-
-  buildRequestPayload(data: PaymentRequestData): PaymentRequest {
-    return this.buildRequestPayloadAction.handle(data);
-  }
-
-  validateCallback(payload: CallbackPayload): boolean {
-    const token = computeToken(this.credentialsResolver.resolve().posAutCode);
-
-    return validateCallbackFingerprint(token, payload);
-  }
-
-  async handlePaymentCallback(payload: CallbackPayload): Promise<TransactionRecord> {
-    const context = await this.callbackPipeline.run(new CallbackContext(payload));
-
-    return context.requireTransaction();
-  }
-
-  generateSandboxPayload(
-    data: PaymentRequestData,
-    status: SandboxStatus = 'success',
-  ): CallbackPayload {
-    return this.buildSandboxPayloadAction.handle(data, status);
-  }
-
-  async destroy(): Promise<void> {
-    await this._storage.destroy();
   }
 }

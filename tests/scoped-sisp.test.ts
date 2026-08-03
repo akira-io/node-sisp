@@ -76,7 +76,7 @@ describe('forCredentials', () => {
       merchantSession: 'S-scoped',
     });
 
-    const transaction = await scoped.handlePaymentCallback(payload);
+    const { transaction } = await scoped.handleCallback(payload);
 
     expect(transaction.status).toBe('completed');
   });

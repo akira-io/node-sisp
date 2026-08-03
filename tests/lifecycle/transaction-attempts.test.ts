@@ -3,6 +3,7 @@ import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
 import { UnableToGenerateUniquePaymentIdentifiersError } from '../../src/domain/errors/exceptions';
 import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
+import { requireKnex } from '../helpers/knex';
 
 let sisp: Sisp | null = null;
 
@@ -124,8 +125,8 @@ describe('transaction attempts', () => {
       UnableToGenerateUniquePaymentIdentifiersError,
     );
 
-    const transactions = await sisp.db(sisp.config.tables.transactions);
-    const attempts = await sisp.db(sisp.config.tables.transactionAttempts);
+    const transactions = await requireKnex(sisp)(sisp.config.tables.transactions);
+    const attempts = await requireKnex(sisp)(sisp.config.tables.transactionAttempts);
 
     expect(transactions).toHaveLength(1);
     expect(attempts).toHaveLength(1);
@@ -247,7 +248,7 @@ describe('transaction attempts', () => {
       throw new Error('Old attempt was not found.');
     }
 
-    await sisp.handlePaymentCallback(
+    await sisp.handleCallback(
       sisp.generateSandboxPayload(
         {
           amount: 1500,
@@ -277,7 +278,7 @@ describe('transaction attempts', () => {
       throw new Error('Old attempt was not found.');
     }
 
-    await sisp.handlePaymentCallback(
+    await sisp.handleCallback(
       sisp.generateSandboxPayload({
         amount: 1500,
         merchantRef: oldAttempt.merchant_ref,
