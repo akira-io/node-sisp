@@ -13,6 +13,15 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Require the docs deploy token
+        env:
+          DOCS_TOKEN: ${{ secrets.PAYABLE_DOCS_TOKEN }}
+        run: |
+          if [ -z "$DOCS_TOKEN" ]; then
+            echo "::error::PAYABLE_DOCS_TOKEN did not resolve. It is an akira-io organisation secret, so check that node-sisp is in its repository access list."
+            exit 1
+          fi
+
       - name: Checkout node-sisp
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
