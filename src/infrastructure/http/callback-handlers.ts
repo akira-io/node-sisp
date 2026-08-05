@@ -20,6 +20,7 @@ import { callbackPayloadFrom } from '../../domain/value-objects/callback-payload
 import type { UrlSigner } from '../../support/signed-url';
 import {
   booleanFromInput,
+  cancellationPayloadFrom,
   cancelUserCancelledTransaction,
   frontendResultUrl,
   isAlreadyProcessed,
@@ -70,7 +71,7 @@ export class CallbackHandlers {
 
     if (cancelled) {
       events.emit('callback:rejected', {
-        payload: callbackPayloadFrom({ ...request.query, ...request.body }),
+        payload: cancellationPayloadFrom(request),
         status: TransactionStatus.Cancelled,
         reason: CallbackRejectionReasons.UserCancelled,
       });

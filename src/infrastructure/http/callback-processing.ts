@@ -5,6 +5,10 @@ import type {
   TransactionRepository,
 } from '../../core/contracts/storage';
 import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
+import {
+  type CallbackPayload,
+  callbackPayloadFrom,
+} from '../../domain/value-objects/callback-payload';
 import type { UrlSigner } from '../../support/signed-url';
 import type { HttpRequestInfo } from './request-info';
 
@@ -92,4 +96,14 @@ export function textFromInput(value: unknown): string {
   }
 
   return '';
+}
+
+export function cancellationPayloadFrom(request: HttpRequestInfo): CallbackPayload {
+  const input = { ...request.query, ...request.body };
+
+  return callbackPayloadFrom({
+    merchantRespMerchantRef: input.merchantRef,
+    merchantRespMerchantSession: input.merchantSession,
+    ...input,
+  });
 }

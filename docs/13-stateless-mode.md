@@ -305,11 +305,12 @@ The signed `GET /callback` result URL expires 5 minutes after it is issued. Ever
 
 1. Swap `createStatelessSisp(cfg)` for `createSisp({ ...cfg, database: { client, connection } })`. `StatelessSispConfig` is a subset of `SispConfig` minus `correlation`.
 2. Generate migrations: `autoMigrate: true` on knex, or `npx @akira-io/sisp prisma` plus `prisma migrate` on Prisma.
-3. Nothing else. Types keep compiling because `Sisp extends StatelessSisp`; routes keep their paths and contracts; `callback:*` listeners keep firing.
+3. Swap the router too: `statelessSispRoutes` for `sispRoutes`, `statelessSispFastifyPlugin` for `sispFastifyPlugin`, `StatelessSispModule.forRoot` for `SispModule.forRoot`. This is the step that fails quietly if you skip it. The stateless router mounts only the stateless route set, so `refund`, `retry`, `cancel`, `transactions` and `transaction-status` keep answering 404 on an app that now has a database behind it, and nothing tells you why.
+4. Nothing else. Types keep compiling because `Sisp extends StatelessSisp`, the shared routes keep their paths and contracts, and `callback:*` listeners keep firing without an edit.
 
 Three caveats, all inherent and none of them scriptable:
 
-- `correlation` goes dead. The package stops calling it. Your table now duplicates `sisp_transactions`; keeping or dropping it is your call, and the package never touches it either way.
+- `correlation` goes dead. The package stops calling it, and this is wider than it sounds: anything you built on top of that table stops being fed. If your checkout polls your own orders table to show the payment result, it will poll a row that is no longer updated, because the outcome now lands in `sisp_transactions`. Point those reads at the package's own records, or keep writing your table from the `callback:*` listeners you already have.
 - No backfill. Transactions written to your table before the switch are invisible to `sisp_transactions`, so `refund`, `cancel`, and `reconcilePending` will not work on them. The package cannot guess your column mapping.
 - Submission idempotency, rate limiting, and blacklisting start working once you switch, which may duplicate middleware you already added for stateless mode.
 
