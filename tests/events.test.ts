@@ -61,6 +61,21 @@ describe('SispEventEmitter', () => {
     expect(errors).toHaveLength(1);
   });
 
+  it('never lets a throwing error handler break the emit', () => {
+    const emitter = new SispEventEmitter(() => {
+      throw new Error('handler exploded');
+    });
+    const second = vi.fn();
+
+    emitter.on('payment:completed', () => {
+      throw new Error('listener exploded');
+    });
+    emitter.on('payment:completed', second);
+
+    expect(() => emitter.emit('payment:completed', event)).not.toThrow();
+    expect(second).toHaveBeenCalled();
+  });
+
   it('routes async listener rejections to the error handler', async () => {
     const onError = vi.fn();
     const emitter = new SispEventEmitter(onError);

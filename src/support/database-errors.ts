@@ -22,7 +22,7 @@ export function isUniqueConstraintError(error: unknown): boolean {
     return true;
   }
 
-  return message.includes('unique constraint') || message.includes('duplicate key');
+  return false;
 }
 
 export function isIndexAlreadyExistsError(error: unknown): boolean {
@@ -43,7 +43,7 @@ export function isIndexAlreadyExistsError(error: unknown): boolean {
     code === 'ER_DUP_KEYNAME' ||
     errno === '1061' ||
     (sqlState === '42000' && message.includes('duplicate key name')) ||
-    message.includes('already exists')
+    (code === 'SQLITE_ERROR' && message.includes('already exists'))
   );
 }
 

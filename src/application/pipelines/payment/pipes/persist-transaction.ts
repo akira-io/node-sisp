@@ -54,8 +54,10 @@ export class PersistTransaction implements PaymentPipe {
 
     try {
       await this.storage.invoices.createForTransaction(transaction);
-    } catch {
-      // Invoice stub creation must never break the payment flow.
+    } catch (error) {
+      try {
+        this.config.onEventListenerError?.('payment:pending', error);
+      } catch {}
     }
 
     await next();

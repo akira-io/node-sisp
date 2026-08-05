@@ -35,6 +35,7 @@ async function createCompletedTransaction(amount = 1500) {
     status: 'completed',
     transaction_id: '123',
     message_type: '8',
+    merchant_response: 'Paid',
     response_code: '42',
   });
 }
@@ -52,7 +53,7 @@ describe('refund transaction', () => {
     const result = await sisp.refund(transaction).full().reason('customer_request').process();
 
     expect(result.status).toBe('refunded');
-    expect(result.merchant_response).toBe('customer_request::1500');
+    expect(result.merchant_response).toBe('Paid');
     expect(result.refunded_at).not.toBeNull();
     expect(refunded).toHaveBeenCalledWith({
       transaction: result,
@@ -101,6 +102,7 @@ describe('refund transaction', () => {
     const final = await sisp.refund(partial).amount(1000).process();
 
     expect(final.status).toBe('refunded');
+    expect(final.merchant_response).toBe('Paid');
     expect(payloadRefunds(final.payload)).toHaveLength(2);
   });
 

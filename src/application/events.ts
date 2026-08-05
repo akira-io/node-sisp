@@ -97,10 +97,16 @@ export class SispEventEmitter<TMap extends AnyEventMap = SispEventMap> {
       const result = listener(event as TMap[keyof TMap]);
 
       if (result instanceof Promise) {
-        result.catch((error) => this.onListenerError(eventName, error));
+        result.catch((error) => this.guardListenerError(eventName, error));
       }
     } catch (error) {
-      this.onListenerError(eventName, error);
+      this.guardListenerError(eventName, error);
     }
+  }
+
+  private guardListenerError<K extends keyof TMap>(eventName: K, error: unknown): void {
+    try {
+      this.onListenerError(eventName, error);
+    } catch {}
   }
 }

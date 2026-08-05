@@ -82,7 +82,6 @@ export class RefundTransactionAction {
       transactions.update(transaction.id, {
         status:
           remainingThousandths === 0 ? TransactionStatus.Refunded : TransactionStatus.Completed,
-        merchant_response: `${reason}::${refundAmount}`,
         payload,
         refunded_at: nowIso(),
       }),
