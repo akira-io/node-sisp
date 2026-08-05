@@ -221,6 +221,13 @@ describe('callback event parity across modes', () => {
       expect(statefulListener.mock.calls[0]?.[0].reason).toBe(
         CallbackRejectionReasons.UserCancelled,
       );
+      expect(statefulListener.mock.calls[0]?.[0].payload.merchantRef).toBe(
+        transaction.merchant_ref,
+      );
+      expect(statefulListener.mock.calls[0]?.[0].payload.merchantSession).toBe(
+        transaction.merchant_session,
+      );
+      expect(statelessListener.mock.calls[0]?.[0].payload.merchantRef).not.toBe('');
     } finally {
       await stateful.destroy();
     }

@@ -15,7 +15,7 @@ import { paymentRequestDataFrom } from '../../domain/value-objects/payment-reque
 import type { UrlSigner } from '../../support/signed-url';
 import type { SispManager } from '../drivers/sisp-manager';
 import { renderAutoSubmitForm } from './auto-submit-form';
-import { booleanFromInput } from './callback-processing';
+import { booleanFromInput, cancellationPayloadFrom } from './callback-processing';
 import { buildGatewayFormAction } from './gateway-form-action';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
@@ -145,7 +145,7 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
   }
 
   private async rejectCancelled(request: HttpRequestInfo): Promise<HttpResult> {
-    const payload = callbackPayloadFrom({ ...request.query, ...request.body });
+    const payload = cancellationPayloadFrom(request);
 
     if (this.config.correlation !== null) {
       const claim = await this.config.correlation.claim(
