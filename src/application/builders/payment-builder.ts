@@ -2,8 +2,12 @@ import type { PaymentRequest } from '../../domain/value-objects/payment-request'
 import type { PaymentRequestData } from '../../domain/value-objects/payment-request-data';
 import type { BuildRequestPayloadAction } from '../actions/build-request-payload';
 
+type MutablePaymentRequestData = {
+  -readonly [Key in keyof PaymentRequestData]: PaymentRequestData[Key];
+};
+
 export class PaymentBuilder {
-  private readonly data: Partial<PaymentRequestData> = {};
+  private readonly data: Partial<MutablePaymentRequestData> = {};
 
   constructor(private readonly buildRequestPayload: BuildRequestPayloadAction) {}
 
@@ -108,7 +112,7 @@ export class PaymentBuilder {
       throw new Error('A payment amount greater than zero is required.');
     }
 
-    return { ...this.data, amount: this.data.amount };
+    return Object.freeze({ ...this.data, amount: this.data.amount });
   }
 
   build(): PaymentRequest {

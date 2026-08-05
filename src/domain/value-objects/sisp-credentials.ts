@@ -1,25 +1,25 @@
 export interface SispTransactionStatusCredentials {
-  url: string;
-  portalId: string;
-  portalPassword: string;
-  timeoutSeconds: number;
+  readonly url: string;
+  readonly portalId: string;
+  readonly portalPassword: string;
+  readonly timeoutSeconds: number;
 }
 
 export interface SispCredentials {
-  posId: string;
-  posAutCode: string;
-  currency: string;
-  url: string;
-  languageMessages: string;
-  fingerprintVersion: string;
-  is3DSec: string;
-  sandbox: boolean;
-  urlMerchantResponse: string | null;
-  transactionStatus?: Partial<SispTransactionStatusCredentials>;
+  readonly posId: string;
+  readonly posAutCode: string;
+  readonly currency: string;
+  readonly url: string;
+  readonly languageMessages: string;
+  readonly fingerprintVersion: string;
+  readonly is3DSec: string;
+  readonly sandbox: boolean;
+  readonly urlMerchantResponse: string | null;
+  readonly transactionStatus?: Readonly<Partial<SispTransactionStatusCredentials>>;
 }
 
 export function sispCredentials(data: Partial<SispCredentials>): SispCredentials {
-  return {
+  return Object.freeze({
     posId: data.posId ?? '',
     posAutCode: data.posAutCode ?? '',
     currency: data.currency ?? '132',
@@ -29,6 +29,9 @@ export function sispCredentials(data: Partial<SispCredentials>): SispCredentials
     is3DSec: data.is3DSec ?? '0',
     sandbox: data.sandbox ?? false,
     urlMerchantResponse: data.urlMerchantResponse ?? null,
-    transactionStatus: data.transactionStatus,
-  };
+    transactionStatus:
+      data.transactionStatus === undefined
+        ? undefined
+        : Object.freeze({ ...data.transactionStatus }),
+  });
 }

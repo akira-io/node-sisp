@@ -1,32 +1,32 @@
 export interface CallbackPayload {
-  merchantRef: string;
-  merchantSession: string;
-  timeStamp: string;
-  amount: string | number;
-  currency: string;
-  transactionCode: string;
-  transactionID: string | number;
-  messageType: string;
-  merchantResponse: string;
-  responseCode: string;
-  fingerprint: string;
-  posID: string;
-  messageID: string;
-  pan: string;
-  clearingPeriod: string;
-  reference: string;
-  entityCode: string;
-  clientReceipt: string;
-  additionalErrorMessage: string;
-  merchantRespCp: string;
-  reloadCode: string;
-  currencyProvided: boolean;
-  transactionCodeProvided: boolean;
-  posIDProvided: boolean;
+  readonly merchantRef: string;
+  readonly merchantSession: string;
+  readonly timeStamp: string;
+  readonly amount: string | number;
+  readonly currency: string;
+  readonly transactionCode: string;
+  readonly transactionID: string | number;
+  readonly messageType: string;
+  readonly merchantResponse: string;
+  readonly responseCode: string;
+  readonly fingerprint: string;
+  readonly posID: string;
+  readonly messageID: string;
+  readonly pan: string;
+  readonly clearingPeriod: string;
+  readonly reference: string;
+  readonly entityCode: string;
+  readonly clientReceipt: string;
+  readonly additionalErrorMessage: string;
+  readonly merchantRespCp: string;
+  readonly reloadCode: string;
+  readonly currencyProvided: boolean;
+  readonly transactionCodeProvided: boolean;
+  readonly posIDProvided: boolean;
 }
 
 export function callbackPayloadFrom(data: Record<string, unknown>): CallbackPayload {
-  return {
+  return Object.freeze({
     merchantRef: text(data.merchantRespMerchantRef),
     merchantSession: text(data.merchantRespMerchantSession),
     timeStamp: text(data.merchantRespTimeStamp),
@@ -51,7 +51,7 @@ export function callbackPayloadFrom(data: Record<string, unknown>): CallbackPayl
     currencyProvided: 'currency' in data,
     transactionCodeProvided: 'transactionCode' in data,
     posIDProvided: 'posID' in data,
-  };
+  });
 }
 
 export function callbackPayloadToFormFields(

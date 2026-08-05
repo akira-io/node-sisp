@@ -56,7 +56,7 @@ export class BuildRefundRequestAction {
       transactionID: request.transactionID,
     });
 
-    return { ...request, fingerprint };
+    return Object.freeze({ ...request, fingerprint });
   }
 }
 
