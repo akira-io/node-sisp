@@ -21,18 +21,12 @@ export class EnsureCallbackMatchesTransaction implements CallbackPipe {
   ) {}
 
   async handle(context: CallbackContext, next: () => Promise<void>): Promise<void> {
-    if (
-      !this.matchesTransaction(
-        context.requireTransaction(),
-        context.requireAttempt(),
-        context.payload,
-      )
-    ) {
+    if (!this.matchesTransaction(context.requireTransaction(), context.attempt, context.payload)) {
       const failed = await this.failTransaction.handle(
         context.requireTransaction(),
         context.payload,
         CallbackRejectionReasons.DetailsMismatch,
-        context.requireAttempt(),
+        context.attempt,
       );
       context.transactionStatusPropagated = failed.propagated;
       context.transaction = failed.transaction;
@@ -54,12 +48,14 @@ export class EnsureCallbackMatchesTransaction implements CallbackPipe {
 
   private matchesTransaction(
     transaction: TransactionRecord,
-    attempt: TransactionAttemptRecord,
+    attempt: TransactionAttemptRecord | null,
     payload: CallbackPayload,
   ): boolean {
+    const identifiers = attempt ?? transaction;
+
     return (
-      attempt.merchant_ref === payload.merchantRef &&
-      attempt.merchant_session === payload.merchantSession &&
+      identifiers.merchant_ref === payload.merchantRef &&
+      identifiers.merchant_session === payload.merchantSession &&
       toThousandths(transaction.amount) === toThousandths(payload.amount) &&
       (!payload.currencyProvided || transaction.currency === payload.currency) &&
       (!payload.transactionCodeProvided ||

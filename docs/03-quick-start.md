@@ -76,7 +76,7 @@ POST a form to `/sisp/payment`:
 
 Use one stable `checkout_intent_id` per checkout. If the customer posts the same checkout again, the package reuses the same local transaction instead of creating a duplicate.
 
-The response is an auto-submitting form that redirects the browser to the gateway. In sandbox mode that is the local `/sisp/sandbox` route, which immediately posts a correctly signed callback back to `/sisp/callback`. The browser lands on `/sisp/callback?ref=R...`, which returns the payment result as JSON.
+The response is an auto-submitting form that redirects the browser to the gateway. In sandbox mode that is the local `/sisp/sandbox` route, which immediately posts a correctly signed callback back to `/sisp/callback`. The browser lands on the signed result URL (`/sisp/callback?transaction=...&expires=...&signature=...`), which returns the payment result as JSON.
 
 ## 5. Or build requests in code
 

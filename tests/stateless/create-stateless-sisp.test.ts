@@ -38,7 +38,33 @@ describe('createStatelessSisp', () => {
     });
 
     expect(sisp.validateCallback(payload)).toBe(true);
+    expect((await sisp.handleCallback(payload)).reason).toBe('expected_payment_missing');
+    expect((await sisp.handleCallback(payload, { amount: 1500 })).verified).toBe(true);
+    expect((await sisp.handleCallback(payload, { amount: 1400 })).reason).toBe(
+      'callback_details_mismatch',
+    );
+  });
+
+  it('resolves the expected payment from configuration when no store is set', async () => {
+    const expectedPayment = vi.fn(async () => ({ amount: 1500 }));
+    const sisp = createStatelessSisp({
+      posId: '90000045',
+      posAutCode: 'code',
+      sandbox: true,
+      baseUrl: 'https://shop.test',
+      appKey: 'app-key',
+      expectedPayment,
+    });
+    const request = sisp.payment().amount(1500).build();
+    const payload = sisp.generateSandboxPayload({
+      amount: 1500,
+      merchantRef: request.merchantRef,
+      merchantSession: request.merchantSession,
+      timeStamp: request.timeStamp,
+    });
+
     expect((await sisp.handleCallback(payload)).verified).toBe(true);
+    expect(expectedPayment).toHaveBeenCalledWith(payload);
   });
 
   it('matches the callback against the correlation store', async () => {
@@ -73,6 +99,7 @@ describe('createStatelessSisp', () => {
         merchantSession: request.merchantSession,
         timeStamp: request.timeStamp,
       }),
+      { amount: 1500 },
     );
 
     expect(listener).toHaveBeenCalledTimes(1);
@@ -80,6 +107,7 @@ describe('createStatelessSisp', () => {
     sisp.off('callback:verified', listener);
     await sisp.handleCallback(
       sisp.generateSandboxPayload({ amount: 1500, merchantRef: 'X', merchantSession: 'Y' }),
+      { amount: 1500 },
     );
 
     expect(listener).toHaveBeenCalledTimes(1);

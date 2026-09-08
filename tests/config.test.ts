@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   credentialsFromConfig,
   DEFAULT_TABLES,
@@ -12,6 +12,43 @@ const minimalConfig: SispConfig = {
   posAutCode: 'TEST_POS_AUT_CODE',
   database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
 };
+
+describe('environment guards', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('refuses sandbox mode in production unless explicitly allowed', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    expect(() => resolveConfig({ ...minimalConfig, sandbox: true })).toThrow(
+      'SISP sandbox mode is disabled when NODE_ENV is production',
+    );
+    expect(() => resolveConfig({ ...minimalConfig, driver: 'sandbox' })).toThrow(
+      'SISP sandbox mode is disabled when NODE_ENV is production',
+    );
+    expect(
+      resolveConfig({ ...minimalConfig, sandbox: true, allowSandboxInProduction: true }).sandbox,
+    ).toBe(true);
+  });
+
+  it('requires a strong appKey outside sandbox mode', () => {
+    expect(() => resolveConfig({ ...minimalConfig, appKey: 'short' })).toThrow(
+      'SISP appKey must be at least 32 characters outside sandbox mode.',
+    );
+    expect(resolveConfig({ ...minimalConfig, sandbox: true, appKey: 'short' }).appKey).toBe(
+      'short',
+    );
+    expect(
+      resolveConfig({ ...minimalConfig, appKey: 'app-key-with-thirty-two-characters!' }).appKey,
+    ).toBe('app-key-with-thirty-two-characters!');
+    expect(resolveConfig({ ...minimalConfig, appKey: 'short', allowWeakAppKey: true }).appKey).toBe(
+      'short',
+    );
+    expect(resolveConfig({ ...minimalConfig, appKey: '' }).appKey).toBe('');
+    expect(() => resolveConfig({ ...minimalConfig, driver: 'sandbox' })).not.toThrow();
+  });
+});
 
 describe('resolveConfig', () => {
   it('applies the same defaults as config/sisp.php', () => {
@@ -33,6 +70,7 @@ describe('resolveConfig', () => {
     expect(resolved.rateLimiting.perMerchant.limit).toBe(500);
     expect(resolved.rateLimiting.perUser.limit).toBe(50);
     expect(resolved.security.collectMetadata).toBe(true);
+    expect(resolved.security.clientIp).toBeNull();
     expect(resolved.identifierGeneration).toEqual({
       maxAttempts: 5,
       collisionRetrySleepMs: 1000,
@@ -41,6 +79,7 @@ describe('resolveConfig', () => {
     expect(resolved.idempotency).toEqual({
       enabled: true,
       requestKeys: ['idempotency_key', 'checkout_intent_id'],
+      excludeFromHash: ['_token', '_csrf', '_method', 'csrf_token', 'authenticity_token'],
     });
     expect(resolved.paymentValidation).toMatchObject({
       maxAmount: 10_000_000,

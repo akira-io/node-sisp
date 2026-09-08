@@ -1,5 +1,5 @@
 import type { CallbackPipe } from '../../../../core/contracts/pipes';
-import type { SispStorage } from '../../../../core/contracts/storage';
+import type { SispStorage, SispStorageTx } from '../../../../core/contracts/storage';
 import { TransactionStatus } from '../../../../domain/enums/transaction-status';
 import { TransactionNotFoundError } from '../../../../domain/errors/exceptions';
 import type { CallbackPayload } from '../../../../domain/value-objects/callback-payload';
@@ -9,6 +9,7 @@ import {
   shouldPropagateAttemptToTransaction,
 } from '../../../../infrastructure/storage/knex/models/transaction-attempt';
 import type { TransactionAttemptRecord } from '../../../../infrastructure/storage/knex/records';
+import { isUniqueConstraintError } from '../../../../support/database-errors';
 import { mapTransactionStatus } from '../../../actions/map-transaction-status';
 import type { CallbackContext } from '../callback-context';
 
@@ -20,10 +21,11 @@ export class ApplyTransactionStatus implements CallbackPipe {
     const status = mapTransactionStatus(payload.messageType);
 
     const result = await this.storage.transaction(async (tx) => {
-      const lockedAttempt = await tx.transactionAttempts.findByRefAndSessionForUpdate(
-        payload.merchantRef,
-        payload.merchantSession,
-      );
+      const lockedAttempt =
+        (await tx.transactionAttempts.findByRefAndSessionForUpdate(
+          payload.merchantRef,
+          payload.merchantSession,
+        )) ?? (await this.backfillLegacyAttempt(tx, context));
 
       if (lockedAttempt === null) {
         return {
@@ -99,6 +101,39 @@ export class ApplyTransactionStatus implements CallbackPipe {
     }
 
     await next();
+  }
+
+  private async backfillLegacyAttempt(
+    tx: SispStorageTx,
+    context: CallbackContext,
+  ): Promise<TransactionAttemptRecord | null> {
+    if (context.attempt !== null) {
+      return null;
+    }
+
+    const legacy = await tx.transactions.findByRefAndSessionForUpdate(
+      context.payload.merchantRef,
+      context.payload.merchantSession,
+    );
+
+    if (legacy === null) {
+      throw new TransactionNotFoundError(
+        `No transaction found for merchantRef ${context.payload.merchantRef}.`,
+      );
+    }
+
+    try {
+      return await tx.transactionAttempts.createFromTransaction(legacy);
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+
+      return tx.transactionAttempts.findByRefAndSessionForUpdate(
+        context.payload.merchantRef,
+        context.payload.merchantSession,
+      );
+    }
   }
 }
 

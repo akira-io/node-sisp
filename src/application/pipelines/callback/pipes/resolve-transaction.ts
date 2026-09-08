@@ -1,10 +1,6 @@
 import type { CallbackPipe } from '../../../../core/contracts/pipes';
 import type { SispStorage } from '../../../../core/contracts/storage';
 import { TransactionNotFoundError } from '../../../../domain/errors/exceptions';
-import type {
-  TransactionAttemptRecord,
-  TransactionRecord,
-} from '../../../../infrastructure/storage/knex/records';
 import type { CallbackContext } from '../callback-context';
 
 export class ResolveTransaction implements CallbackPipe {
@@ -33,38 +29,20 @@ export class ResolveTransaction implements CallbackPipe {
       return;
     }
 
-    const resolved = await this.resolveLegacyTransaction(context);
+    const legacy = await this.storage.transactions.findByRefAndSession(
+      context.payload.merchantRef,
+      context.payload.merchantSession,
+    );
 
-    context.attempt = resolved.attempt;
-    context.transaction = resolved.transaction;
+    if (legacy === null) {
+      throw new TransactionNotFoundError(
+        `No transaction found for merchantRef ${context.payload.merchantRef}.`,
+      );
+    }
+
+    context.attempt = null;
+    context.transaction = legacy;
 
     await next();
-  }
-
-  private async resolveLegacyTransaction(
-    context: CallbackContext,
-  ): Promise<{ transaction: TransactionRecord; attempt: TransactionAttemptRecord }> {
-    return this.storage.transaction(async (tx) => {
-      const transaction = await tx.transactions.findByRefAndSessionForUpdate(
-        context.payload.merchantRef,
-        context.payload.merchantSession,
-      );
-
-      if (transaction === null) {
-        throw new TransactionNotFoundError(
-          `No transaction found for merchantRef ${context.payload.merchantRef}.`,
-        );
-      }
-
-      const attempt = await tx.transactionAttempts.findByRefAndSessionForUpdate(
-        context.payload.merchantRef,
-        context.payload.merchantSession,
-      );
-
-      return {
-        transaction,
-        attempt: attempt ?? (await tx.transactionAttempts.createFromTransaction(transaction)),
-      };
-    });
   }
 }

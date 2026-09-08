@@ -26,5 +26,13 @@ export function generateCallbackFingerprint(token: string, payload: CallbackPayl
 }
 
 export function validateCallbackFingerprint(token: string, payload: CallbackPayload): boolean {
-  return constantTimeEquals(generateCallbackFingerprint(token, payload), payload.fingerprint);
+  let expected: string;
+
+  try {
+    expected = generateCallbackFingerprint(token, payload);
+  } catch {
+    return false;
+  }
+
+  return constantTimeEquals(expected, payload.fingerprint);
 }

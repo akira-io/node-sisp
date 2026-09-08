@@ -1,5 +1,6 @@
 import type { CallbackOutcome, CallbackVerifier } from '../core/contracts/callback-verifier';
 import type { CredentialsResolver } from '../core/contracts/credentials-resolver';
+import type { ExpectedPayment } from '../core/contracts/payment-correlation-store';
 import type { SispDriver } from '../core/contracts/sisp-driver';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
 import type { PaymentRequest } from '../domain/value-objects/payment-request';
@@ -43,8 +44,11 @@ export class StatelessSisp {
     );
   }
 
-  async handleCallback(payload: CallbackPayload): Promise<CallbackOutcome> {
-    return this.callbackVerifier.verify(payload);
+  async handleCallback(
+    payload: CallbackPayload,
+    expected?: ExpectedPayment,
+  ): Promise<CallbackOutcome> {
+    return this.callbackVerifier.verify(payload, expected);
   }
 
   generateSandboxPayload(

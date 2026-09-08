@@ -2,6 +2,7 @@ import type { CallbackRejectionReason } from '../../domain/enums/callback-reject
 import type { TransactionStatus } from '../../domain/enums/transaction-status';
 import type { TransactionRecord } from '../../domain/records';
 import type { CallbackPayload } from '../../domain/value-objects/callback-payload';
+import type { ExpectedPayment } from './payment-correlation-store';
 
 export interface CallbackOutcome {
   verified: boolean;
@@ -16,5 +17,5 @@ export interface StoredCallbackOutcome extends CallbackOutcome {
 }
 
 export interface CallbackVerifier<T extends CallbackOutcome = CallbackOutcome> {
-  verify(payload: CallbackPayload): Promise<T>;
+  verify(payload: CallbackPayload, expected?: ExpectedPayment): Promise<T>;
 }

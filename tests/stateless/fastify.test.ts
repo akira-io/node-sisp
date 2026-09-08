@@ -19,7 +19,7 @@ async function server(
     posId: '90000045',
     posAutCode: 'code',
     sandbox: true,
-    appKey: 'app-key',
+    appKey: 'app-key-with-thirty-two-characters!',
     baseUrl: 'https://shop.test',
     ...(correlation === null ? {} : { correlation }),
   });
@@ -115,7 +115,7 @@ describe('statelessSispFastifyPlugin', () => {
     const sisp = createStatelessSisp({
       posId: '90000045',
       posAutCode: 'code',
-      appKey: 'app-key',
+      appKey: 'app-key-with-thirty-two-characters!',
       baseUrl: 'https://shop.test',
     });
     const app = Fastify();
@@ -152,7 +152,7 @@ describe('statelessSispFastifyPlugin', () => {
       posId: '90000045',
       posAutCode: 'code',
       sandbox: true,
-      appKey: 'app-key',
+      appKey: 'app-key-with-thirty-two-characters!',
       baseUrl: 'https://shop.test',
       correlation: new InMemoryPaymentCorrelationStore(),
     });

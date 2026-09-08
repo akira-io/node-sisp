@@ -9,7 +9,10 @@ export class StatelessCallbackContext {
 
   expected: ExpectedPayment | null = null;
 
-  constructor(readonly payload: CallbackPayload) {}
+  constructor(
+    readonly payload: CallbackPayload,
+    readonly provided: ExpectedPayment | null = null,
+  ) {}
 
   fail(reason: CallbackRejectionReason): this {
     this.reason = reason;

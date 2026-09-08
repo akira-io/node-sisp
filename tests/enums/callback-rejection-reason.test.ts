@@ -14,6 +14,7 @@ describe('CallbackRejectionReasons', () => {
   it('adds the stateless reasons', () => {
     expect(CallbackRejectionReasons.Replayed).toBe('callback_replayed');
     expect(CallbackRejectionReasons.UnknownTransaction).toBe('unknown_transaction');
+    expect(CallbackRejectionReasons.ExpectedPaymentMissing).toBe('expected_payment_missing');
   });
 
   it('narrows arbitrary strings', () => {

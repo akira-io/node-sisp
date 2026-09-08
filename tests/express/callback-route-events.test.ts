@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createSisp } from '../../src/application/create-sisp';
 import { createStatelessSisp } from '../../src/application/create-stateless-sisp';
 import type { CallbackEvent } from '../../src/application/events';
@@ -92,6 +92,53 @@ describe('POST /sisp/callback route emits callback:verified', () => {
       await request(app).post('/sisp/callback').type('form').send(callbackFields).expect(302);
 
       expect(seen).toHaveLength(1);
+    } finally {
+      await sisp.destroy();
+    }
+  });
+
+  it('rejects a forged callback without failing the transaction and still accepts the genuine one', async () => {
+    const sisp = await createSisp({
+      posId: '90051',
+      posAutCode: 'TEST_POS_AUT_CODE',
+      sandbox: true,
+      appKey: 'app-key',
+      redirectUrl: '/shop',
+      database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
+    });
+
+    try {
+      const rejected: CallbackEvent[] = [];
+      const failed = vi.fn();
+      const completed = vi.fn();
+
+      sisp.on('callback:rejected', (event) => rejected.push(event));
+      sisp.on('payment:failed', failed);
+      sisp.on('payment:completed', completed);
+
+      const app = express();
+
+      app.use('/sisp', sispRoutes(sisp));
+
+      const callbackFields = await completedCallbackForm(app);
+      const merchantRef = String(callbackFields.merchantRespMerchantRef);
+
+      await request(app)
+        .post('/sisp/callback')
+        .type('form')
+        .send({ ...callbackFields, resultFingerPrint: 'forged' })
+        .expect(302)
+        .expect('Location', '/shop');
+
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0]?.reason).toBe('invalid_callback_fingerprint');
+      expect(failed).not.toHaveBeenCalled();
+      expect((await sisp.models.transactions.findByRef(merchantRef))?.status).toBe('pending');
+
+      await request(app).post('/sisp/callback').type('form').send(callbackFields).expect(302);
+
+      expect(completed).toHaveBeenCalledTimes(1);
+      expect((await sisp.models.transactions.findByRef(merchantRef))?.status).toBe('completed');
     } finally {
       await sisp.destroy();
     }

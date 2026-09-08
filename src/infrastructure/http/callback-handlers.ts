@@ -83,7 +83,7 @@ export class CallbackHandlers {
   private async handleResult(request: HttpRequestInfo): Promise<HttpResult> {
     const { config, urlSigner, transactions, invoices, lifecycle } = this.deps;
 
-    if (!urlSigner.validate(`${config.basePath}/callback`, request.query)) {
+    if (!urlSigner.validateExpiring(`${config.basePath}/callback`, request.query)) {
       return redirect(config.redirectUrl);
     }
 
@@ -121,9 +121,7 @@ export class CallbackHandlers {
       return redirect(config.redirectUrl);
     }
 
-    if (
-      await isAlreadyProcessed(transactions, attempts, payload.merchantRef, payload.merchantSession)
-    ) {
+    if (await isAlreadyProcessed(transactions, attempts, payload)) {
       return redirect(config.redirectUrl);
     }
 
@@ -139,7 +137,7 @@ export class CallbackHandlers {
       throw error;
     }
 
-    if (outcome.replay) {
+    if (outcome.replay || outcome.reason === CallbackRejectionReasons.InvalidFingerprint) {
       return redirect(config.redirectUrl);
     }
 

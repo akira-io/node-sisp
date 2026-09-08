@@ -3,6 +3,7 @@ export const CallbackRejectionReasons = {
   DetailsMismatch: 'callback_details_mismatch',
   Replayed: 'callback_replayed',
   UnknownTransaction: 'unknown_transaction',
+  ExpectedPaymentMissing: 'expected_payment_missing',
   UserCancelled: 'user_cancelled',
 } as const;
 

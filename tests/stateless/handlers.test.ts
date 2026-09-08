@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { createStatelessSisp } from '../../src/application/create-stateless-sisp';
 import { CorrelationRequiredError } from '../../src/domain/errors/exceptions';
+import { callbackPayloadToFormFields } from '../../src/domain/value-objects/callback-payload';
 import { extractForm } from '../helpers/auto-submit-form';
 import { build, items, request } from './handlers-harness';
 import { InMemoryPaymentCorrelationStore } from './in-memory-correlation-store';
@@ -150,5 +152,54 @@ describe('StatelessSispHttpHandlers', () => {
     if (result.type === 'json') {
       expect(result.status).toBe(404);
     }
+  });
+});
+
+describe('StatelessSispHttpHandlers without a correlation store', () => {
+  function statelessSisp(expectedPayment?: () => Promise<{ amount: number }>) {
+    return createStatelessSisp({
+      posId: '90000045',
+      posAutCode: 'code',
+      sandbox: true,
+      baseUrl: 'https://shop.test',
+      appKey: 'app-key',
+      ...(expectedPayment ? { expectedPayment } : {}),
+    });
+  }
+
+  function completedCallbackBody(sisp: ReturnType<typeof statelessSisp>) {
+    const built = sisp.payment().amount(1500).build();
+
+    return callbackPayloadToFormFields(
+      sisp.generateSandboxPayload({
+        amount: 1500,
+        merchantRef: built.merchantRef,
+        merchantSession: built.merchantSession,
+        timeStamp: built.timeStamp,
+      }),
+    );
+  }
+
+  it('rejects a completed callback on the HTTP route when nothing resolves the expected payment', async () => {
+    const sisp = statelessSisp();
+
+    const result = await sisp.handlers.handleCallback(
+      request({ method: 'POST', path: '/sisp/callback', body: completedCallbackBody(sisp) }),
+    );
+
+    expect(result.type === 'redirect' ? result.location : '').toContain('verified=0');
+    expect(result.type === 'redirect' ? result.location : '').toContain(
+      'reason=expected_payment_missing',
+    );
+  });
+
+  it('verifies the HTTP callback through the expectedPayment lookup', async () => {
+    const sisp = statelessSisp(async () => ({ amount: 1500 }));
+
+    const result = await sisp.handlers.handleCallback(
+      request({ method: 'POST', path: '/sisp/callback', body: completedCallbackBody(sisp) }),
+    );
+
+    expect(result.type === 'redirect' ? result.location : '').toContain('verified=1');
   });
 });
