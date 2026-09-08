@@ -12,7 +12,7 @@
 </p>
 
 > [!WARNING]
-> Beta software. The API may change before `1.0.0`. Install with the `beta` tag: `npm install @akira-io/sisp@beta`. Pin an exact version in production and review the [changelog](CHANGELOG.md) before upgrading.
+> Beta software. The API may change before `1.0.0`. `npm install @akira-io/sisp` resolves to the current beta until a stable release ships. Pin an exact version in production and review the [changelog](CHANGELOG.md) before upgrading.
 
 Framework-agnostic Node.js client for the SISP/Vinti4 payment gateway (Cabo Verde), ported from [akira-io/laravel-sisp](https://github.com/akira-io/laravel-sisp). Signed payment requests, callback validation, refunds, retries, reconciliation, a local sandbox gateway, and thin adapters for Express, Fastify, and NestJS, with byte-for-byte fingerprint parity against the PHP implementation. The bundled database schema is optional: run stateless against your own transaction tables, or let the package persist everything for you.
 
