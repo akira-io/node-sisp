@@ -49,11 +49,12 @@ The `sisp_payment_intents` table has one row per idempotency key.
 
 When a request arrives:
 
-1. The package reserves the idempotency key.
+1. The package reserves the idempotency key together with a SHA-256 hash of the request body (the idempotency keys themselves are excluded from the hash).
 2. If the key is new, the payment pipeline creates a transaction and the first attempt.
-3. If the key already points to a transaction, the handler reuses that transaction.
-4. If the transaction is retryable, the handler creates a new attempt on the same transaction.
-5. If the transaction is not retryable, the handler rebuilds the original payment request from the stored attempt payload.
+3. If the key is known but the body hash differs, the handler throws `IdempotencyKeyReusedError` (HTTP 409) and touches nothing. Rows reserved before the `request_hash` column existed have no hash and are replayed without this check.
+4. If the key already points to a transaction, the handler reuses that transaction.
+5. If the transaction is retryable, the handler creates a new attempt on the same transaction.
+6. If the transaction is not retryable, the handler rebuilds the original payment request from the stored attempt payload.
 
 Failed intents are recoverable when no transaction was created. The next request with the same key reclaims the row and tries again. If the first request created a transaction before a later pipe failed, the next request reuses that transaction instead of creating an orphan.
 
@@ -129,7 +130,7 @@ Recommended sources:
 
 Do not use `Date.now()` as the idempotency key. A timestamp changes on each click, which disables idempotency.
 
-Do not reuse one key for different orders. The package will return or retry the first transaction linked to that key.
+Do not reuse one key for different orders. A key replayed with a different body is refused with HTTP 409; a key replayed with the same body returns or retries the first transaction linked to it.
 
 ## Disabling idempotency
 

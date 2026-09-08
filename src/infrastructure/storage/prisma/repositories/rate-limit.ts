@@ -1,6 +1,7 @@
 import type { SispTables } from '../../../../application/config';
 import type { RateLimitRepository } from '../../../../core/contracts/storage';
 import type { RateLimitHit } from '../../../../domain/storage-types';
+import { isUniqueConstraintError } from '../../../../support/database-errors';
 import { nowIso } from '../../knex/records';
 import {
   DELEGATE_NAMES,
@@ -153,10 +154,4 @@ export function makeRateLimitRepository(
       });
     },
   };
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  const candidate = error as { code?: unknown };
-
-  return candidate.code === 'P2002';
 }

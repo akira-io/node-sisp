@@ -21,6 +21,7 @@ import {
 } from '../../src/domain/errors/exceptions';
 import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
 import { runMigrations } from '../../src/infrastructure/storage/knex/auto-migrate';
+import { PayloadCipher } from '../../src/infrastructure/storage/knex/encryption';
 import { KnexStorage } from '../../src/infrastructure/storage/knex/knex-storage';
 import type { Invoice } from '../../src/infrastructure/storage/knex/models/invoice';
 import { RequestMetadata } from '../../src/infrastructure/storage/knex/models/request-metadata';
@@ -42,7 +43,7 @@ beforeEach(async () => {
     posAutCode: 'TEST_POS_AUT_CODE',
     url: 'https://gateway.vinti4.test/payment',
     baseUrl: 'http://localhost:3000',
-    appKey: 'app-key',
+    appKey: 'app-key-with-thirty-two-characters!',
     rateLimiting: { perIp: { limit: 3, windowSeconds: 3600 } },
     database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
   });
@@ -57,7 +58,7 @@ beforeEach(async () => {
   attempts = storage.transactionAttempts;
   items = storage.transactionItems;
   invoices = storage.invoices;
-  metadata = new RequestMetadata(db, config.tables);
+  metadata = new RequestMetadata(db, config.tables, new PayloadCipher(config.appKey));
 
   const buildRequestPayload = new BuildRequestPayloadAction(
     config,
@@ -92,6 +93,8 @@ function paymentRequest(): HttpRequestInfo {
       amount: 1500,
       customer_name: 'Kid',
       customer_email: 'kid@akira.cv',
+      customer_phone: '+2389911223',
+      company: 'Akira',
       items: [{ product_name: 'Plano Pro', quantity: 2, unit_price: 750, total_price: 1500 }],
     },
   };
@@ -148,7 +151,15 @@ describe('ProcessPaymentPipeline', () => {
     };
 
     expect(customMetadata.headers.authorization).toBe('[redacted]');
-    expect(customMetadata.payload.customer_email).toBe('kid@akira.cv');
+    expect(customMetadata.payload.customer_email).toBe('[redacted]');
+    expect(customMetadata.payload.amount).toBe(1500);
+    expect(customMetadata.payload.company).toBe('Akira');
+    expect(customMetadata.payload.customer_phone).toBe('[redacted]');
+
+    const raw = await db(config.tables.requestMetadata).first();
+
+    expect(JSON.parse(String(raw?.custom_metadata))).toMatch(/^sisp\.v1:/);
+    expect(String(raw?.custom_metadata)).not.toContain('akira.cv');
   });
 
   it('rejects blacklisted IPs before any work happens', async () => {

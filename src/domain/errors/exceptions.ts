@@ -16,6 +16,12 @@ export class PaymentIntentAlreadyProcessingError extends SispError {
   }
 }
 
+export class IdempotencyKeyReusedError extends SispError {
+  constructor(readonly idempotencyKey: string) {
+    super('Idempotency key was already used for a different payment request.');
+  }
+}
+
 export class UnableToGenerateUniquePaymentIdentifiersError extends SispError {
   constructor(readonly attempts: number) {
     super(`Unable to generate unique SISP payment identifiers after ${attempts} attempts.`);

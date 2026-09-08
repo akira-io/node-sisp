@@ -16,12 +16,14 @@ import { send, toRequestInfo } from '../express/bridge';
 
 export const SISP = 'SISP';
 export const SISP_REFUND_AUTHORIZER = 'SISP_REFUND_AUTHORIZER';
+export const SISP_STATUS_AUTHORIZER = 'SISP_STATUS_AUTHORIZER';
 
 export type RefundAuthorizer = (request: Request) => boolean | Promise<boolean>;
 
 export interface SispModuleOptions {
   sisp: Sisp;
   authorizeRefund?: RefundAuthorizer;
+  authorizeTransactionStatus?: RefundAuthorizer;
 }
 
 @Controller('sisp')
@@ -29,6 +31,7 @@ export class SispController {
   constructor(
     @Inject(SISP) private readonly sisp: Sisp,
     @Inject(SISP_REFUND_AUTHORIZER) private readonly authorizeRefund: RefundAuthorizer,
+    @Inject(SISP_STATUS_AUTHORIZER) private readonly authorizeTransactionStatus: RefundAuthorizer,
   ) {}
 
   @Post('payment')
@@ -82,8 +85,18 @@ export class SispController {
   }
 
   @Get('transactions/:ref')
-  async transactionStatus(@Param('ref') ref: string, @Res() res: Response): Promise<void> {
-    send(res, await this.sisp.handlers.handleTransactionStatus(ref));
+  async transactionStatus(
+    @Param('ref') ref: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (!(await this.authorizeTransactionStatus(req))) {
+      res.status(403).json({ message: 'Unauthorized to read this transaction.' });
+
+      return;
+    }
+
+    send(res, await this.sisp.handlers.handleTransactionStatus(toRequestInfo(req), ref));
   }
 
   @Post('refund/:transaction')
@@ -114,6 +127,10 @@ export class SispModule {
       providers: [
         { provide: SISP, useValue: options.sisp },
         { provide: SISP_REFUND_AUTHORIZER, useValue: options.authorizeRefund ?? (() => false) },
+        {
+          provide: SISP_STATUS_AUTHORIZER,
+          useValue: options.authorizeTransactionStatus ?? (() => true),
+        },
       ],
       exports: [SISP],
     };

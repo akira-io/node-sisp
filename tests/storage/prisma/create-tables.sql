@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS "sisp_transactions" (
   "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "merchant_ref" TEXT NOT NULL,
   "merchant_session" TEXT NOT NULL,
+  "pos_id" TEXT,
   "amount_cents" BIGINT NOT NULL DEFAULT 0,
   "currency" TEXT NOT NULL DEFAULT '132',
   "status" TEXT NOT NULL DEFAULT 'pending',
@@ -65,6 +66,7 @@ CREATE TABLE IF NOT EXISTS "sisp_transaction_attempts" (
 CREATE TABLE IF NOT EXISTS "sisp_payment_intents" (
   "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "idempotency_key" TEXT NOT NULL,
+  "request_hash" TEXT,
   "transaction_id" BIGINT,
   "status" TEXT NOT NULL DEFAULT 'processing',
   "failure_reason" TEXT,
@@ -72,6 +74,10 @@ CREATE TABLE IF NOT EXISTS "sisp_payment_intents" (
   "updated_at" DATETIME
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS "sisp_transactions_merchant_ref_key" ON "sisp_transactions"("merchant_ref");
+CREATE UNIQUE INDEX IF NOT EXISTS "sisp_transaction_attempts_merchant_session_key" ON "sisp_transaction_attempts"("merchant_session");
+CREATE UNIQUE INDEX IF NOT EXISTS "sisp_transaction_attempts_merchant_ref_merchant_session_key" ON "sisp_transaction_attempts"("merchant_ref", "merchant_session");
+CREATE UNIQUE INDEX IF NOT EXISTS "sisp_transaction_attempts_transaction_id_attempt_number_key" ON "sisp_transaction_attempts"("transaction_id", "attempt_number");
 CREATE UNIQUE INDEX IF NOT EXISTS "sisp_payment_intents_idempotency_key_key" ON "sisp_payment_intents"("idempotency_key");
 
 CREATE TABLE IF NOT EXISTS "sisp_invoices" (

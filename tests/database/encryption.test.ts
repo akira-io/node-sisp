@@ -41,6 +41,20 @@ describe('PayloadCipher', () => {
     expect(() => cipher.read(tampered)).toThrow('Unable to decrypt SISP payload.');
   });
 
+  it('rejects truncated authentication tags and short IVs', () => {
+    const stored = cipher.store({ secret: true }) as string;
+    const [prefix, iv, tag, encrypted] = stored.split(':') as [string, string, string, string];
+    const shortTag = Buffer.from(tag, 'base64').subarray(0, 8).toString('base64');
+    const shortIv = Buffer.from(iv, 'base64').subarray(0, 8).toString('base64');
+
+    expect(() => cipher.read([prefix, iv, shortTag, encrypted].join(':'))).toThrow(
+      'Unable to decrypt SISP payload.',
+    );
+    expect(() => cipher.read([prefix, shortIv, tag, encrypted].join(':'))).toThrow(
+      'Unable to decrypt SISP payload.',
+    );
+  });
+
   it('stores null as null', () => {
     expect(cipher.store(null)).toBeNull();
     expect(cipher.store(undefined)).toBeNull();

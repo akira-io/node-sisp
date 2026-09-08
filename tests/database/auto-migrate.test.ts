@@ -27,6 +27,8 @@ describe('runMigrations', () => {
       '0003_create_transaction_attempts_table',
       '0004_create_payment_intents_table',
       '0005_add_rate_limit_unique_index',
+      '0006_add_payment_intent_request_hash',
+      '0007_add_transaction_pos_id',
     ]);
 
     for (const table of Object.values(DEFAULT_TABLES)) {
@@ -44,7 +46,7 @@ describe('runMigrations', () => {
 
     const rows = await db(MIGRATIONS_TABLE).select('name');
 
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(7);
   });
 
   it('serializes concurrent migration runs', async () => {
@@ -60,8 +62,10 @@ describe('runMigrations', () => {
       '0003_create_transaction_attempts_table',
       '0004_create_payment_intents_table',
       '0005_add_rate_limit_unique_index',
+      '0006_add_payment_intent_request_hash',
+      '0007_add_transaction_pos_id',
     ]);
-    expect(await db(MIGRATIONS_TABLE).select('name')).toHaveLength(5);
+    expect(await db(MIGRATIONS_TABLE).select('name')).toHaveLength(7);
   });
 
   it('survives a lost control table when the schema already exists', async () => {
@@ -76,6 +80,8 @@ describe('runMigrations', () => {
       '0003_create_transaction_attempts_table',
       '0004_create_payment_intents_table',
       '0005_add_rate_limit_unique_index',
+      '0006_add_payment_intent_request_hash',
+      '0007_add_transaction_pos_id',
     ]);
     expect(await db.schema.hasTable(DEFAULT_TABLES.transactions)).toBe(true);
   });

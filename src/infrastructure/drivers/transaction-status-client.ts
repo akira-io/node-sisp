@@ -5,6 +5,7 @@ import {
   type TransactionStatusResponse,
   transactionStatusResponseFrom,
 } from '../../domain/value-objects/transaction-status-response';
+import { isHttpsUrl, isLoopbackHttpUrl } from '../../support/urls';
 
 export class TransactionStatusClient {
   constructor(
@@ -22,6 +23,10 @@ export class TransactionStatusClient {
 
     if (portalId === '' || portalPassword === '') {
       throw new SispError('SISP transaction status portal credentials are not configured.');
+    }
+
+    if (!isHttpsUrl(url) && !isLoopbackHttpUrl(url)) {
+      throw new SispError('SISP transaction status URL must be an absolute HTTPS URL.');
     }
 
     return this.withRetries(

@@ -13,7 +13,7 @@ export class PaymentIntent {
     return new PaymentIntent(connection, this.tables);
   }
 
-  async reserve(idempotencyKey: string): Promise<boolean> {
+  async reserve(idempotencyKey: string, requestHash: string | null = null): Promise<boolean> {
     const timestamp = nowIso();
     const reclaimed = await this.table()
       .where('idempotency_key', idempotencyKey)
@@ -21,6 +21,7 @@ export class PaymentIntent {
       .whereNull('transaction_id')
       .update({
         status: 'processing',
+        request_hash: requestHash,
         transaction_id: null,
         failure_reason: null,
         updated_at: timestamp,
@@ -33,6 +34,7 @@ export class PaymentIntent {
     try {
       await this.table().insert({
         idempotency_key: idempotencyKey,
+        request_hash: requestHash,
         status: 'processing',
         created_at: timestamp,
         updated_at: timestamp,

@@ -13,7 +13,7 @@ The core exposes pure handlers (`sisp.handlers.*`) that take a normalized reques
 | GET | `/cancel` | Signed cancel flow |
 | GET, POST | `/sandbox` | Local fake gateway (sandbox mode only) |
 | GET | `/countries` | ISO country catalog with numeric codes and flags |
-| GET | `/transactions/:ref` | Transaction status as JSON (`{ ref, status, amount, messageType, detail }`); `404` if unknown |
+| GET | `/transactions/:ref` | Transaction status as JSON (`{ ref, status, amount, messageType, detail, error }`); `404` if unknown, `429` past the per-IP limit, `403` when `authorizeTransactionStatus` denies it (allowed by default) |
 | POST | `/refund/:transaction` | Refund, denied unless `authorizeRefund` allows it |
 
 Mount the adapter at `basePath` (default `/sisp`) so the signed URLs and the sandbox endpoint resolve correctly.

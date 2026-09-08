@@ -23,6 +23,8 @@ const SENSITIVE_KEY_MARKERS = [
   'pin',
 ];
 
+const PII_KEY_SEGMENTS = ['email', 'phone', 'address', 'postal', 'name', 'pan'];
+
 export class StoreRequestMetadataAction {
   constructor(private readonly requestMetadata: RequestMetadataRepository) {}
 
@@ -79,7 +81,13 @@ export function redactSensitiveData(data: Record<string, unknown>): Record<strin
 function isSensitiveKey(key: string): boolean {
   const normalized = key.toLowerCase();
 
-  return SENSITIVE_KEY_MARKERS.some((marker) => normalized.includes(marker));
+  if (SENSITIVE_KEY_MARKERS.some((marker) => normalized.includes(marker))) {
+    return true;
+  }
+
+  const segments = normalized.split(/[^a-z0-9]+/);
+
+  return PII_KEY_SEGMENTS.some((segment) => segments.includes(segment));
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

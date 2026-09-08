@@ -5,6 +5,7 @@ export interface TransactionRecord {
   id: number;
   merchant_ref: string;
   merchant_session: string;
+  pos_id: string | null;
   amount: number;
   amount_cents: number;
   currency: string;
@@ -69,6 +70,7 @@ export interface TransactionAttemptRecord {
 export interface PaymentIntentRecord {
   id: number;
   idempotency_key: string;
+  request_hash: string | null;
   transaction_id: number | null;
   status: string;
   failure_reason: string | null;

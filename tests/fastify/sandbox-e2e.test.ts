@@ -165,4 +165,40 @@ describe('fastify sandbox end-to-end payment flow', () => {
     expect(refunded.json().transaction.status).toBe('refunded');
     await open.close();
   });
+
+  it('serves the transaction status and honours authorizeTransactionStatus', async () => {
+    const transaction = await sisp.models.transactions.create({
+      merchantRef: 'R-STATUS-FASTIFY',
+      merchantSession: 'S-STATUS-FASTIFY',
+      amount: 1500,
+    });
+
+    const allowed = await app.inject({
+      method: 'GET',
+      url: `/sisp/transactions/${transaction.merchant_ref}`,
+    });
+
+    expect(allowed.statusCode).toBe(200);
+    expect(allowed.json()).toMatchObject({
+      ref: 'R-STATUS-FASTIFY',
+      status: 'pending',
+      amount: 1500,
+    });
+
+    const denying = Fastify();
+    await denying.register(sispFastifyPlugin, {
+      sisp,
+      prefix: '/sisp',
+      authorizeTransactionStatus: () => false,
+    });
+    await denying.ready();
+
+    const denied = await denying.inject({
+      method: 'GET',
+      url: `/sisp/transactions/${transaction.merchant_ref}`,
+    });
+
+    expect(denied.statusCode).toBe(403);
+    await denying.close();
+  });
 });

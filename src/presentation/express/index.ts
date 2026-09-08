@@ -7,11 +7,13 @@ import { send, toRequestInfo } from './bridge';
 
 export interface SispRoutesOptions {
   authorizeRefund?: (req: Request) => boolean | Promise<boolean>;
+  authorizeTransactionStatus?: (req: Request) => boolean | Promise<boolean>;
 }
 
 export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router {
   const router = Router();
   const authorizeRefund = options.authorizeRefund ?? (() => false);
+  const authorizeTransactionStatus = options.authorizeTransactionStatus ?? (() => true);
 
   router.use(urlencoded({ extended: true }));
   router.use(json());
@@ -58,9 +60,18 @@ export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router 
   );
 
   router.get('/transactions/:ref', (req, res, next) => {
-    sisp.handlers
-      .handleTransactionStatus(req.params.ref)
-      .then((result) => send(res, result))
+    Promise.resolve(authorizeTransactionStatus(req))
+      .then((authorized) => {
+        if (!authorized) {
+          res.status(403).json({ message: 'Unauthorized to read this transaction.' });
+
+          return;
+        }
+
+        return sisp.handlers
+          .handleTransactionStatus(toRequestInfo(req), req.params.ref)
+          .then((result) => send(res, result));
+      })
       .catch(next);
   });
 

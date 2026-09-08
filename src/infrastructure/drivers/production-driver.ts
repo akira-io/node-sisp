@@ -2,6 +2,7 @@ import type { CredentialsResolver } from '../../core/contracts/credentials-resol
 import type { SispDriver } from '../../core/contracts/sisp-driver';
 import { SispError } from '../../domain/errors/exceptions';
 import type { TransactionStatusResponse } from '../../domain/value-objects/transaction-status-response';
+import { isHttpsUrl } from '../../support/urls';
 import type { TransactionStatusClient } from './transaction-status-client';
 
 export class ProductionDriver implements SispDriver {
@@ -26,15 +27,5 @@ export class ProductionDriver implements SispDriver {
 
   async queryTransactionStatus(merchantRef: string): Promise<TransactionStatusResponse> {
     return this.statusClient.query(merchantRef);
-  }
-}
-
-function isHttpsUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-
-    return url.protocol === 'https:' && url.host !== '';
-  } catch {
-    return false;
   }
 }

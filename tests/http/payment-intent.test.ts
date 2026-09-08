@@ -74,3 +74,58 @@ it('returns 422 for invalid input', async () => {
     expect(result.status).toBe(422);
   }
 });
+
+it('replays the same checkout intent when the body matches', async () => {
+  const request = () =>
+    sisp.handlers.handlePaymentIntent({
+      ip: '127.0.0.1',
+      method: 'POST',
+      path: '/sisp/payment/intent',
+      headers: {},
+      query: {},
+      body: paymentBody(),
+    });
+
+  const first = await request();
+  const second = await request();
+
+  expect(first.type).toBe('json');
+  expect(second.type).toBe('json');
+
+  if (first.type === 'json' && second.type === 'json') {
+    expect((second.data as { ref: string }).ref).toBe((first.data as { ref: string }).ref);
+  }
+});
+
+it('refuses a checkout intent key reused with a different body', async () => {
+  await sisp.handlers.handlePaymentIntent({
+    ip: '127.0.0.1',
+    method: 'POST',
+    path: '/sisp/payment/intent',
+    headers: {},
+    query: {},
+    body: paymentBody(),
+  });
+
+  const result = await sisp.handlers.handlePaymentIntent({
+    ip: '127.0.0.1',
+    method: 'POST',
+    path: '/sisp/payment/intent',
+    headers: {},
+    query: {},
+    body: {
+      ...paymentBody(),
+      amount: '1600',
+      items: [{ product_name: 'Pro', quantity: '1', unit_price: '1600', total_price: '1600' }],
+    },
+  });
+
+  expect(result.type).toBe('json');
+
+  if (result.type === 'json') {
+    expect(result.status).toBe(409);
+    expect((result.data as { message: string }).message).toContain('different payment request');
+  }
+
+  expect(await sisp.models.transactions.list()).toHaveLength(1);
+});

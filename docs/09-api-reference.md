@@ -16,7 +16,7 @@
 | `payment()` | `PaymentBuilder` with fluent setters and `build()` |
 | `buildRequestPayload(data)` | Signed `PaymentRequest` from raw data |
 | `validateCallback(payload)` | Constant-time fingerprint check |
-| `handleCallback(payload)` | Runs the callback pipeline, returns `{ verified, status, reason, payload }`. `verified` means the callback is authentic (fingerprint and, with `correlation`, amount/currency/code all matched); it is not a payment verdict. Check `status` for that - see [Stateless Mode](13-stateless-mode.md#verified-is-authenticity-not-a-payment-verdict) |
+| `handleCallback(payload, expected?)` | Runs the callback pipeline, returns `{ verified, status, reason, payload }`. `verified` means the callback is authentic (fingerprint and amount/currency/code matched against `correlation`, the `expected` argument, or the `expectedPayment` lookup); it is not a payment verdict. A `completed` callback with nothing to match against is rejected with `expected_payment_missing`. Check `status` for that - see [Stateless Mode](13-stateless-mode.md#verified-is-authenticity-not-a-payment-verdict) |
 | `generateSandboxPayload(data, status?)` | Signed fake callback |
 | `queryTransactionStatus(merchantRef)` | POS transaction-status API call |
 | `driver(name?)` | Resolves the active or a named `SispDriver` |
@@ -33,7 +33,7 @@
 | `manager` | `SispManager` with `extend(name, factory)` |
 | `models` | `transactions`, `transactionItems`, `transactionAttempts`, `paymentIntents`, `invoices`, `transactionLogs`, `blacklist` |
 | `db` | Typed `unknown` on this entry. Pass `sisp` to `knexOf(sisp)` from `@akira-io/sisp/knex` to get the typed knex instance |
-| `handlers` | `SispHttpHandlers` - framework-agnostic HTTP handlers used by the adapters. Key methods: `handlePayment`, `handlePaymentIntent`, `handleCallback`, `handleRetryPayment`, `handleCancel`, `handleRefund`, `handleSandbox` |
+| `handlers` | `SispHttpHandlers` - framework-agnostic HTTP handlers used by the adapters. Key methods: `handlePayment`, `handlePaymentIntent`, `handleCallback`, `handleRetryPayment`, `handleCancel`, `handleRefund`, `handleTransactionStatus(request, ref)`, `handleSandbox`, `handleCountries` |
 | `handleCallback(payload)` | Runs the callback pipeline, returns `{ verified, status, reason, payload, transaction }`. Same caveat as the stateless entry: `verified` is authenticity, not a payment verdict |
 | `queryTransactionStatus(transactionOrRef)` | POS transaction-status API call |
 | `reconcileTransactionStatus(transaction)` | Applies the gateway verdict to one pending transaction |
@@ -59,25 +59,25 @@
 
 ### Errors
 
-`SispError` is the base class for `BlacklistedIdentifierError`, `RateLimitExceededError`, `TransactionNotFoundError`, `PaymentIntentAlreadyProcessingError`, `MissingThreeDSecureDataError`, and `CorrelationRequiredError`.
+`SispError` is the base class for `BlacklistedIdentifierError`, `RateLimitExceededError`, `TransactionNotFoundError`, `TransactionStateError`, `DuplicatePaymentIdentifierError`, `PaymentIntentAlreadyProcessingError`, `IdempotencyKeyReusedError`, `PaymentRetryLimitExceededError`, `UnableToGenerateUniquePaymentIdentifiersError`, `MissingThreeDSecureDataError`, `TransactionStatusTransportError`, and `CorrelationRequiredError`.
 
-`PaymentIntentAlreadyProcessingError` maps to HTTP 409 in the payment handler when an idempotency key is currently reserved but not yet linked to a transaction.
+`PaymentIntentAlreadyProcessingError` maps to HTTP 409 in the payment handler when an idempotency key is currently reserved but not yet linked to a transaction. `IdempotencyKeyReusedError` maps to HTTP 409 when a key is replayed with a different request body.
 
 `CorrelationRequiredError` is thrown by `StatelessSispHttpHandlers.handlePayment` / `handlePaymentIntent` when no `correlation` store is configured. The stateless router only mounts those routes when `correlation` is present, so this only fires if you mount the handler by hand. See [Stateless Mode](13-stateless-mode.md).
 
 ## `@akira-io/sisp/express`
 
-- `sispRoutes(sisp, options?)` returns an Express `Router`. Options: `authorizeRefund(req)`.
+- `sispRoutes(sisp, options?)` returns an Express `Router`. Options: `authorizeRefund(req)` (denies by default), `authorizeTransactionStatus(req)` (allows by default).
 - `statelessSispRoutes(statelessSisp)` returns an Express `Router` for a `StatelessSisp`.
 
 ## `@akira-io/sisp/fastify`
 
-- `sispFastifyPlugin` to register with `{ sisp, prefix, authorizeRefund? }`.
+- `sispFastifyPlugin` to register with `{ sisp, prefix, authorizeRefund?, authorizeTransactionStatus? }`.
 - `statelessSispFastifyPlugin` to register with `{ sisp: statelessSisp, prefix }`.
 
 ## `@akira-io/sisp/nest`
 
-- `SispModule.forRoot({ sisp, authorizeRefund? })` dynamic module, `SispController`, and the `SISP` injection token.
+- `SispModule.forRoot({ sisp, authorizeRefund?, authorizeTransactionStatus? })` dynamic module, `SispController`, and the `SISP` injection token.
 - `StatelessSispModule.forRoot({ sisp: statelessSisp })` dynamic module, `StatelessSispController`, and the `STATELESS_SISP` injection token.
 
 ## `@akira-io/sisp/knex`

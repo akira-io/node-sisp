@@ -41,6 +41,29 @@ export function runStorageContract(makeStorage: () => Promise<SispStorage>): voi
     });
   });
 
+  describe('paymentIntents.reserve / findByKey', () => {
+    it('reserves a key once and stores the request hash', async () => {
+      expect(await storage.paymentIntents.reserve('KEY-CONTRACT-1', 'hash-a')).toBe(true);
+      expect(await storage.paymentIntents.reserve('KEY-CONTRACT-1', 'hash-b')).toBe(false);
+
+      const intent = await storage.paymentIntents.findByKey('KEY-CONTRACT-1');
+
+      expect(intent?.status).toBe('processing');
+      expect(intent?.request_hash).toBe('hash-a');
+      expect(intent?.transaction_id).toBeNull();
+    });
+
+    it('reclaims a failed key without a transaction and refreshes the request hash', async () => {
+      await storage.paymentIntents.reserve('KEY-CONTRACT-2', 'hash-a');
+      await storage.paymentIntents.fail('KEY-CONTRACT-2', 'boom');
+
+      expect(await storage.paymentIntents.reserve('KEY-CONTRACT-2', 'hash-b')).toBe(true);
+      expect((await storage.paymentIntents.findByKey('KEY-CONTRACT-2'))?.request_hash).toBe(
+        'hash-b',
+      );
+    });
+  });
+
   describe('transaction() unit-of-work rollback', () => {
     it('rolls back changes when the callback throws', async () => {
       const tx = await storage.transactions.create({
@@ -100,6 +123,50 @@ export function runStorageContract(makeStorage: () => Promise<SispStorage>): voi
       const row = await storage.transactions.findByIdForUpdate(999_999_999);
 
       expect(row).toBeNull();
+    });
+  });
+
+  describe('encrypted columns and posId', () => {
+    it('stores posId and round-trips encrypted request metadata', async () => {
+      const created = await storage.transactions.create({
+        merchantRef: 'REF-CONTRACT-POS',
+        merchantSession: 'SES-CONTRACT-POS',
+        posId: '90051',
+        amount: 1200,
+      });
+
+      expect((await storage.transactions.findById(created.id))?.pos_id).toBe('90051');
+
+      await storage.requestMetadata.create({
+        transaction_id: created.id,
+        ip_address: '203.0.113.7',
+        custom_metadata: { payload: { amount: 1200 }, headers: { host: 'shop.test' } },
+      });
+
+      const [metadata] = await storage.requestMetadata.listByTransaction(created.id);
+
+      expect(metadata?.ip_address).toBe('203.0.113.7');
+      expect(metadata?.custom_metadata).toEqual({
+        payload: { amount: 1200 },
+        headers: { host: 'shop.test' },
+      });
+    });
+
+    it('logs payload changes and reads them back decrypted', async () => {
+      const created = await storage.transactions.create({
+        merchantRef: 'REF-CONTRACT-LOG',
+        merchantSession: 'SES-CONTRACT-LOG',
+        amount: 900,
+        payload: { posID: '90051' },
+      });
+
+      await storage.transactions.update(created.id, { payload: { posID: '90051', refunds: [1] } });
+
+      const [entry] = await storage.transactionLogs.listByTransaction(created.id);
+
+      expect(entry?.changed_attributes).toContain('payload');
+      expect(entry?.old_values).toMatchObject({ payload: { posID: '90051' } });
+      expect(entry?.new_values).toMatchObject({ payload: { posID: '90051', refunds: [1] } });
     });
   });
 }

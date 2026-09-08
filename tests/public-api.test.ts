@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as api from '../src';
 import {
   DuplicatePaymentIdentifierError,
+  IdempotencyKeyReusedError,
   PaymentRetryLimitExceededError,
   SispError,
   TransactionStateError,
@@ -13,6 +14,7 @@ describe('public API', () => {
   it('exports public SISP error subclasses for instanceof narrowing', () => {
     const errors = [
       new DuplicatePaymentIdentifierError('duplicate'),
+      new IdempotencyKeyReusedError('key'),
       new PaymentRetryLimitExceededError(3),
       new TransactionStateError('invalid state'),
       new TransactionStatusTransportError('gateway unavailable'),

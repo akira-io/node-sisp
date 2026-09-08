@@ -18,6 +18,7 @@ import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-pay
 import { generateCallbackFingerprint } from '../../src/infrastructure/fingerprints/callback-fingerprint';
 import { computeToken } from '../../src/infrastructure/fingerprints/token';
 import { runMigrations } from '../../src/infrastructure/storage/knex/auto-migrate';
+import { PayloadCipher } from '../../src/infrastructure/storage/knex/encryption';
 import { KnexStorage } from '../../src/infrastructure/storage/knex/knex-storage';
 import type { Transaction } from '../../src/infrastructure/storage/knex/models/transaction';
 import type { TransactionAttempt } from '../../src/infrastructure/storage/knex/models/transaction-attempt';
@@ -56,7 +57,7 @@ export function useCallbackPipeline(): CallbackPipelineHarness {
 
     h.transactions = h.storage.transactions;
     h.attempts = h.storage.transactionAttempts;
-    h.logs = new TransactionLog(h.db, h.config.tables);
+    h.logs = new TransactionLog(h.db, h.config.tables, new PayloadCipher(h.config.appKey));
     h.events = new SispEventEmitter();
 
     const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(h.config));

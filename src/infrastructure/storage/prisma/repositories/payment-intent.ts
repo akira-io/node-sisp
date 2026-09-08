@@ -13,7 +13,7 @@ export function makePaymentIntentRepository(
   const model = () => delegate(client, DELEGATE_NAMES.paymentIntents);
 
   return {
-    async reserve(idempotencyKey: string): Promise<boolean> {
+    async reserve(idempotencyKey: string, requestHash: string | null = null): Promise<boolean> {
       const timestamp = nowIso();
 
       const reclaimed = await model().updateMany({
@@ -24,6 +24,7 @@ export function makePaymentIntentRepository(
         },
         data: {
           status: 'processing',
+          requestHash,
           transactionId: null,
           failureReason: null,
           updatedAt: new Date(timestamp),
@@ -38,6 +39,7 @@ export function makePaymentIntentRepository(
         await model().create({
           data: {
             idempotencyKey,
+            requestHash,
             status: 'processing',
             createdAt: new Date(timestamp),
             updatedAt: new Date(timestamp),

@@ -3,6 +3,7 @@ import type { TransactionItemRepository } from '../../../../core/contracts/stora
 import type { TransactionItemRecord } from '../../../../domain/records';
 import type { ListByTransactionOptions } from '../../../../domain/storage-types';
 import type { TransactionItemData } from '../../../../domain/value-objects/transaction-item-data';
+import { toCents } from '../../../../support/sisp-amount';
 import {
   normalizeListLimit,
   normalizeListOffset,
@@ -32,8 +33,8 @@ export function makeTransactionItemRepository(
           productId: item.productId ?? null,
           productName: item.productName,
           quantity: item.quantity,
-          unitPriceCents: BigInt(Math.round(item.unitPrice * 100)),
-          totalPriceCents: BigInt(Math.round(item.totalPrice * 100)),
+          unitPriceCents: BigInt(toCents(item.unitPrice)),
+          totalPriceCents: BigInt(toCents(item.totalPrice)),
           description: item.description ?? null,
           metadata: item.metadata ? JSON.stringify(item.metadata) : null,
           createdAt: new Date(timestamp),

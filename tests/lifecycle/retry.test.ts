@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
 import { sispRoutes } from '../../src/presentation/express';
@@ -67,19 +67,37 @@ describe('retry payment', () => {
     expect(logs.at(-1)?.source).toBe('retry');
   });
 
-  it('renders the form without touching the transaction on GET', async () => {
+  it('renders the form without touching the transaction on GET and consumes the nonce', async () => {
     const transaction = await createFailedTransaction();
     const retryUrl = sisp.signedRetryUrl(transaction.id);
 
     const response = await request(app).get(retryUrl).expect(200);
-
-    expect(response.text).toContain("name='merchantSession' value='S20260612100000'");
-
     const untouched = await sisp.models.transactions.findById(transaction.id);
 
+    expect(response.text).toContain("name='merchantSession' value='S20260612100000'");
     expect(untouched?.status).toBe('failed');
     expect(untouched?.merchant_session).toBe('S20260612100000');
+
     await request(app).get(retryUrl).expect(403);
+  });
+
+  it('accepts the gateway callback for a payment retried through the GET form', async () => {
+    const transaction = await createFailedTransaction();
+    const completed = vi.fn();
+    sisp.on('payment:completed', completed);
+
+    await request(app).get(sisp.signedRetryUrl(transaction.id)).expect(200);
+
+    const payload = sisp.generateSandboxPayload({
+      amount: 1500,
+      merchantRef: 'R20260612100000',
+      merchantSession: 'S20260612100000',
+    });
+    const outcome = await sisp.handleCallback(payload);
+
+    expect(outcome.verified).toBe(true);
+    expect(outcome.transaction.status).toBe('completed');
+    expect(completed).toHaveBeenCalledTimes(1);
   });
 
   it('rejects unsigned and expired URLs', async () => {
@@ -114,14 +132,32 @@ describe('retry payment', () => {
 
   it('exposes the retry URL in the callback result for failed payments', async () => {
     const transaction = await createFailedTransaction();
-    const resultUrl = new UrlSigner('app-key').sign('/sisp/callback', {
-      transaction: transaction.id,
-    });
+    const resultUrl = new UrlSigner('app-key').sign(
+      '/sisp/callback',
+      { transaction: transaction.id },
+      new Date(Date.now() + 60_000),
+    );
 
     const response = await request(app).get(resultUrl).expect(200);
 
     expect(response.body.allowRetry).toBe(true);
     expect(response.body.retryUrl).toContain('/sisp/retry-payment?');
     expect(response.body.retryUrl).toContain('signature=');
+    expect(response.body.transaction).not.toHaveProperty('merchant_session');
+  });
+
+  it('refuses result URLs without an expiry or past it', async () => {
+    const transaction = await createFailedTransaction();
+    const signer = new UrlSigner('app-key');
+
+    const unexpiring = signer.sign('/sisp/callback', { transaction: transaction.id });
+    const expired = signer.sign(
+      '/sisp/callback',
+      { transaction: transaction.id },
+      new Date(Date.now() - 1000),
+    );
+
+    await request(app).get(unexpiring).expect(302);
+    await request(app).get(expired).expect(302);
   });
 });

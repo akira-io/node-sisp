@@ -12,6 +12,7 @@ export interface PaymentValidationResult {
 
 const DEFAULT_PAYMENT_VALIDATION = resolvePaymentValidation(undefined, '132');
 const DECIMAL_AMOUNT_PATTERN = /^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/;
+const MAX_AMOUNT_DIGITS = 15;
 const WHITESPACE_PATTERN = /\s/;
 
 export function validatePaymentInput(
@@ -23,7 +24,7 @@ export function validatePaymentInput(
   validateAmount(body.amount, errors, options);
   validateCurrency(body.currency, errors, options);
   validateClientControlledFields(body, errors, options);
-  validateItems(body.items, errors);
+  validateItems(body.items, errors, options.maxAmount);
   validateCustomerFields(body, errors);
 
   if (Object.keys(errors).length === 0) {
@@ -104,7 +105,7 @@ function rejectSuppliedField(
   }
 }
 
-function validateItems(items: unknown, errors: Record<string, string[]>): void {
+function validateItems(items: unknown, errors: Record<string, string[]>, maxAmount: number): void {
   if (!Array.isArray(items) || items.length === 0) {
     addError(errors, 'items', 'The items field is required.');
 
@@ -118,7 +119,7 @@ function validateItems(items: unknown, errors: Record<string, string[]>): void {
       return;
     }
 
-    validateItem(item as Record<string, unknown>, index, errors);
+    validateItem(item as Record<string, unknown>, index, errors, maxAmount);
   });
 }
 
@@ -126,6 +127,7 @@ function validateItem(
   item: Record<string, unknown>,
   index: number,
   errors: Record<string, string[]>,
+  maxAmount: number,
 ): void {
   if (typeof item.product_name !== 'string' || item.product_name === '') {
     addError(errors, `items.${index}.product_name`, 'The product name is required.');
@@ -140,11 +142,11 @@ function validateItem(
   for (const field of ['unit_price', 'total_price'] as const) {
     const value = parseDecimalAmount(item[field]);
 
-    if (item[field] === undefined || value === null || value < 0) {
+    if (item[field] === undefined || value === null || value < 0 || value > maxAmount) {
       addError(
         errors,
         `items.${index}.${field}`,
-        `The ${field.replace('_', ' ')} must be a number of at least 0.`,
+        `The ${field.replace('_', ' ')} must be a number between 0 and ${maxAmount}.`,
       );
     }
   }
@@ -212,12 +214,16 @@ function addError(errors: Record<string, string[]>, field: string, message: stri
   errors[field] = [...(errors[field] ?? []), message];
 }
 
-function parseDecimalAmount(amount: unknown): number | null {
+export function parseDecimalAmount(amount: unknown): number | null {
   if (typeof amount === 'number') {
-    return Number.isFinite(amount) ? amount : null;
+    return Number.isFinite(amount) ? parseDecimalAmount(String(amount)) : null;
   }
 
-  if (typeof amount !== 'string' || !DECIMAL_AMOUNT_PATTERN.test(amount)) {
+  if (
+    typeof amount !== 'string' ||
+    !DECIMAL_AMOUNT_PATTERN.test(amount) ||
+    amount.length > MAX_AMOUNT_DIGITS
+  ) {
     return null;
   }
 

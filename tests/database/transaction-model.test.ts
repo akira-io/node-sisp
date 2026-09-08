@@ -15,8 +15,9 @@ let logs: TransactionLog;
 beforeEach(async () => {
   db = await createKnexInstance({ client: 'better-sqlite3', connection: { filename: ':memory:' } });
   await runMigrations(db, DEFAULT_TABLES);
-  transactions = new Transaction(db, DEFAULT_TABLES, new PayloadCipher('app-key'));
-  logs = new TransactionLog(db, DEFAULT_TABLES);
+  const cipher = new PayloadCipher('app-key');
+  transactions = new Transaction(db, DEFAULT_TABLES, cipher);
+  logs = new TransactionLog(db, DEFAULT_TABLES, cipher);
 });
 
 afterEach(async () => {
@@ -154,7 +155,7 @@ describe('Transaction', () => {
     );
   });
 
-  it('re-encrypts payload changes and logs the decrypted values', async () => {
+  it('re-encrypts payload changes and keeps the logged payload encrypted at rest', async () => {
     const transaction = await createTransaction();
 
     await transactions.update(transaction.id, { payload: { posID: '90051', refunds: [1] } });
@@ -162,6 +163,12 @@ describe('Transaction', () => {
     const updated = await transactions.findById(transaction.id);
 
     expect(updated?.payload).toEqual({ posID: '90051', refunds: [1] });
+
+    const rows = await db(DEFAULT_TABLES.transactionLogs).where('transaction_id', transaction.id);
+    const stored = JSON.parse(String(rows[0]?.new_values)) as { payload: string };
+
+    expect(isEncrypted(stored.payload)).toBe(true);
+    expect(String(rows[0]?.new_values)).not.toContain('refunds');
 
     const entries = await logs.listByTransaction(transaction.id);
 

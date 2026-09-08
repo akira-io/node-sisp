@@ -14,6 +14,7 @@ export interface ListTransactionsOptions extends ListByTransactionOptions {
 export interface NewTransaction {
   merchantRef: string;
   merchantSession: string;
+  posId?: string | null;
   amount: number | string;
   currency?: string;
   transactionCode?: string;

@@ -93,6 +93,7 @@ export {
   BlacklistedIdentifierError,
   CorrelationRequiredError,
   DuplicatePaymentIdentifierError,
+  IdempotencyKeyReusedError,
   MissingThreeDSecureDataError,
   PaymentIntentAlreadyProcessingError,
   PaymentRetryLimitExceededError,
@@ -143,7 +144,7 @@ export {
 export { computeToken } from './infrastructure/fingerprints/token';
 export { SispHttpHandlers } from './infrastructure/http/handlers';
 export { structuredErrorFrom } from './infrastructure/http/payment-response';
-export type { HttpRequestInfo } from './infrastructure/http/request-info';
+export { type HttpRequestInfo, headerValue } from './infrastructure/http/request-info';
 export type { HttpResult } from './infrastructure/http/results';
 export type { StatelessHttpHandlers } from './infrastructure/http/stateless-handlers';
 export { StatelessSispHttpHandlers } from './infrastructure/http/stateless-handlers';

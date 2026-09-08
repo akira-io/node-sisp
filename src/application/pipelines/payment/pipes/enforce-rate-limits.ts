@@ -20,6 +20,12 @@ export class EnforceRateLimits implements PaymentPipe {
     const { limit, windowSeconds } = this.rateLimiting.perIp;
     const identifier = context.request.ip;
 
+    if (identifier === '') {
+      await next();
+
+      return;
+    }
+
     const exceeded = await this.rateLimits.hit({
       identifier,
       limitType: 'ip',

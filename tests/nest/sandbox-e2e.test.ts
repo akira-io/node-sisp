@@ -119,4 +119,34 @@ describe('nest sandbox end-to-end payment flow', () => {
 
     expect(response.body.cv.numeric).toBe('132');
   });
+
+  it('serves the transaction status and honours authorizeTransactionStatus', async () => {
+    const transaction = await sisp.models.transactions.create({
+      merchantRef: 'R-STATUS-NEST',
+      merchantSession: 'S-STATUS-NEST',
+      amount: 1500,
+    });
+
+    await request(app.getHttpServer())
+      .get(`/sisp/transactions/${transaction.merchant_ref}`)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          ref: 'R-STATUS-NEST',
+          status: 'pending',
+          amount: 1500,
+        });
+      });
+
+    const denyingModule = await Test.createTestingModule({
+      imports: [SispModule.forRoot({ sisp, authorizeTransactionStatus: () => false })],
+    }).compile();
+    const denying = denyingModule.createNestApplication();
+    await denying.init();
+
+    await request(denying.getHttpServer())
+      .get(`/sisp/transactions/${transaction.merchant_ref}`)
+      .expect(403);
+    await denying.close();
+  });
 });

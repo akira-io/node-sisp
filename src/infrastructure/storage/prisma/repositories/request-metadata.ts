@@ -5,6 +5,7 @@ import type {
   ListByTransactionOptions,
   NewRequestMetadata,
 } from '../../../../domain/storage-types';
+import type { PayloadCipher } from '../../knex/encryption';
 import {
   normalizeListLimit,
   normalizeListOffset,
@@ -17,6 +18,7 @@ import { mapRequestMetadata } from '../mapping';
 export function makeRequestMetadataRepository(
   client: PrismaClientLike,
   _tables: SispTables,
+  cipher: PayloadCipher,
 ): RequestMetadataRepository {
   const model = () => delegate(client, DELEGATE_NAMES.requestMetadata);
 
@@ -48,8 +50,7 @@ export function makeRequestMetadataRepository(
           isMobile: data.is_mobile ?? false,
           riskScore: data.risk_score ?? 0,
           riskReason: data.risk_reason ?? null,
-          customMetadata:
-            data.custom_metadata !== undefined ? JSON.stringify(data.custom_metadata) : null,
+          customMetadata: cipher.store(data.custom_metadata ?? null),
           createdAt: new Date(timestamp),
           updatedAt: new Date(timestamp),
         },
@@ -67,7 +68,7 @@ export function makeRequestMetadataRepository(
         skip: normalizeListOffset(options.offset),
       });
 
-      return rows.map(mapRequestMetadata);
+      return rows.map((row) => mapRequestMetadata(row, cipher));
     },
   };
 }

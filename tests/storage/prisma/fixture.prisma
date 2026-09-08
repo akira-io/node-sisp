@@ -12,6 +12,7 @@ model SispTransaction {
   id                 BigInt    @id @default(autoincrement())
   merchantRef        String    @map("merchant_ref")
   merchantSession    String    @map("merchant_session")
+  posId              String?   @map("pos_id")
   amountCents        BigInt    @default(0) @map("amount_cents")
   currency           String    @default("132")
   status             String    @default("pending")
@@ -35,6 +36,11 @@ model SispTransaction {
   createdAt          DateTime? @map("created_at")
   updatedAt          DateTime? @map("updated_at")
 
+  @@unique([merchantRef])
+  @@index([merchantRef, merchantSession, status, messageType])
+  @@index([transactionId])
+  @@index([customerEmail])
+  @@index([posId])
   @@map("sisp_transactions")
 }
 
@@ -51,6 +57,7 @@ model SispTransactionItem {
   createdAt       DateTime? @map("created_at")
   updatedAt       DateTime? @map("updated_at")
 
+  @@index([transactionId, productId])
   @@map("sisp_transaction_items")
 }
 
@@ -75,18 +82,25 @@ model SispTransactionAttempt {
   createdAt            DateTime? @map("created_at")
   updatedAt            DateTime? @map("updated_at")
 
+  @@unique([merchantSession])
+  @@unique([merchantRef, merchantSession])
+  @@unique([transactionId, attemptNumber])
+  @@index([transactionId, status])
+  @@index([gatewayTransactionId])
   @@map("sisp_transaction_attempts")
 }
 
 model SispPaymentIntent {
   id             BigInt    @id @default(autoincrement())
   idempotencyKey String    @unique @map("idempotency_key")
+  requestHash    String?   @map("request_hash")
   transactionId  BigInt?   @map("transaction_id")
   status         String    @default("processing")
   failureReason  String?   @map("failure_reason")
   createdAt      DateTime? @map("created_at")
   updatedAt      DateTime? @map("updated_at")
 
+  @@index([transactionId, status])
   @@map("sisp_payment_intents")
 }
 
@@ -108,6 +122,7 @@ model SispInvoice {
   createdAt       DateTime? @map("created_at")
   updatedAt       DateTime? @map("updated_at")
 
+  @@index([invoiceNumber, status])
   @@map("sisp_invoices")
 }
 
@@ -121,6 +136,8 @@ model SispTransactionLog {
   createdAt         DateTime? @map("created_at")
   updatedAt         DateTime? @map("updated_at")
 
+  @@index([transactionId, createdAt])
+  @@index([source, createdAt])
   @@map("sisp_transaction_logs")
 }
 
@@ -137,6 +154,8 @@ model SispBlacklist {
   updatedAt DateTime? @map("updated_at")
 
   @@unique([type, value])
+  @@index([expiresAt])
+  @@index([severity])
   @@map("sisp_blacklist")
 }
 
@@ -155,6 +174,9 @@ model SispRateLimit {
   updatedAt     DateTime? @map("updated_at")
 
   @@unique([identifier, limitType, context])
+  @@index([identifier, limitType, resetAt])
+  @@index([isBlocked])
+  @@index([resetAt])
   @@map("sisp_rate_limits")
 }
 
@@ -186,5 +208,10 @@ model SispRequestMetadata {
   createdAt         DateTime? @map("created_at")
   updatedAt         DateTime? @map("updated_at")
 
+  @@index([ipAddress, createdAt])
+  @@index([countryCode])
+  @@index([deviceFingerprint])
+  @@index([riskScore])
+  @@index([transactionId])
   @@map("sisp_request_metadata")
 }

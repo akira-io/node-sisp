@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { credentialsFromConfig } from '../../src/application/config';
 import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
+import { StaticCredentialsResolver } from '../../src/core/contracts/credentials-resolver';
 import { SispError } from '../../src/domain/errors/exceptions';
+import { TransactionStatusClient } from '../../src/infrastructure/drivers/transaction-status-client';
 import { requireKnex } from '../helpers/knex';
 
 const fetchMock = vi.fn();
@@ -219,5 +222,20 @@ describe('reconcilePending', () => {
       reconciled: 0,
     });
     await disabled.destroy();
+  });
+});
+
+describe('TransactionStatusClient transport', () => {
+  it('refuses to send portal credentials to a plain http status URL', async () => {
+    const config = sisp.config;
+    const client = new TransactionStatusClient(
+      { ...config, transactionStatus: { ...config.transactionStatus, url: 'http://status.test' } },
+      new StaticCredentialsResolver(credentialsFromConfig(config)),
+    );
+
+    await expect(client.query('R1')).rejects.toThrow(
+      'SISP transaction status URL must be an absolute HTTPS URL.',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

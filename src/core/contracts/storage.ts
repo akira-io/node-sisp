@@ -74,7 +74,7 @@ export interface TransactionAttemptRepository {
 }
 
 export interface PaymentIntentRepository {
-  reserve(idempotencyKey: string): Promise<boolean>;
+  reserve(idempotencyKey: string, requestHash?: string | null): Promise<boolean>;
   findByKey(idempotencyKey: string): Promise<PaymentIntentRecord | null>;
   submit(idempotencyKey: string, transactionId: number): Promise<void>;
   fail(idempotencyKey: string, reason: string, transactionId?: number | null): Promise<void>;
