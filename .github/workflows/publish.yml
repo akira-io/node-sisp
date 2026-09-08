@@ -72,4 +72,6 @@ jobs:
 
       - name: Publish to npm
         if: steps.version_check.outputs.skip != 'true'
-        run: npx -y npm@11 publish --access public --provenance --tag "${{ steps.dist_tag.outputs.tag }}"
+        env:
+          DIST_TAG: ${{ steps.dist_tag.outputs.tag }}
+        run: npx -y npm@11 publish --access public --provenance --tag "$DIST_TAG"
