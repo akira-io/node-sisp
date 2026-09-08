@@ -7,11 +7,13 @@ import { send, toRequestInfo } from './bridge';
 
 export interface SispRoutesOptions {
   authorizeRefund?: (req: Request) => boolean | Promise<boolean>;
+  authorizeTransactionStatus?: (req: Request) => boolean | Promise<boolean>;
 }
 
 export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router {
   const router = Router();
   const authorizeRefund = options.authorizeRefund ?? (() => false);
+  const authorizeTransactionStatus = options.authorizeTransactionStatus ?? (() => true);
 
   router.use(urlencoded({ extended: true }));
   router.use(json());
@@ -59,7 +61,9 @@ export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router 
 
   router.get('/transactions/:ref', (req, res, next) => {
     sisp.handlers
-      .handleTransactionStatus(req.params.ref)
+      .handleTransactionStatus(toRequestInfo(req), req.params.ref, () =>
+        authorizeTransactionStatus(req),
+      )
       .then((result) => send(res, result))
       .catch(next);
   });

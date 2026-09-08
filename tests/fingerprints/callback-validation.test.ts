@@ -27,6 +27,18 @@ function signedPayload(overrides: Record<string, unknown> = {}) {
 }
 
 describe('validateCallbackFingerprint', () => {
+  it.each([
+    'abc',
+    '1e400',
+    '99999999999999999999',
+  ])('rejects a malformed amount %s instead of throwing', (amount) => {
+    const payload = signedPayload();
+
+    expect(
+      validateCallbackFingerprint(token, { ...payload, amount, fingerprint: payload.fingerprint }),
+    ).toBe(false);
+  });
+
   it('accepts a correctly signed payload', () => {
     expect(validateCallbackFingerprint(token, signedPayload())).toBe(true);
   });

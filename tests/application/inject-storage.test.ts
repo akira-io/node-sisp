@@ -14,7 +14,12 @@ it('uses an injected storage with no database config', async () => {
     'app-key',
   );
   await storage.migrate?.();
-  sisp = await createSisp({ posId: '90051', posAutCode: 'X', appKey: 'app-key', storage });
+  sisp = await createSisp({
+    posId: '90051',
+    posAutCode: 'X',
+    appKey: 'app-key-with-thirty-two-characters!',
+    storage,
+  });
   const tx = await sisp.models.transactions.create({
     merchantRef: 'R1',
     merchantSession: 'S1',
@@ -40,7 +45,7 @@ it('throws when both storage and database are provided', async () => {
     createSisp({
       posId: '90051',
       posAutCode: 'X',
-      appKey: 'app-key',
+      appKey: 'app-key-with-thirty-two-characters!',
       storage,
       database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
     }),

@@ -68,6 +68,8 @@ npx @akira-io/sisp prisma --force
 
 Alternatively, copy the file manually from `node_modules/@akira-io/sisp/prisma/sisp.prisma`.
 
+The shipped schema declares the same unique constraints and indexes as the knex migrations: `merchant_ref` on transactions, `merchant_session`, `(merchant_ref, merchant_session)` and `(transaction_id, attempt_number)` on attempts, plus the secondary indexes callbacks and reconciliation rely on. Keep them when you merge the models into your own schema; the callback pipeline resolves a callback to one attempt by that pair, and the retry logic depends on the unique violation to detect identifier collisions.
+
 **3. Migrate:**
 
 ```bash
@@ -119,6 +121,15 @@ The `provider` value controls how the adapter issues row-level locks:
 | `sqlite` | No-op - SQLite serializes writes at the connection level |
 
 The same locking behavior applies to the knex adapter: `pg` and `mysql2` use `FOR UPDATE`, `better-sqlite3` no-ops.
+
+## Upgrading the schema
+
+Release 1.0.0-beta.6 adds `sisp_payment_intents.request_hash` (knex migration `0006`) and `sisp_transactions.pos_id` (`0007`), and the Prisma schema gains the unique constraints and indexes listed above. Both adapters write the new columns on every insert, so run the migrations before deploying the new package version:
+
+- knex: `npx @akira-io/sisp migrate` (or `autoMigrate: true`).
+- Prisma: `npx @akira-io/sisp prisma --force`, `prisma migrate dev`, `prisma generate`. The unique constraints fail the migration if existing rows duplicate a `merchant_ref` or `merchant_session`; resolve those first.
+
+`appKey` cannot be rotated in place: rows encrypted with the previous key stop decrypting. Keep the key stable, or set `allowWeakAppKey: true` while a short key is still in use.
 
 ## Contract suite
 

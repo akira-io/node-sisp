@@ -70,6 +70,7 @@ export class PersistTransaction implements PaymentPipe {
       const created = await tx.transactions.create({
         merchantRef: paymentRequest.merchantRef,
         merchantSession: paymentRequest.merchantSession,
+        posId: paymentRequest.posID,
         amount: paymentRequest.amount,
         currency: paymentRequest.currency,
         transactionCode: paymentRequest.transactionCode,

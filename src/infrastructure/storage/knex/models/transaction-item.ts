@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../../../application/config';
 import type { TransactionItemData } from '../../../../domain/value-objects/transaction-item-data';
+import { toCents } from '../../../../support/sisp-amount';
 import {
   type ListByTransactionOptions,
   normalizeListLimit,
@@ -32,8 +33,8 @@ export class TransactionItem {
         product_id: item.productId ?? null,
         product_name: item.productName,
         quantity: item.quantity,
-        unit_price_cents: Math.round(item.unitPrice * 100),
-        total_price_cents: Math.round(item.totalPrice * 100),
+        unit_price_cents: toCents(item.unitPrice),
+        total_price_cents: toCents(item.totalPrice),
         description: item.description ?? null,
         metadata: item.metadata ? JSON.stringify(item.metadata) : null,
         created_at: timestamp,

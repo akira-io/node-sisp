@@ -28,6 +28,7 @@ import { buildGatewayFormAction } from './gateway-form-action';
 import type { RetryAvailability } from './payment-response';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
+import { parseDecimalAmount } from './validate-payment-input';
 
 export interface LifecycleHandlersDeps {
   config: ResolvedSispConfig;
@@ -44,6 +45,7 @@ export interface LifecycleHandlersDeps {
 }
 
 const RETRY_URL_TTL_MINUTES = 30;
+const MAX_REFUND_REASON_LENGTH = 255;
 
 export class LifecycleHandlers {
   constructor(private readonly deps: LifecycleHandlersDeps) {}
@@ -149,13 +151,16 @@ export class LifecycleHandlers {
       return json({ success: false, message: 'Transaction not found.' }, 404);
     }
 
-    const amount = Number(request.body.amount ?? 0);
+    const amount = parseDecimalAmount(request.body.amount ?? 0);
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (amount === null || amount <= 0) {
       return json({ success: false, message: 'Refund amount must be greater than 0.' }, 400);
     }
 
-    const reason = typeof request.body.reason === 'string' ? request.body.reason : 'user_refund';
+    const reason =
+      typeof request.body.reason === 'string'
+        ? request.body.reason.slice(0, MAX_REFUND_REASON_LENGTH)
+        : 'user_refund';
 
     try {
       const refunded = await refundTransaction.handle(transaction, amount, reason);
@@ -175,17 +180,25 @@ export class LifecycleHandlers {
   }
 
   private async refundRateLimitExceeded(request: HttpRequestInfo): Promise<boolean> {
+    return this.ipRateLimitExceeded(request, 'refund');
+  }
+
+  async statusRateLimitExceeded(request: HttpRequestInfo): Promise<boolean> {
+    return this.ipRateLimitExceeded(request, 'transaction-status');
+  }
+
+  private async ipRateLimitExceeded(request: HttpRequestInfo, context: string): Promise<boolean> {
     const { config, rateLimits } = this.deps;
     const { enabled, perIp } = config.rateLimiting;
 
-    if (!enabled || !perIp.enabled) {
+    if (!enabled || !perIp.enabled || request.ip === '') {
       return false;
     }
 
     return rateLimits.hit({
       identifier: request.ip,
       limitType: 'ip',
-      context: 'refund',
+      context,
       limit: perIp.limit,
       windowSeconds: perIp.windowSeconds,
     });

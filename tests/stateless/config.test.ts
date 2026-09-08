@@ -1,5 +1,41 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resolveStatelessConfig } from '../../src/application/stateless-config';
+
+describe('resolveStatelessConfig environment guards', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('refuses sandbox mode in production unless explicitly allowed', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    expect(() =>
+      resolveStatelessConfig({ posId: '90000045', posAutCode: 'code', sandbox: true }),
+    ).toThrow('SISP sandbox mode is disabled when NODE_ENV is production');
+    expect(
+      resolveStatelessConfig({
+        posId: '90000045',
+        posAutCode: 'code',
+        sandbox: true,
+        allowSandboxInProduction: true,
+      }).sandbox,
+    ).toBe(true);
+  });
+
+  it('requires a strong appKey outside sandbox mode', () => {
+    expect(() =>
+      resolveStatelessConfig({ posId: '90000045', posAutCode: 'code', appKey: 'short' }),
+    ).toThrow('SISP appKey must be at least 32 characters outside sandbox mode.');
+    expect(
+      resolveStatelessConfig({
+        posId: '90000045',
+        posAutCode: 'code',
+        appKey: 'short',
+        allowWeakAppKey: true,
+      }).appKey,
+    ).toBe('short');
+  });
+});
 
 describe('resolveStatelessConfig', () => {
   it('applies the same defaults as the stateful resolver', () => {

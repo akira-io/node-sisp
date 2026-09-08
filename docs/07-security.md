@@ -12,15 +12,17 @@ All three algorithms are verified byte for byte against golden vectors generated
 
 ## Payload encryption
 
-With an `appKey` configured, the transaction `payload` column is encrypted at rest with AES-256-GCM (random IV, authenticated). Reads are transparent: models return the decrypted object, tampered or foreign ciphertexts fall back to the raw value, and plaintext rows written before the key existed keep working.
+With an `appKey` configured, the transaction `payload` column is encrypted at rest with AES-256-GCM (random IV, authenticated), and so is the `payload` entry inside `sisp_transaction_logs.old_values`/`new_values` whenever a change to it is logged. Reads are transparent: models and the log repository return the decrypted object, and plaintext rows written before the key existed keep working. A tampered or foreign ciphertext throws `Unable to decrypt SISP payload`, so rotating `appKey` requires re-encrypting existing rows.
 
 ## Signed URLs
 
-Retry and cancel routes only respond to URLs signed with HMAC-SHA256 derived from `appKey`. Retry URLs expire after 30 minutes. Tampering with any parameter, the path, or the expiry invalidates the signature.
+The stateful result URL (`GET /callback?transaction=`) expires 30 minutes after the callback issues it and no longer includes `merchant_session` in its JSON. Retry and cancel routes only respond to URLs signed with HMAC-SHA256 derived from `appKey`. Retry and cancel URLs expire after 30 minutes and are single-use. Tampering with any parameter, the path, or the expiry invalidates the signature.
 
 ## Idempotency and callback safety
 
-The package stores checkout idempotency keys in `sisp_payment_intents`. A duplicate payment POST with the same key returns the already linked transaction instead of creating a new one. Failed intents without a transaction can be reclaimed on the next request.
+The package stores checkout idempotency keys in `sisp_payment_intents` together with a SHA-256 hash of the request body (idempotency keys excluded). A duplicate payment POST with the same key and the same body returns the already linked transaction instead of creating a new one. The same key with a different body is refused with HTTP 409, so a guessable key (an order id, an invoice number) cannot be used to read or retry another customer's payment. Failed intents without a transaction can be reclaimed on the next request.
+
+Callbacks are only trusted after their fingerprint verifies. A callback with an invalid fingerprint is rejected without writing anything: the transaction keeps its status and the genuine gateway callback is still accepted afterwards. Only success codes documented by SISP (`8`, `10`, `M`, `P`, plus the token codes `A`, `B`, `C`) complete a payment. The SISP fingerprint concatenates fields without separators, so a signed callback could in theory be re-cut across field boundaries; because the gateway signs only success responses and reports errors with `messageType` `6`, the only re-cut a customer can produce turns their own success into a failure, which is equivalent to withholding the callback and is recovered by reconciliation.
 
 Every gateway submission is stored in `sisp_transaction_attempts`. Callback validation uses the attempt's `merchantRef` and `merchantSession`, then updates the attempt and parent transaction atomically. This prevents a late failed callback from an old retry attempt from overwriting the active pending retry.
 
@@ -33,10 +35,20 @@ await sisp.models.blacklist.add({ type: 'ip', value: '10.0.0.1', reason: 'fraud'
 await sisp.models.blacklist.remove('ip', '10.0.0.1');
 ```
 
-Blacklisted IPs are rejected before any work happens. Rate limits are DB-backed sliding windows per identifier; exceeding a window blocks the identifier for the window duration. Both tables are shared with the Laravel package schema.
+Blacklisted IPs are rejected before any work happens. Rate limits are DB-backed fixed windows per identifier; exceeding a window blocks the identifier for the window duration. Both tables are shared with the Laravel package schema.
+
+Both guards key on the client IP. Behind a load balancer, configure the framework to trust the proxy or set `security.clientIp` to read the right header, otherwise every customer shares the proxy's address and one busy hour locks everyone out. A resolver that returns nothing falls back to the socket address; requests with no IP at all skip the per-IP guards rather than sharing an empty bucket.
 
 ## Metadata redaction
 
-Captured request metadata stores a copy of the query, body, and headers with sensitive keys redacted (authorization, cookie, password, token, card, cvv, pin, and friends), plus a SHA-256 device fingerprint.
+Captured request metadata stores a copy of the query, body, and headers with sensitive keys redacted (authorization, cookie, password, token, card, cvv, pin, email, phone, address, postal code, customer name, pan, and friends), plus a SHA-256 device fingerprint. The `custom_metadata` column is encrypted at rest with the same `appKey` cipher as the payload. There is no built-in retention for `sisp_request_metadata`; prune it on your own schedule.
+
+## Multi-merchant isolation
+
+Every transaction records the `posId` that signed its payment request. A callback is matched against that `posId` through the credentials of the `Sisp` instance handling it, so a callback signed by one merchant cannot complete a transaction created for another even when the merchant reference and session collide. Rows created before the `pos_id` column existed skip this check.
+
+## Callback fields the fingerprint does not cover
+
+`posID`, `currency`, and `transactionCode` are not part of the SISP callback fingerprint. The package checks them against the stored transaction when the gateway sends them, which catches a misconfigured `posId`, but their absence proves nothing and is accepted because the gateway omits them on some responses. Only `merchantRef`, `merchantSession`, the amount, `messageType`, and the gateway identifiers carry cryptographic weight.
 
 **Next:** [Sandbox and Testing](08-sandbox-testing.md)

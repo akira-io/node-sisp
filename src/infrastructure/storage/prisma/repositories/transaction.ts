@@ -207,7 +207,7 @@ export function makeTransactionRepository(
   async function updateLocked(id: number, changes: TransactionChanges): Promise<TransactionRecord> {
     const current = await findOrFailForUpdate(id);
     const normalized = normalizeChanges(changes);
-    const diff = computeDiff(current, normalized);
+    const diff = computeDiff(current, normalized, cipher);
 
     if (diff.changed.length === 0) {
       return current;
@@ -240,6 +240,7 @@ function normalizeChanges(changes: TransactionChanges): Record<string, unknown> 
 function computeDiff(
   current: TransactionRecord,
   normalized: Record<string, unknown>,
+  cipher: PayloadCipher,
 ): { changed: string[]; oldValues: Record<string, unknown>; newValues: Record<string, unknown> } {
   const changed: string[] = [];
   const oldValues: Record<string, unknown> = {};
@@ -254,8 +255,8 @@ function computeDiff(
     }
 
     changed.push(attribute);
-    oldValues[attribute] = oldValue;
-    newValues[attribute] = normalizedNew;
+    oldValues[attribute] = attribute === 'payload' ? cipher.store(oldValue) : oldValue;
+    newValues[attribute] = attribute === 'payload' ? cipher.store(normalizedNew) : normalizedNew;
   }
 
   return { changed, oldValues, newValues };

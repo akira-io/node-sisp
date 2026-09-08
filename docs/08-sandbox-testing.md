@@ -2,7 +2,7 @@
 
 ## Sandbox mode
 
-With `sandbox: true` (or `driver: 'sandbox'`) the payment form posts to the local `/sandbox` route instead of the real gateway. That route answers with an auto-submitting form carrying a correctly signed callback, so the whole flow (payment, gateway, callback, events, invoice) runs end to end with zero SISP credentials.
+With `sandbox: true` (or `driver: 'sandbox'`) the payment form posts to the local `/sandbox` route instead of the real gateway. Because that route completes any pending transaction with a correctly signed callback, `createSisp` and `createStatelessSisp` refuse `sandbox: true` when `NODE_ENV` is `production` unless `allowSandboxInProduction: true` is set. That route answers with an auto-submitting form carrying a correctly signed callback, so the whole flow (payment, gateway, callback, events, invoice) runs end to end with zero SISP credentials.
 
 Force a specific outcome with the `status` field:
 

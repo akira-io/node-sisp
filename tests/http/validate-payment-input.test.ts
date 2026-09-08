@@ -138,10 +138,10 @@ describe('validatePaymentInput', () => {
     });
 
     expect(result.errors['items.0.unit_price']).toEqual([
-      'The unit price must be a number of at least 0.',
+      'The unit price must be a number between 0 and 10000000.',
     ]);
     expect(result.errors['items.0.total_price']).toEqual([
-      'The total price must be a number of at least 0.',
+      'The total price must be a number between 0 and 10000000.',
     ]);
   });
 
@@ -160,6 +160,36 @@ describe('validatePaymentInput', () => {
     const result = validatePaymentInput({ ...validBody, customer_email: email });
 
     expect(result.errors.customer_email === undefined).toBe(valid);
+  });
+
+  it('rejects numeric amounts with more than two decimals and oversized item prices', () => {
+    const numeric = validatePaymentInput({
+      amount: 10.005,
+      items: [{ product_name: 'A', quantity: 1, unit_price: 10.005, total_price: 10.005 }],
+    });
+    const oversized = validatePaymentInput(
+      {
+        amount: '10',
+        items: [{ product_name: 'A', quantity: 1, unit_price: '5000', total_price: '5000' }],
+      },
+      resolvePaymentValidation({ maxAmount: 1000 }, '132'),
+    );
+    const huge = validatePaymentInput({
+      amount: '10',
+      items: [
+        {
+          product_name: 'A',
+          quantity: 1,
+          unit_price: '99999999999999999999',
+          total_price: '99999999999999999999',
+        },
+      ],
+    });
+
+    expect(numeric.valid).toBe(false);
+    expect(numeric.errors.amount).toBeDefined();
+    expect(oversized.errors['items.0.unit_price']).toBeDefined();
+    expect(huge.valid).toBe(false);
   });
 
   it('validates item fields and customer email', () => {

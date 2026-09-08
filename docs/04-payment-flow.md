@@ -18,22 +18,22 @@ The handler responds with an auto-submitting HTML form. Its action is the driver
 
 For a SPA that talks to the backend with `fetch`, post to `/payment/intent` instead. It runs the same pipeline but returns the gateway target as JSON `{ action, fields, ref }`; the frontend then builds the form and submits it full-page. The HTML `/payment` route cannot be consumed over `fetch` (the returned markup will not navigate and its inline script will not run). See [Adapters](06-adapters.md#payment-versus-paymentintent).
 
-When the same idempotency key is posted again, the handler does not create a second transaction. It either renders the stored payment request, or creates a new attempt on the same failed transaction when retry is allowed.
+When the same idempotency key is posted again with the same body, the handler does not create a second transaction. It either renders the stored payment request, or creates a new attempt on the same failed transaction when retry is allowed. The same key posted with a different body (amount, items, customer fields) is refused with `IdempotencyKeyReusedError` (HTTP 409): a key is bound to the request that first reserved it and never hands out another customer's payment request.
 
 ## Callback pipeline (POST /callback)
 
-A `UserCancelled` post resolves the transaction by `merchantRef` plus `merchantSession`, cancels it, and emits `transaction:cancelled` before redirecting to `redirectUrl`; unknown or already-terminal transactions just redirect. Payloads missing ref or session redirect to `redirectUrl`. Replays (the matching attempt already has a gateway `transaction_id`) redirect without reprocessing. Then:
+A `UserCancelled` post resolves the transaction by `merchantRef` plus `merchantSession`, cancels it, and emits `transaction:cancelled` before redirecting to `redirectUrl`; unknown or already-terminal transactions just redirect. Payloads missing ref or session redirect to `redirectUrl`. Replays redirect without reprocessing: the matching attempt is already `completed`, or it already recorded the same gateway `transaction_id`. A failed attempt that receives a callback for a different gateway transaction is processed normally. Then:
 
-1. **ResolveTransaction** by `merchantRef` plus `merchantSession` against `sisp_transaction_attempts`. Legacy rows without attempts are backfilled under a row lock.
-2. **ValidateFingerprint.** Constant-time comparison of the 16-field callback fingerprint. A mismatch marks the transaction failed with `invalid_callback_fingerprint`, emits `payment:failed`, and short-circuits.
+1. **ResolveTransaction** by `merchantRef` plus `merchantSession` against `sisp_transaction_attempts`, falling back to `sisp_transactions` for rows that predate attempts. Nothing is written here.
+2. **ValidateFingerprint.** Constant-time comparison of the 16-field callback fingerprint. A mismatch short-circuits with `invalid_callback_fingerprint` and emits `callback:rejected`; nothing is written, the transaction keeps its status, and the HTTP handler redirects to `redirectUrl`. An unsigned POST can never fail a pending transaction or block the genuine callback that follows it.
 3. **EnsureCallbackMatchesTransaction.** Ref, session, amount (compared in thousandths), currency, transaction code, and posID must match the stored transaction, otherwise `callback_details_mismatch`.
-4. **ApplyTransactionStatus.** Updates the attempt and, when propagation is allowed, the parent transaction inside one database transaction. Message types `8`, `P`, `M`, `A`, `B`, `C`, and `10` complete the payment; the SISP error codes fail it; anything else stays pending.
+4. **ApplyTransactionStatus.** Updates the attempt and, when propagation is allowed, the parent transaction inside one database transaction. Legacy rows get their attempt backfilled here, under the row lock and only after the fingerprint verified. Message types `8`, `P`, `M`, `A`, `B`, `C`, and `10` complete the payment; the SISP error codes fail it; anything else stays pending.
 5. **DispatchPaymentEvents.** Emits `payment:completed`, `payment:failed`, or `payment:pending`.
 
 After the pipeline the handler stores request metadata and updates the invoice status. Both run quietly: nothing after completion may break the callback response.
 
-## Result page (GET /callback?ref=)
+## Result page (GET /callback?transaction=&expires=&signature=)
 
-Returns render-ready JSON: transaction summary with `formatted_amount`, structured error data (code, category, suggested action, labels translated to the transaction locale), invoice summary, and a signed `retryUrl` when retry is available. Adapters or frontends decide how to render it.
+The callback redirects the browser to a signed result URL that expires 30 minutes after it is issued; URLs without an expiry are refused. Returns render-ready JSON: transaction summary with `formatted_amount`, structured error data (code, category, suggested action, labels translated to the transaction locale), invoice summary, and a signed `retryUrl` when retry is available. Adapters or frontends decide how to render it.
 
 **Next:** [Transaction Management](05-transaction-management.md)

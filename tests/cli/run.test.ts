@@ -43,6 +43,8 @@ describe('sisp migrate', () => {
       'Migrated: 0003_create_transaction_attempts_table',
       'Migrated: 0004_create_payment_intents_table',
       'Migrated: 0005_add_rate_limit_unique_index',
+      'Migrated: 0006_add_payment_intent_request_hash',
+      'Migrated: 0007_add_transaction_pos_id',
     ]);
   });
 

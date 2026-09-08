@@ -29,7 +29,7 @@ export function createStatelessSisp(config: StatelessSispConfig): StatelessSisp 
 
   const defaultPipes: StatelessCallbackPipe[] = [
     new VerifyFingerprint(credentialsResolver),
-    new MatchExpectedPayment(resolved.correlation, credentialsResolver),
+    new MatchExpectedPayment(resolved.correlation, credentialsResolver, resolved.expectedPayment),
   ];
   const pipes = resolved.pipelines.callback
     ? resolved.pipelines.callback(defaultPipes)

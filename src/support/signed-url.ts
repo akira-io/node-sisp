@@ -38,6 +38,12 @@ export class UrlSigner {
     return this.signedParams(path, query) !== null;
   }
 
+  validateExpiring(path: string, query: Record<string, unknown>): boolean {
+    const signed = this.signedParams(path, query);
+
+    return signed !== null && parseExpiration(signed.params.expires) !== null;
+  }
+
   validateAction(path: string, query: Record<string, unknown>): SignedAction | null {
     const signed = this.signedParams(path, query);
 

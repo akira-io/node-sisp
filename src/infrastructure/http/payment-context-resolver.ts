@@ -9,9 +9,13 @@ import type {
   TransactionRepository,
 } from '../../core/contracts/storage';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
-import { PaymentIntentAlreadyProcessingError } from '../../domain/errors/exceptions';
+import {
+  IdempotencyKeyReusedError,
+  PaymentIntentAlreadyProcessingError,
+} from '../../domain/errors/exceptions';
 import type { PaymentRequest } from '../../domain/value-objects/payment-request';
 import { paymentRequestDataFrom } from '../../domain/value-objects/payment-request-data';
+import { paymentRequestHash } from '../../support/request-hash';
 import {
   type TransactionAttemptRecord,
   type TransactionRecord,
@@ -43,8 +47,11 @@ export class PaymentContextResolver {
       return this.newPaymentContext(context);
     }
 
-    if (!(await this.deps.paymentIntents.reserve(idempotencyKey))) {
-      return this.existingPaymentContext(context, idempotencyKey);
+    const { requestKeys, excludeFromHash } = this.deps.config.idempotency;
+    const requestHash = paymentRequestHash(request.body, [...requestKeys, ...excludeFromHash]);
+
+    if (!(await this.deps.paymentIntents.reserve(idempotencyKey, requestHash))) {
+      return this.existingPaymentContext(context, idempotencyKey, requestHash);
     }
 
     try {
@@ -74,8 +81,13 @@ export class PaymentContextResolver {
   private async existingPaymentContext(
     context: PaymentContext,
     idempotencyKey: string,
+    requestHash: string,
   ): Promise<PaymentContext> {
     const intent = await this.deps.paymentIntents.findByKey(idempotencyKey);
+
+    if (intent !== null && intent.request_hash !== null && intent.request_hash !== requestHash) {
+      throw new IdempotencyKeyReusedError(idempotencyKey);
+    }
 
     if (intent?.transaction_id == null) {
       throw new PaymentIntentAlreadyProcessingError(idempotencyKey);

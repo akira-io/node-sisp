@@ -6,6 +6,13 @@ import {
 import type { Transaction } from '../../src/infrastructure/storage/knex/models/transaction';
 import type { TransactionAttempt } from '../../src/infrastructure/storage/knex/models/transaction-attempt';
 
+const callback = {
+  merchantRef: 'R1',
+  merchantSession: 'S1',
+  transactionID: 'TID-1',
+  messageType: '8',
+};
+
 describe('booleanFromInput', () => {
   it.each([
     [true, true],
@@ -26,55 +33,102 @@ describe('booleanFromInput', () => {
 });
 
 describe('isAlreadyProcessed', () => {
-  it('returns true when the matching attempt already has a gateway transaction id', async () => {
+  it('returns true when the matching attempt already recorded the same gateway transaction', async () => {
     await expect(
       isAlreadyProcessed(
         transactionModel(null),
-        attemptModel({ gateway_transaction_id: 'TID-1' }),
-        'R1',
-        'S1',
+        attemptModel({ status: 'failed', gateway_transaction_id: 'TID-1', message_type: '8' }),
+        callback,
       ),
     ).resolves.toBe(true);
+  });
+
+  it('returns true when the matching attempt is completed', async () => {
+    await expect(
+      isAlreadyProcessed(
+        transactionModel(null),
+        attemptModel({ status: 'completed', gateway_transaction_id: 'TID-0', message_type: '8' }),
+        callback,
+      ),
+    ).resolves.toBe(true);
+  });
+
+  it('returns false when a failed attempt receives a different gateway transaction', async () => {
+    await expect(
+      isAlreadyProcessed(
+        transactionModel(null),
+        attemptModel({ status: 'failed', gateway_transaction_id: 'TID-0', message_type: '6' }),
+        callback,
+      ),
+    ).resolves.toBe(false);
+  });
+
+  it('lets a final callback through when a pending attempt already holds the same gateway id', async () => {
+    await expect(
+      isAlreadyProcessed(
+        transactionModel(null),
+        attemptModel({ status: 'pending', gateway_transaction_id: 'TID-1', message_type: 'Z' }),
+        callback,
+      ),
+    ).resolves.toBe(false);
   });
 
   it('returns false when the matching attempt is still pending', async () => {
     await expect(
       isAlreadyProcessed(
-        transactionModel({ transaction_id: 'TID-1' }),
-        attemptModel({ gateway_transaction_id: null }),
-        'R1',
-        'S1',
+        transactionModel({ status: 'completed', transaction_id: 'TID-1', message_type: '8' }),
+        attemptModel({ status: 'pending', gateway_transaction_id: null, message_type: null }),
+        callback,
       ),
     ).resolves.toBe(false);
   });
 
-  it('falls back to transaction state when no attempt exists', async () => {
+  it('falls back to the transaction when no attempt exists', async () => {
     await expect(
       isAlreadyProcessed(
-        transactionModel({ transaction_id: 'TID-1' }),
+        transactionModel({ status: 'failed', transaction_id: 'TID-1', message_type: '8' }),
         attemptModel(null),
-        'R1',
-        'S1',
+        callback,
       ),
     ).resolves.toBe(true);
+    await expect(
+      isAlreadyProcessed(
+        transactionModel({ status: 'completed', transaction_id: 'TID-0', message_type: '8' }),
+        attemptModel(null),
+        callback,
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      isAlreadyProcessed(
+        transactionModel({ status: 'failed', transaction_id: 'TID-0', message_type: '6' }),
+        attemptModel(null),
+        callback,
+      ),
+    ).resolves.toBe(false);
   });
 
-  it('returns false when neither attempt nor transaction has processed state', async () => {
+  it('returns false when neither attempt nor transaction exists', async () => {
     await expect(
-      isAlreadyProcessed(transactionModel(null), attemptModel(null), 'R1', 'S1'),
+      isAlreadyProcessed(transactionModel(null), attemptModel(null), callback),
     ).resolves.toBe(false);
   });
 });
 
 function attemptModel(
-  record: { gateway_transaction_id: string | null } | null,
+  record: {
+    status: string;
+    gateway_transaction_id: string | null;
+    message_type: string | null;
+  } | null,
 ): TransactionAttempt {
   return {
     findByRefAndSession: async () => record,
   } as unknown as TransactionAttempt;
 }
 
-function transactionModel(record: { transaction_id: string | null } | null): Transaction {
+function transactionModel(
+  record: { status: string; transaction_id: string | null; message_type: string | null } | null,
+): Transaction {
   return {
     findByRefAndSession: async () => record,
   } as unknown as Transaction;

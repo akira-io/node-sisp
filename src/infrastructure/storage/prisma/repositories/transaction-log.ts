@@ -2,6 +2,7 @@ import type { SispTables } from '../../../../application/config';
 import type { TransactionLogRepository } from '../../../../core/contracts/storage';
 import type { TransactionLogRecord } from '../../../../domain/records';
 import type { ListByTransactionOptions } from '../../../../domain/storage-types';
+import type { PayloadCipher } from '../../knex/encryption';
 import {
   normalizeListLimit,
   normalizeListOffset,
@@ -13,6 +14,7 @@ import { mapTransactionLog } from '../mapping';
 export function makeTransactionLogRepository(
   client: PrismaClientLike,
   _tables: SispTables,
+  cipher: PayloadCipher,
 ): TransactionLogRepository {
   const model = () => delegate(client, DELEGATE_NAMES.transactionLogs);
 
@@ -28,7 +30,7 @@ export function makeTransactionLogRepository(
         skip: normalizeListOffset(options.offset),
       });
 
-      return rows.map(mapTransactionLog);
+      return rows.map((row) => mapTransactionLog(row, cipher));
     },
   };
 }

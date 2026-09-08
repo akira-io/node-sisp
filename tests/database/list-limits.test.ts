@@ -27,8 +27,8 @@ beforeEach(async () => {
   transaction = new Transaction(db, DEFAULT_TABLES, cipher);
   attempts = new TransactionAttempt(db, DEFAULT_TABLES, cipher);
   items = new TransactionItem(db, DEFAULT_TABLES);
-  logs = new TransactionLog(db, DEFAULT_TABLES);
-  metadata = new RequestMetadata(db, DEFAULT_TABLES);
+  logs = new TransactionLog(db, DEFAULT_TABLES, new PayloadCipher('app-key'));
+  metadata = new RequestMetadata(db, DEFAULT_TABLES, new PayloadCipher('app-key'));
 });
 
 afterEach(async () => {

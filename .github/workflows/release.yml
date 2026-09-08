@@ -30,7 +30,7 @@ jobs:
       - name: Generate CHANGELOG
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: git-cliff --config cliff.toml --tag "${{ github.ref_name }}" --output CHANGELOG.md
+        run: git-cliff --config cliff.toml --tag "$GITHUB_REF_NAME" --output CHANGELOG.md
 
       - name: Ensure CHANGELOG contains tag
         run: |
@@ -58,7 +58,9 @@ jobs:
           fi
 
       - name: Bump package version
-        run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
 
       - name: Commit release files
         run: |
@@ -66,7 +68,7 @@ jobs:
           git config user.name "$(git show -s --format='%an' HEAD)"
           git config user.email "$(git show -s --format='%ae' HEAD)"
           git add CHANGELOG.md package.json package-lock.json
-          git diff --cached --quiet || git commit -m "chore(changelog): ${{ github.ref_name }}"
+          git diff --cached --quiet || git commit -m "chore(changelog): $GITHUB_REF_NAME"
           git push origin "HEAD:${DEFAULT_BRANCH}" || true
 
       - name: Extract release notes
@@ -74,10 +76,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
+          git-cliff --config cliff.toml --latest --strip all --output release-notes.md
+          DELIMITER="notes-$(openssl rand -hex 16)"
           {
-            echo 'body<<EOF'
-            git-cliff --config cliff.toml --latest --strip all
-            echo 'EOF'
+            echo "body<<$DELIMITER"
+            cat release-notes.md
+            echo "$DELIMITER"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
@@ -89,10 +93,10 @@ jobs:
           else
             RELEASE_FLAG="--latest"
           fi
-          gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --notes "${{ steps.notes.outputs.body }}" \
+          gh release delete "$GITHUB_REF_NAME" --yes 2>/dev/null || true
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md \
             $RELEASE_FLAG
 
       - name: Send GitHub Release to Discord

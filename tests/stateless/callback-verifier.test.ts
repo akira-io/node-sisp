@@ -54,7 +54,7 @@ describe('StatelessCallbackVerifier', () => {
     events.on('callback:rejected', rejected);
 
     const payload = signedPayload();
-    const outcome = await verifier(events).verify(payload);
+    const outcome = await verifier(events).verify(payload, { amount: 1500 });
 
     expect(outcome).toEqual({
       verified: true,

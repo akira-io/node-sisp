@@ -4,6 +4,7 @@ import { deriveSispKey } from '../../../support/key-derivation';
 const PREFIX = 'sisp.v1';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
+const TAG_LENGTH = 16;
 const AAD = Buffer.from(PREFIX, 'utf8');
 const MISSING_KEY_MESSAGE = 'SISP payload encryption requires an appKey in the configuration.';
 
@@ -71,10 +72,17 @@ export class PayloadCipher {
       throw new Error('Unable to decrypt SISP payload.');
     }
 
+    const ivBuffer = Buffer.from(iv, 'base64');
+    const tagBuffer = Buffer.from(tag, 'base64');
+
+    if (ivBuffer.length !== IV_LENGTH || tagBuffer.length !== TAG_LENGTH) {
+      throw new Error('Unable to decrypt SISP payload.');
+    }
+
     try {
-      const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(iv, 'base64'));
+      const decipher = createDecipheriv(ALGORITHM, key, ivBuffer, { authTagLength: TAG_LENGTH });
       decipher.setAAD(AAD);
-      decipher.setAuthTag(Buffer.from(tag, 'base64'));
+      decipher.setAuthTag(tagBuffer);
 
       return Buffer.concat([
         decipher.update(Buffer.from(encrypted, 'base64')),

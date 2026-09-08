@@ -133,10 +133,72 @@ describe('StatelessCallbackPipeline', () => {
     expect(store.processed[0]?.outcome.verified).toBe(false);
   });
 
-  it('verifies on fingerprint alone when no store is configured', async () => {
+  it('refuses a completed callback without a store or an expected payment', async () => {
     const context = await pipeline(null).run(new StatelessCallbackContext(signedPayload()));
 
+    expect(context.toOutcome().verified).toBe(false);
+    expect(context.toOutcome().reason).toBe(CallbackRejectionReasons.ExpectedPaymentMissing);
+  });
+
+  it('still verifies a decline without a store or an expected payment', async () => {
+    const context = await pipeline(null).run(
+      new StatelessCallbackContext(signedPayload({ messageType: '6' })),
+    );
+
     expect(context.toOutcome().verified).toBe(true);
+    expect(context.toOutcome().status).toBe(TransactionStatus.Failed);
+  });
+
+  it('verifies against an expected payment supplied by the caller', async () => {
+    const context = await pipeline(null).run(
+      new StatelessCallbackContext(signedPayload(), { amount: 1500, currency: '132' }),
+    );
+
+    expect(context.toOutcome().verified).toBe(true);
+    expect(context.expected).toEqual({ amount: 1500, currency: '132' });
+  });
+
+  it('verifies against an expected payment resolved from configuration', async () => {
+    const resolver = vi.fn(async () => ({ amount: 1500 }));
+    const withResolver = new StatelessCallbackPipeline([
+      new VerifyFingerprint(credentialsResolver),
+      new MatchExpectedPayment(null, credentialsResolver, resolver),
+    ]);
+
+    const context = await withResolver.run(new StatelessCallbackContext(signedPayload()));
+
+    expect(context.toOutcome().verified).toBe(true);
+    expect(resolver).toHaveBeenCalledWith(context.payload);
+  });
+
+  it('rejects a fingerprint-valid callback whose session and amount were re-cut', async () => {
+    const genuine = signedPayload({
+      merchantRespMerchantSession: 'S20260730120007',
+      merchantRespPurchaseAmount: '1500',
+    });
+    const shifted = callbackPayloadFrom({
+      merchantRespMerchantRef: 'REF123',
+      merchantRespMerchantSession: 'S2026073012000',
+      merchantRespPurchaseAmount: '71500',
+      currency: '132',
+      transactionCode: '1',
+      posID: '90000045',
+      messageType: '8',
+      merchantResp: '00',
+      merchantRespCP: '01',
+      resultFingerPrint: genuine.fingerprint,
+    });
+
+    expect(
+      generateCallbackFingerprint(computeToken(POS_AUT_CODE), shifted) === genuine.fingerprint,
+    ).toBe(true);
+
+    const context = await pipeline(null).run(
+      new StatelessCallbackContext(shifted, { amount: 1500 }),
+    );
+
+    expect(context.toOutcome().verified).toBe(false);
+    expect(context.toOutcome().reason).toBe(CallbackRejectionReasons.DetailsMismatch);
   });
 
   it('treats a null amount from a nullable store column as a mismatch instead of throwing', async () => {

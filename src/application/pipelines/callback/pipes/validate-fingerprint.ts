@@ -3,16 +3,10 @@ import type { CallbackPipe } from '../../../../core/contracts/pipes';
 import { CallbackRejectionReasons } from '../../../../domain/enums/callback-rejection-reason';
 import { validateCallbackFingerprint } from '../../../../infrastructure/fingerprints/callback-fingerprint';
 import { computeToken } from '../../../../infrastructure/fingerprints/token';
-import type { FailTransactionAction } from '../../../actions/fail-transaction';
-import type { SispEventEmitter } from '../../../events';
 import type { CallbackContext } from '../callback-context';
 
 export class ValidateFingerprint implements CallbackPipe {
-  constructor(
-    private readonly credentialsResolver: CredentialsResolver,
-    private readonly failTransaction: FailTransactionAction,
-    private readonly events: SispEventEmitter,
-  ) {}
+  constructor(private readonly credentialsResolver: CredentialsResolver) {}
 
   async handle(context: CallbackContext, next: () => Promise<void>): Promise<void> {
     const token = computeToken(this.credentialsResolver.resolve().posAutCode);
@@ -23,22 +17,7 @@ export class ValidateFingerprint implements CallbackPipe {
       return;
     }
 
-    const failed = await this.failTransaction.handle(
-      context.requireTransaction(),
-      context.payload,
-      CallbackRejectionReasons.InvalidFingerprint,
-      context.requireAttempt(),
-    );
-    context.transactionStatusPropagated = failed.propagated;
-    context.transaction = failed.transaction;
-
-    if (failed.propagated) {
-      this.events.emit('payment:failed', {
-        transaction: context.requireTransaction(),
-        payload: context.payload,
-      });
-    }
-
+    context.transactionStatusPropagated = false;
     context.fail(CallbackRejectionReasons.InvalidFingerprint);
   }
 }

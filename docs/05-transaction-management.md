@@ -52,7 +52,7 @@ Failed payments can be retried through a signed URL that expires after 30 minute
 const url = sisp.signedRetryUrl(transaction.id);
 ```
 
-`GET` renders the payment form again without touching the transaction. `POST` resets it to pending, creates a new attempt, rotates the `merchantSession`, clears the gateway response fields, and renders a freshly signed form. Retry is refused when `allowRetry` is off, the transaction is not failed, or 3D Secure data is missing while `is3DSec` is `'1'`.
+`GET` renders the payment form again without touching the transaction; the gateway callback for that submission is still accepted because a failed attempt only counts as processed for the same gateway transaction id. `POST` resets it to pending, creates a new attempt, rotates the `merchantSession`, clears the gateway response fields, and renders a freshly signed form. Signed retry URLs are single-use (the `jti` nonce is consumed on the first request, GET or POST), so generate a new URL per retry. Retry is refused when `allowRetry` is off, the transaction is not failed, or 3D Secure data is missing while `is3DSec` is `'1'`.
 
 When a failed transaction has no attempt row because it predates the attempts migration, the retry flow backfills attempt `1` first. Concurrent retry requests tolerate the unique-constraint race and continue with the attempt created by the other request.
 
@@ -74,7 +74,7 @@ await sisp.refund(transaction).amount(500).process();
 
 Only `completed` transactions can be refunded, and never beyond the locally tracked balance. Each refund builds a version 2 signed reversal request (total reversal `4`, partial `8`) that requires the `clearingPeriod` and `transactionID` captured from the original callback, and appends it to the refund history inside the encrypted payload. A full refund moves the status to `refunded`; partials keep it `completed` until the balance hits zero. Emits `transaction:refunded`.
 
-Over HTTP, `POST /refund/:transaction` is denied unless the adapter receives an `authorizeRefund` hook.
+Over HTTP, `POST /refund/:transaction` is denied unless the adapter receives an `authorizeRefund` hook. The `amount` must be a plain decimal with at most two places; `reason` is capped at 255 characters.
 
 ## Reconciliation
 

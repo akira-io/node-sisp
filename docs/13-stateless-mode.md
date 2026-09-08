@@ -6,7 +6,7 @@ Use `createStatelessSisp` when you already own transaction tables and want the g
 
 ## Quick start
 
-Without a correlation store, the package never mounts `POST /payment` and verification is fingerprint-only. You build and render the payment yourself:
+Without a correlation store, the package never mounts `POST /payment`. You build and render the payment yourself, and you tell the package what each callback should be worth, either per call (`handleCallback(payload, { amount })`) or through the `expectedPayment` lookup that the HTTP route uses:
 
 ```ts
 import { createStatelessSisp } from '@akira-io/sisp';
@@ -17,11 +17,18 @@ const sisp = createStatelessSisp({
   appKey: process.env.SISP_APP_KEY,
   baseUrl: 'https://app.example.cv',
   sandbox: true,
+  expectedPayment: async (payload) => {
+    const order = await orders.findByMerchantRef(payload.merchantRef);
+
+    return order ? { amount: order.amount, currency: '132' } : null;
+  },
 });
 
 const request = sisp.payment().amount(1500).build();
 // render `request` into your own auto-submit form
 ```
+
+A `completed` callback with no expected payment to compare against is rejected with `expected_payment_missing`. The SISP fingerprint concatenates fields without separators, so a signed callback can be re-cut across the `merchantSession`/`amount` boundary (`'S...x7' + '1500'` signs the same bytes as `'S...x' + '71500'`); only an amount expectation of your own closes that. Declines and pending callbacks are still verified on the fingerprint alone, because nothing is fulfilled from them.
 
 With a `correlation` store, `POST /payment` and `POST /payment/intent` mount automatically and callback verification gains replay protection and amount/currency/code matching:
 
@@ -43,7 +50,7 @@ app.use('/sisp', statelessSispRoutes(sisp));
 
 ## `verified` is authenticity, not a payment verdict
 
-`verified` means the callback's fingerprint checked out and, with a `correlation` store configured, its amount/currency/transaction code matched the original request. It says nothing about whether the gateway approved or declined the payment. A correctly signed decline is still `verified: true`, because nothing about a decline breaks the fingerprint or the amount match:
+`verified` means the callback's fingerprint checked out and its amount/currency/transaction code matched what you expected: the `correlation` record, the `expected` argument, or the `expectedPayment` lookup. It says nothing about whether the gateway approved or declined the payment. A correctly signed decline is still `verified: true`, because nothing about a decline breaks the fingerprint or the amount match:
 
 ```
 { merchant_ref: 'R123', verified: true, status: 'failed', reason: null, error: { code: '6', ... } }
@@ -287,13 +294,13 @@ The residual exposure is the same in both modes: whoever knows a valid `merchant
 | Protection | Stateful | Stateless + `correlation` | Stateless without `correlation` |
 |---|---|---|---|
 | Gateway fingerprint | yes | yes | yes |
-| Amount/currency/code vs original request | yes | yes | no |
+| Amount/currency/code vs original request | yes | yes | yes, from `expected` or `expectedPayment`; a `completed` callback without either is rejected |
 | Replay of the same callback, sequential | yes | yes | no |
 | Replay of the same callback, concurrent | yes | yes, if `claim` is atomic | no |
 | Submission idempotency | yes | no, consumer middleware | no, consumer middleware |
 | Rate limiting, blacklist | yes | no, consumer middleware | no, consumer middleware |
 
-> Without a `correlation` store, verification is fingerprint-only. Cross-transaction amount tampering and callback replay are both your responsibility to guard against.
+> Without a `correlation` store, callback replay is your responsibility to guard against. Amount tampering is not: a `completed` callback only verifies against an expected amount you supply.
 
 Rate limiting, blacklisting, and submission idempotency are absent from stateless mode on purpose: they are perimeter concerns that your framework's own middleware already solves (`express-rate-limit`, Fastify hooks, Nest guards), none of which need the package's tables. Submission idempotency specifically cannot work here even if the package tried: it needs the idempotency key from your request body, and `record()` writes a row keyed by a freshly generated `merchantRef`/`merchantSession` that is new on every submission, so there is nothing to deduplicate against.
 

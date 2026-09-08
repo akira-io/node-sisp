@@ -36,10 +36,10 @@ export class KnexStorage implements SispStorage {
     this.transactionAttempts = new TransactionAttempt(db, tables, cipher);
     this.paymentIntents = new PaymentIntent(db, tables);
     this.invoices = new Invoice(db, tables);
-    this.transactionLogs = new TransactionLog(db, tables);
+    this.transactionLogs = new TransactionLog(db, tables, cipher);
     this.blacklist = new Blacklist(db, tables);
     this.rateLimits = new RateLimit(db, tables);
-    this.requestMetadata = new RequestMetadata(db, tables);
+    this.requestMetadata = new RequestMetadata(db, tables, cipher);
   }
 
   static async create(

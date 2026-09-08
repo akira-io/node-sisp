@@ -219,6 +219,22 @@ describe('refund route', () => {
     await request(app).post('/sisp/refund/999').type('form').send({ amount: '10' }).expect(404);
   });
 
+  it('rejects refund amounts that are not plain decimals', async () => {
+    const transaction = await createCompletedTransaction();
+    const app = express();
+    app.use('/sisp', sispRoutes(sisp, { authorizeRefund: () => true }));
+
+    for (const amount of ['0x10', '1e2', '10.005', 'abc']) {
+      const response = await request(app)
+        .post(`/sisp/refund/${transaction.id}`)
+        .type('form')
+        .send({ amount })
+        .expect(400);
+
+      expect(response.body.message).toBe('Refund amount must be greater than 0.');
+    }
+  });
+
   it('rate limits refund requests per IP', async () => {
     const limited = await createSisp({
       posId: '90051',

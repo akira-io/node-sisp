@@ -1,4 +1,5 @@
 import type { CallbackOutcome, CallbackVerifier } from '../../core/contracts/callback-verifier';
+import type { ExpectedPayment } from '../../core/contracts/payment-correlation-store';
 import type { CallbackPayload } from '../../domain/value-objects/callback-payload';
 import type { SispEventEmitter } from '../events';
 import { StatelessCallbackContext } from '../pipelines/callback/stateless/stateless-callback-context';
@@ -10,8 +11,10 @@ export class StatelessCallbackVerifier implements CallbackVerifier<CallbackOutco
     private readonly events: SispEventEmitter,
   ) {}
 
-  async verify(payload: CallbackPayload): Promise<CallbackOutcome> {
-    const context = await this.pipeline.run(new StatelessCallbackContext(payload));
+  async verify(payload: CallbackPayload, expected?: ExpectedPayment): Promise<CallbackOutcome> {
+    const context = await this.pipeline.run(
+      new StatelessCallbackContext(payload, expected ?? null),
+    );
     const outcome = context.toOutcome();
 
     this.events.emit(outcome.verified ? 'callback:verified' : 'callback:rejected', {

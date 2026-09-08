@@ -9,6 +9,7 @@ import type { HttpResult } from '../../infrastructure/http/results';
 export interface SispFastifyOptions {
   sisp: Sisp;
   authorizeRefund?: (request: FastifyRequest) => boolean | Promise<boolean>;
+  authorizeTransactionStatus?: (request: FastifyRequest) => boolean | Promise<boolean>;
 }
 
 export interface StatelessSispFastifyOptions {
@@ -21,6 +22,7 @@ export async function sispFastifyPlugin(
 ): Promise<void> {
   const { sisp } = options;
   const authorizeRefund = options.authorizeRefund ?? (() => false);
+  const authorizeTransactionStatus = options.authorizeTransactionStatus ?? (() => true);
 
   if (!fastify.hasContentTypeParser('application/x-www-form-urlencoded')) {
     await fastify.register(formbody, {
@@ -72,7 +74,12 @@ export async function sispFastifyPlugin(
   fastify.get('/transactions/:ref', async (request, reply) => {
     const { ref } = request.params as { ref: string };
 
-    send(reply, await sisp.handlers.handleTransactionStatus(ref));
+    send(
+      reply,
+      await sisp.handlers.handleTransactionStatus(toRequestInfo(request), ref, () =>
+        authorizeTransactionStatus(request),
+      ),
+    );
   });
 
   fastify.post('/refund/:transaction', async (request, reply) => {

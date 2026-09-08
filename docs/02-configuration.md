@@ -30,14 +30,17 @@ value.
 | Key | Default | Description |
 |-----|---------|-------------|
 | `database` | required | `{ client, connection, autoMigrate }` passed to knex. `connection` is typed loosely (`string \| object \| (() => object \| Promise<object>)`) on the main entry so consumers do not need `knex` installed to typecheck; import `SispKnexDatabaseConfig` from `@akira-io/sisp/knex` for the fully-typed knex connection shapes, including knex's connection-provider function form for rotating credentials |
-| `appKey` | `null` | Key for payload encryption (AES-256-GCM) and signed URLs |
+| `appKey` | `null` | Key for payload encryption (AES-256-GCM) and signed URLs. Required by `createSisp` to persist payloads; at least 32 characters outside sandbox mode |
 | `baseUrl` | `''` | Absolute origin used when building route URLs |
 | `basePath` | `'/sisp'` | Mount path of the HTTP routes |
 | `urlMerchantResponse` | callback route | Where SISP posts the payment result |
 | `redirectUrl` | `'/'` | Fallback redirect for cancelled or unknown callbacks |
 | `frontendResultUrl` | `null` | When set, a processed callback redirects the browser to `${frontendResultUrl}?ref=…` instead of the JSON result page, handing control to a SPA |
 | `driver` | derived | `'production'`, `'sandbox'`, or a custom driver name |
-| `sandbox` | `false` | Selects the sandbox driver when no explicit `driver` |
+| `sandbox` | `false` | Selects the sandbox driver when no explicit `driver`. Refused when `NODE_ENV` is `production` unless `allowSandboxInProduction` is `true` |
+| `allowSandboxInProduction` | `false` | Opt-in to keep the public `/sandbox` route with `NODE_ENV=production` |
+| `allowWeakAppKey` | `false` | Accept an `appKey` shorter than 32 characters outside sandbox mode, for installations that still have to rotate |
+| `idempotency.excludeFromHash` | `_token`, `_csrf`, `_method`, `csrf_token`, `authenticity_token` | Body fields left out of the idempotency request hash, on top of `idempotency.requestKeys` |
 | `allowRetry` | `true` | Enables the retry flow for failed payments |
 | `tables` | `sisp_*` | Override any of the package table names |
 
@@ -49,8 +52,14 @@ rateLimiting: {
   perIp: { enabled: true, limit: 100, windowSeconds: 3600 },
   perMerchant: { enabled: true, limit: 500, windowSeconds: 3600 },
   perUser: { enabled: true, limit: 50, windowSeconds: 3600 },
-}
+},
+security: {
+  collectMetadata: true,
+  clientIp: (request) => headerValue(request, 'x-real-ip'),
+},
 ```
+
+`security.clientIp` resolves the address used for per-IP rate limits, the IP blacklist, and request metadata. Without it the package uses the adapter's `req.ip`, which behind a reverse proxy is the proxy's address unless the framework is told to trust it (`app.set('trust proxy', ...)` in Express, `trustProxy` in Fastify). When the resolver returns `null` or an empty string the package falls back to the adapter's `req.ip`; per-IP limits and blacklist checks are skipped only when that is empty too, instead of sharing one bucket.
 
 ## Reconciliation
 

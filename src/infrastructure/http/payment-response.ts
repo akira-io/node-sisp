@@ -14,7 +14,6 @@ export interface PaymentResponseData {
     formatted_amount: string;
     currency: string;
     merchant_ref: string;
-    merchant_session: string;
     message_type: string | null;
   };
   error: PaymentErrorData | null;
@@ -55,7 +54,6 @@ export function paymentResponseData(
       formatted_amount: formatAmountEcv(transaction.amount),
       currency: transaction.currency,
       merchant_ref: transaction.merchant_ref,
-      merchant_session: transaction.merchant_session,
       message_type: transaction.message_type,
     },
     error: structuredError(transaction),

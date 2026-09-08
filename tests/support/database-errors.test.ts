@@ -18,6 +18,13 @@ describe('database error helpers', () => {
     ).toBe(true);
   });
 
+  it('detects Prisma unique constraint violations', () => {
+    expect(isUniqueConstraintError({ code: 'P2002', meta: { target: ['idempotency_key'] } })).toBe(
+      true,
+    );
+    expect(isUniqueConstraintError({ code: 'P2025' })).toBe(false);
+  });
+
   it('does not classify unrelated duplicate messages as unique constraints', () => {
     expect(
       isUniqueConstraintError({

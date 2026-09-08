@@ -11,6 +11,7 @@ import type {
 import type { NewTransaction } from '../../../domain/storage-types';
 import { fromCents, toCents } from '../../../support/sisp-amount';
 import type { PayloadCipher } from '../knex/encryption';
+import { readLogValues } from '../knex/models/transaction-log';
 
 export type PrismaRow = Record<string, unknown>;
 
@@ -55,6 +56,7 @@ export function mapTransaction(row: PrismaRow, cipher: PayloadCipher): Transacti
     id: asNumber(row.id),
     merchant_ref: row.merchantRef as string,
     merchant_session: row.merchantSession as string,
+    pos_id: (row.posId as string | null) ?? null,
     amount: fromCents(amountCents),
     amount_cents: amountCents,
     currency: row.currency as string,
@@ -89,6 +91,7 @@ export function newTransactionToData(
   return {
     merchantRef: data.merchantRef,
     merchantSession: data.merchantSession,
+    posId: data.posId ?? null,
     amountCents: BigInt(toCents(data.amount)),
     currency: data.currency ?? '132',
     status: 'pending',
@@ -147,6 +150,7 @@ export function mapPaymentIntent(row: PrismaRow): PaymentIntentRecord {
   return {
     id: asNumber(row.id),
     idempotency_key: row.idempotencyKey as string,
+    request_hash: (row.requestHash as string | null) ?? null,
     transaction_id: asNullableNumber(row.transactionId),
     status: row.status as string,
     failure_reason: (row.failureReason as string | null) ?? null,
@@ -177,17 +181,30 @@ export function mapInvoice(row: PrismaRow): InvoiceRecord {
   };
 }
 
-export function mapTransactionLog(row: PrismaRow): TransactionLogRecord {
+export function mapTransactionLog(row: PrismaRow, cipher?: PayloadCipher): TransactionLogRecord {
   return {
     id: asNumber(row.id),
     transaction_id: asNumber(row.transactionId),
     source: row.source as string,
     changed_attributes: parseJsonValue<string[]>(row.changedAttributes, []),
-    old_values: parseJsonValue<Record<string, unknown> | null>(row.oldValues, null),
-    new_values: parseJsonValue<Record<string, unknown> | null>(row.newValues, null),
+    old_values: decryptLogValues(
+      parseJsonValue<Record<string, unknown> | null>(row.oldValues, null),
+      cipher,
+    ),
+    new_values: decryptLogValues(
+      parseJsonValue<Record<string, unknown> | null>(row.newValues, null),
+      cipher,
+    ),
     created_at: asIso(row.createdAt),
     updated_at: asIso(row.updatedAt),
   };
+}
+
+function decryptLogValues(
+  values: Record<string, unknown> | null,
+  cipher: PayloadCipher | undefined,
+): Record<string, unknown> | null {
+  return cipher === undefined ? values : readLogValues(values, cipher);
 }
 
 export function mapBlacklist(row: PrismaRow): BlacklistRecord {
@@ -205,7 +222,7 @@ export function mapBlacklist(row: PrismaRow): BlacklistRecord {
   };
 }
 
-export function mapRequestMetadata(row: PrismaRow): RequestMetadataRecord {
+export function mapRequestMetadata(row: PrismaRow, cipher?: PayloadCipher): RequestMetadataRecord {
   return {
     id: asNumber(row.id),
     transaction_id: asNullableNumber(row.transactionId),
@@ -230,7 +247,8 @@ export function mapRequestMetadata(row: PrismaRow): RequestMetadataRecord {
     is_mobile: Boolean(row.isMobile),
     risk_score: asNumber(row.riskScore),
     risk_reason: (row.riskReason as string | null) ?? null,
-    custom_metadata: parseJsonColumn(row.customMetadata),
+    custom_metadata:
+      cipher === undefined ? parseJsonColumn(row.customMetadata) : cipher.read(row.customMetadata),
     created_at: asIso(row.createdAt),
     updated_at: asIso(row.updatedAt),
   };

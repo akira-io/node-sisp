@@ -5,12 +5,14 @@ import {
   resolvePaymentValidation,
 } from '../domain/policies/payment-validation';
 import { type SispCredentials, sispCredentials } from '../domain/value-objects/sisp-credentials';
+import type { HttpRequestInfo } from '../infrastructure/http/request-info';
 import {
   generateMerchantReference,
   generateMerchantSession,
   generateTimeStamp,
 } from '../support/generators';
 import { booleanSetting } from '../support/settings';
+import { assertSafeEnvironment } from './environment-guards';
 import type { EventErrorHandler } from './events';
 import {
   type DeepPartial,
@@ -54,10 +56,12 @@ export interface RetryConfig {
 export interface IdempotencyConfig {
   enabled: boolean;
   requestKeys: string[];
+  excludeFromHash: string[];
 }
 
 export interface SecuritySettings {
   collectMetadata: boolean;
+  clientIp: ((request: HttpRequestInfo) => string | null) | null;
 }
 
 export interface TransactionStatusConfig {
@@ -87,6 +91,8 @@ export interface SispConfig {
   url?: string;
   driver?: string;
   sandbox?: boolean;
+  allowSandboxInProduction?: boolean;
+  allowWeakAppKey?: boolean;
   currency?: string;
   languageMessages?: string;
   fingerprintVersion?: string;
@@ -179,6 +185,7 @@ const DEFAULT_RETRY: RetryConfig = { maxAttempts: 3 };
 const DEFAULT_IDEMPOTENCY: IdempotencyConfig = {
   enabled: true,
   requestKeys: ['idempotency_key', 'checkout_intent_id'],
+  excludeFromHash: ['_token', '_csrf', '_method', 'csrf_token', 'authenticity_token'],
 };
 
 export function resolveConfig(config: SispConfig): ResolvedSispConfig {
@@ -194,6 +201,14 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
   }
 
   const sandbox = booleanSetting(config.sandbox, false);
+  const appKey = config.appKey ?? null;
+
+  assertSafeEnvironment(
+    sandbox || config.driver === 'sandbox',
+    booleanSetting(config.allowSandboxInProduction, false),
+    appKey,
+    booleanSetting(config.allowWeakAppKey, false),
+  );
 
   const database =
     config.database != null
@@ -219,13 +234,16 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     urlMerchantResponse: config.urlMerchantResponse ?? null,
     redirectUrl: config.redirectUrl ?? '/',
     frontendResultUrl: config.frontendResultUrl ?? null,
-    appKey: config.appKey ?? null,
+    appKey,
     baseUrl: config.baseUrl ?? '',
     basePath: config.basePath ?? '/sisp',
     allowRetry: booleanSetting(config.allowRetry, true),
     tables: { ...DEFAULT_TABLES, ...config.tables },
     rateLimiting: resolveRateLimiting(config.rateLimiting),
-    security: { collectMetadata: booleanSetting(config.security?.collectMetadata, true) },
+    security: {
+      collectMetadata: booleanSetting(config.security?.collectMetadata, true),
+      clientIp: config.security?.clientIp ?? null,
+    },
     generators: {
       merchantReference:
         config.generators?.merchantReference ?? (() => generateMerchantReference()),

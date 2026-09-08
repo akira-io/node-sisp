@@ -81,6 +81,28 @@ describe('forCredentials', () => {
     expect(transaction.status).toBe('completed');
   });
 
+  it('rejects callbacks signed by another merchant for a transaction bound to a posId', async () => {
+    const scoped = sisp.forCredentials(merchantCredentials);
+
+    await sisp.models.transactions.create({
+      merchantRef: 'R-bound',
+      merchantSession: 'S-bound',
+      posId: '90051',
+      amount: 100,
+    });
+
+    const payload = scoped.generateSandboxPayload({
+      amount: 100,
+      merchantRef: 'R-bound',
+      merchantSession: 'S-bound',
+    });
+
+    const outcome = await scoped.handleCallback(payload);
+
+    expect(outcome.verified).toBe(false);
+    expect(outcome.reason).toBe('callback_details_mismatch');
+  });
+
   it('queries the transaction status with the scoped portal credentials', async () => {
     const fetchMock = vi
       .fn()

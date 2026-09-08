@@ -7,6 +7,12 @@ export class EnsureIpIsNotBlacklisted implements PaymentPipe {
   constructor(private readonly blacklist: BlacklistRepository) {}
 
   async handle(context: PaymentContext, next: () => Promise<void>): Promise<void> {
+    if (context.request.ip === '') {
+      await next();
+
+      return;
+    }
+
     const entry = await this.blacklist.find('ip', context.request.ip);
 
     if (entry !== null) {

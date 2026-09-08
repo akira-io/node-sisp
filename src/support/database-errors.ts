@@ -11,6 +11,7 @@ export function isUniqueConstraintError(error: unknown): boolean {
   const message = String(candidate.message ?? '').toLowerCase();
 
   if (
+    code === 'P2002' ||
     code === '23505' ||
     sqlState === '23505' ||
     code === 'ER_DUP_ENTRY' ||

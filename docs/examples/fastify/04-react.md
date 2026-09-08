@@ -33,7 +33,7 @@ await app.register(sispFastifyPlugin, { sisp, prefix: '/sisp' });
 await app.listen({ port: 3000 });
 ```
 
-The adapter registers the status endpoint for you at `GET /sisp/transactions/:ref`, returning `{ ref, status, amount, messageType, detail }` (or `404` when the reference is unknown). The SPA polls it directly; you do not write it.
+The adapter registers the status endpoint for you at `GET /sisp/transactions/:ref`, returning `{ ref, status, amount, messageType, detail, error }` (or `404` when the reference is unknown, `429` past the per-IP limit). The SPA polls it directly; you do not write it.
 
 ### Same backend on Prisma
 
@@ -111,7 +111,7 @@ The result route reads `ref` from the query string and polls the status endpoint
 ```tsx
 const ref = new URLSearchParams(location.search).get('ref');
 const response = await fetch(`${API}/sisp/transactions/${ref}`);
-const transaction = await response.json(); // { ref, status, amount, messageType, detail }
+const transaction = await response.json(); // { ref, status, amount, messageType, detail, error }
 ```
 
 ## Flow summary

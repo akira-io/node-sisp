@@ -38,6 +38,7 @@ export class Transaction {
       {
         merchant_ref: data.merchantRef,
         merchant_session: data.merchantSession,
+        pos_id: data.posId ?? null,
         amount_cents: toCents(data.amount),
         currency: data.currency ?? '132',
         status: 'pending',
@@ -205,8 +206,8 @@ export class Transaction {
       }
 
       changed.push(attribute);
-      oldValues[attribute] = oldValue;
-      newValues[attribute] = normalizedNew;
+      oldValues[attribute] = this.logValue(attribute, oldValue);
+      newValues[attribute] = this.logValue(attribute, normalizedNew);
     }
 
     return { changed, oldValues, newValues };
@@ -250,6 +251,10 @@ export class Transaction {
     }
 
     return record;
+  }
+
+  private logValue(attribute: string, value: unknown): unknown {
+    return attribute === 'payload' ? this.cipher.store(value) : value;
   }
 
   private map(row: Record<string, unknown>): TransactionRecord {

@@ -36,10 +36,10 @@ class PrismaStorage implements SispStorage {
     this.transactionAttempts = makeTransactionAttemptRepository(prisma, tables, cipher, provider);
     this.paymentIntents = makePaymentIntentRepository(prisma, tables);
     this.invoices = makeInvoiceRepository(prisma, tables);
-    this.transactionLogs = makeTransactionLogRepository(prisma, tables);
+    this.transactionLogs = makeTransactionLogRepository(prisma, tables, cipher);
     this.blacklist = makeBlacklistRepository(prisma, tables);
     this.rateLimits = makeRateLimitRepository(prisma, tables, provider);
-    this.requestMetadata = makeRequestMetadataRepository(prisma, tables);
+    this.requestMetadata = makeRequestMetadataRepository(prisma, tables, cipher);
   }
 
   async transaction<T>(work: (tx: SispStorageTx) => Promise<T>): Promise<T> {
@@ -62,10 +62,10 @@ class PrismaStorage implements SispStorage {
       ),
       paymentIntents: makePaymentIntentRepository(txc, this.tables),
       invoices: makeInvoiceRepository(txc, this.tables),
-      transactionLogs: makeTransactionLogRepository(txc, this.tables),
+      transactionLogs: makeTransactionLogRepository(txc, this.tables, this.cipher),
       blacklist: makeBlacklistRepository(txc, this.tables),
       rateLimits: makeRateLimitRepository(txc, this.tables, this.provider),
-      requestMetadata: makeRequestMetadataRepository(txc, this.tables),
+      requestMetadata: makeRequestMetadataRepository(txc, this.tables, this.cipher),
     };
   }
 }

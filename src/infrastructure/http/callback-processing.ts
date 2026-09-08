@@ -5,6 +5,7 @@ import type {
   TransactionRepository,
 } from '../../core/contracts/storage';
 import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
+import { TransactionStatus } from '../../domain/enums/transaction-status';
 import {
   type CallbackPayload,
   callbackPayloadFrom,
@@ -12,12 +13,18 @@ import {
 import type { UrlSigner } from '../../support/signed-url';
 import type { HttpRequestInfo } from './request-info';
 
+const RESULT_URL_TTL_MINUTES = 30;
+
 export function signedCallbackResultUrl(
   config: ResolvedSispConfig,
   urlSigner: UrlSigner,
   transactionId: number,
 ): string {
-  const signedPath = urlSigner.sign(`${config.basePath}/callback`, { transaction: transactionId });
+  const signedPath = urlSigner.sign(
+    `${config.basePath}/callback`,
+    { transaction: transactionId },
+    new Date(Date.now() + RESULT_URL_TTL_MINUTES * 60_000),
+  );
 
   return `${config.baseUrl}${signedPath}`;
 }
@@ -31,18 +38,38 @@ export function frontendResultUrl(baseUrl: string, merchantRef: string): string 
 export async function isAlreadyProcessed(
   transactions: TransactionRepository,
   attempts: TransactionAttemptRepository,
-  merchantRef: string,
-  merchantSession: string,
+  payload: Pick<
+    CallbackPayload,
+    'merchantRef' | 'merchantSession' | 'transactionID' | 'messageType'
+  >,
 ): Promise<boolean> {
-  const attempt = await attempts.findByRefAndSession(merchantRef, merchantSession);
+  const gatewayTransactionId = String(payload.transactionID);
+  const attempt = await attempts.findByRefAndSession(payload.merchantRef, payload.merchantSession);
 
   if (attempt !== null) {
-    return attempt.gateway_transaction_id !== null;
+    return (
+      attempt.status === TransactionStatus.Completed ||
+      (attempt.gateway_transaction_id !== null &&
+        attempt.gateway_transaction_id === gatewayTransactionId &&
+        attempt.message_type === payload.messageType)
+    );
   }
 
-  const transaction = await transactions.findByRefAndSession(merchantRef, merchantSession);
+  const transaction = await transactions.findByRefAndSession(
+    payload.merchantRef,
+    payload.merchantSession,
+  );
 
-  return transaction !== null && transaction.transaction_id !== null;
+  if (transaction === null) {
+    return false;
+  }
+
+  return (
+    transaction.status === TransactionStatus.Completed ||
+    (transaction.transaction_id !== null &&
+      transaction.transaction_id === gatewayTransactionId &&
+      transaction.message_type === payload.messageType)
+  );
 }
 
 export function booleanFromInput(value: unknown): boolean {

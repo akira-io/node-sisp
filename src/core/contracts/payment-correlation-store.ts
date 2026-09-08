@@ -1,3 +1,4 @@
+import type { CallbackPayload } from '../../domain/value-objects/callback-payload';
 import type { PaymentRequest } from '../../domain/value-objects/payment-request';
 import type { CallbackOutcome } from './callback-verifier';
 
@@ -6,6 +7,10 @@ export interface ExpectedPayment {
   currency?: string;
   transactionCode?: string;
 }
+
+export type ExpectedPaymentResolver = (
+  payload: CallbackPayload,
+) => ExpectedPayment | null | Promise<ExpectedPayment | null>;
 
 export type CorrelationClaim =
   | { status: 'claimed'; payment: ExpectedPayment }

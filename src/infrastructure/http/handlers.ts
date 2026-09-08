@@ -22,6 +22,7 @@ import type {
 } from '../../core/contracts/storage';
 import {
   BlacklistedIdentifierError,
+  IdempotencyKeyReusedError,
   PaymentIntentAlreadyProcessingError,
   PaymentRetryLimitExceededError,
   RateLimitExceededError,
@@ -38,6 +39,7 @@ import { CallbackHandlers } from './callback-handlers';
 import { buildGatewayFormAction } from './gateway-form-action';
 import { LifecycleHandlers } from './lifecycle-handlers';
 import { PaymentContextResolver } from './payment-context-resolver';
+import { structuredErrorFrom } from './payment-response';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
 import { SandboxHandlers } from './sandbox-handlers';
@@ -120,35 +122,59 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
     });
   }
 
-  async handleRefund(request: HttpRequestInfo, transactionId: number): Promise<HttpResult> {
+  async handleRefund(incoming: HttpRequestInfo, transactionId: number): Promise<HttpResult> {
+    const request = this.withClientIp(incoming);
     return this.lifecycle.handleRefund(request, transactionId);
   }
-  async handleTransactionStatus(merchantRef: string): Promise<HttpResult> {
+  async handleTransactionStatus(
+    incoming: HttpRequestInfo,
+    merchantRef: string,
+    authorize: () => boolean | Promise<boolean> = () => true,
+  ): Promise<HttpResult> {
+    const request = this.withClientIp(incoming);
+
+    if (await this.lifecycle.statusRateLimitExceeded(request)) {
+      return json({ message: 'Too many status requests. Try again later.' }, 429);
+    }
+
+    if (!(await authorize())) {
+      return json({ message: 'Unauthorized to read this transaction.' }, 403);
+    }
+
     const transaction = await this.transactions.findByRef(merchantRef);
 
     if (!transaction) {
       return json({ message: 'Transaction not found.' }, 404);
     }
 
+    const error = structuredErrorFrom(
+      transaction.message_type ?? '',
+      this.config.languageMessages.slice(0, 2).toLowerCase(),
+    );
+
     return json({
       ref: transaction.merchant_ref,
       status: transaction.status,
       amount: fromCents(transaction.amount_cents),
       messageType: transaction.message_type,
-      detail: transaction.merchant_response,
+      detail: error?.label ?? null,
+      error,
     });
   }
-  async handleRetryPayment(request: HttpRequestInfo): Promise<HttpResult> {
+  async handleRetryPayment(incoming: HttpRequestInfo): Promise<HttpResult> {
+    const request = this.withClientIp(incoming);
     return this.lifecycle.handleRetryPayment(request);
   }
-  async handleCancel(request: HttpRequestInfo): Promise<HttpResult> {
+  async handleCancel(incoming: HttpRequestInfo): Promise<HttpResult> {
+    const request = this.withClientIp(incoming);
     return this.lifecycle.handleCancel(request);
   }
   signedRetryUrl(transactionId: number): string {
     return this.lifecycle.signedRetryUrl(transactionId);
   }
 
-  async handlePayment(request: HttpRequestInfo): Promise<HttpResult> {
+  async handlePayment(incoming: HttpRequestInfo): Promise<HttpResult> {
+    const request = this.withClientIp(incoming);
     const validation = validatePaymentInput(request.body, this.config.paymentValidation);
 
     if (!validation.valid) {
@@ -168,7 +194,8 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
     }
   }
 
-  async handlePaymentIntent(request: HttpRequestInfo): Promise<HttpResult> {
+  async handlePaymentIntent(incoming: HttpRequestInfo): Promise<HttpResult> {
+    const request = this.withClientIp(incoming);
     const validation = validatePaymentInput(request.body, this.config.paymentValidation);
 
     if (!validation.valid) {
@@ -189,11 +216,13 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
     }
   }
 
-  async handleCallback(request: HttpRequestInfo): Promise<HttpResult> {
+  async handleCallback(incoming: HttpRequestInfo): Promise<HttpResult> {
+    const request = this.withClientIp(incoming);
     return this.callbackHandlers.handle(request);
   }
 
-  async handleSandbox(request: HttpRequestInfo): Promise<HttpResult> {
+  async handleSandbox(incoming: HttpRequestInfo): Promise<HttpResult> {
+    const request = this.withClientIp(incoming);
     return this.sandboxHandlers.handleSandbox(request);
   }
 
@@ -226,6 +255,13 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
     );
   }
 
+  private withClientIp(request: HttpRequestInfo): HttpRequestInfo {
+    const resolved = this.config.security.clientIp?.(request);
+    const ip = resolved ? resolved : request.ip;
+
+    return ip === request.ip ? request : { ...request, ip };
+  }
+
   private guardErrorResult(error: unknown): HttpResult {
     if (error instanceof BlacklistedIdentifierError) {
       return json({ message: error.message }, 403);
@@ -234,6 +270,9 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
       return json({ message: error.message }, 429);
     }
     if (error instanceof PaymentIntentAlreadyProcessingError) {
+      return json({ message: error.message }, 409);
+    }
+    if (error instanceof IdempotencyKeyReusedError) {
       return json({ message: error.message }, 409);
     }
     if (error instanceof PaymentRetryLimitExceededError) {
