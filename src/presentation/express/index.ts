@@ -60,18 +60,11 @@ export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router 
   );
 
   router.get('/transactions/:ref', (req, res, next) => {
-    Promise.resolve(authorizeTransactionStatus(req))
-      .then((authorized) => {
-        if (!authorized) {
-          res.status(403).json({ message: 'Unauthorized to read this transaction.' });
-
-          return;
-        }
-
-        return sisp.handlers
-          .handleTransactionStatus(toRequestInfo(req), req.params.ref)
-          .then((result) => send(res, result));
-      })
+    sisp.handlers
+      .handleTransactionStatus(toRequestInfo(req), req.params.ref, () =>
+        authorizeTransactionStatus(req),
+      )
+      .then((result) => send(res, result))
       .catch(next);
   });
 

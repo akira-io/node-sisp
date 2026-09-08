@@ -129,11 +129,16 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
   async handleTransactionStatus(
     incoming: HttpRequestInfo,
     merchantRef: string,
+    authorize: () => boolean | Promise<boolean> = () => true,
   ): Promise<HttpResult> {
     const request = this.withClientIp(incoming);
 
     if (await this.lifecycle.statusRateLimitExceeded(request)) {
       return json({ message: 'Too many status requests. Try again later.' }, 429);
+    }
+
+    if (!(await authorize())) {
+      return json({ message: 'Unauthorized to read this transaction.' }, 403);
     }
 
     const transaction = await this.transactions.findByRef(merchantRef);

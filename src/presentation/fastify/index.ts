@@ -72,15 +72,14 @@ export async function sispFastifyPlugin(
   );
 
   fastify.get('/transactions/:ref', async (request, reply) => {
-    if (!(await authorizeTransactionStatus(request))) {
-      reply.status(403).send({ message: 'Unauthorized to read this transaction.' });
-
-      return;
-    }
-
     const { ref } = request.params as { ref: string };
 
-    send(reply, await sisp.handlers.handleTransactionStatus(toRequestInfo(request), ref));
+    send(
+      reply,
+      await sisp.handlers.handleTransactionStatus(toRequestInfo(request), ref, () =>
+        authorizeTransactionStatus(request),
+      ),
+    );
   });
 
   fastify.post('/refund/:transaction', async (request, reply) => {

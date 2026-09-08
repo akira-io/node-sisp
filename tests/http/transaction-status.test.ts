@@ -111,3 +111,9 @@ it('lets the adapter deny status lookups through authorizeTransactionStatus', as
 
   await request(app).get('/sisp/transactions/R1').expect(403);
 });
+
+it('applies the authorize hook after the rate limit inside the handler', async () => {
+  const result = await sisp.handlers.handleTransactionStatus(statusRequest(), 'x', () => false);
+
+  expect(result.type === 'json' ? result.status : 0).toBe(403);
+});

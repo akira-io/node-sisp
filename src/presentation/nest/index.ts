@@ -90,13 +90,12 @@ export class SispController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    if (!(await this.authorizeTransactionStatus(req))) {
-      res.status(403).json({ message: 'Unauthorized to read this transaction.' });
-
-      return;
-    }
-
-    send(res, await this.sisp.handlers.handleTransactionStatus(toRequestInfo(req), ref));
+    send(
+      res,
+      await this.sisp.handlers.handleTransactionStatus(toRequestInfo(req), ref, () =>
+        this.authorizeTransactionStatus(req),
+      ),
+    );
   }
 
   @Post('refund/:transaction')
