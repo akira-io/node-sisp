@@ -5,11 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0-beta.4] - 2026-06-30
+## [1.0.0-beta.5](https://github.com/akira-io/node-sisp/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2026-08-05)
 
-### Changed
+### Bug Fixes
 
-- Release v1.0.0-beta.4.
+- **prisma:** Correct nested-transaction handling, lock scope, and rate-limit atomicity ([bd79902](https://github.com/akira-io/node-sisp/commit/bd79902bd48095a97c15247d52caadb710cefc1f))
+- **prisma:** Match shipped schema delegates and postgres lock placeholders ([d721b18](https://github.com/akira-io/node-sisp/commit/d721b18d1b69fb30bc18c921d01c3ed42b316d60))
+- **callback:** Accept success callbacks that omit optional match fields ([9a01907](https://github.com/akira-io/node-sisp/commit/9a01907995fe48a1ee44e3ed41d8f469ab8fcd3f))
+- **http:** Harden signed action URLs ([2abc9b0](https://github.com/akira-io/node-sisp/commit/2abc9b0e654de4404383e08f796cd800385c5460))
+- **BREAKING** **callback:** Make the correlation claim atomic ([4a368b5](https://github.com/akira-io/node-sisp/commit/4a368b570dabed22f4f2a0814426b1fbf9f464f2))
+- **stateless:** Fix nest module DI and fastify body parsing ([addc54e](https://github.com/akira-io/node-sisp/commit/addc54e208ddbab19d42157328d409cd04b78f9d))
+- **http:** Emit callback events on the stateful callback route ([f090fe8](https://github.com/akira-io/node-sisp/commit/f090fe8beb399469f8191a02a63e8ea1710d62c9))
+- **http:** Share UserCancelled parsing and expire the signed result url ([29fc9e7](https://github.com/akira-io/node-sisp/commit/29fc9e7edcc887d44a5f02f95e1742f2a6f0e592))
+- **storage:** Stop the rate-limit migration aborting the postgres transaction ([e00be74](https://github.com/akira-io/node-sisp/commit/e00be74575c08f8b393756cf5284c15c90399abd))
+- **callback:** Redirect the losing side of a duplicate callback correctly ([020e5bc](https://github.com/akira-io/node-sisp/commit/020e5bc3a58a335334bef2e3566acee93fe446cc))
+- **BREAKING** **callback:** Distinguish authenticity from payment status in callback outcomes ([824005c](https://github.com/akira-io/node-sisp/commit/824005c17f793489e9bca0ab1aec7526191cb721))
+- **callback:** Stop callback:verified firing twice on a stateful replay ([f5f9d07](https://github.com/akira-io/node-sisp/commit/f5f9d070a66e809c51550ef96bbf02a63e20c2fd))
+- **config:** Widen SispDatabaseConnection to accept knex's provider function ([8bfc8fa](https://github.com/akira-io/node-sisp/commit/8bfc8fad6e93ed5ed33ad77988ded5906c005d1a))
+- **callback:** Address minor findings from the final review ([1427245](https://github.com/akira-io/node-sisp/commit/142724545c22bcbafd2ba55135fd0ed4ae5d3089))
+- **BREAKING** **http:** Gate UserCancelled callback:rejected on a real payment ([aea22fd](https://github.com/akira-io/node-sisp/commit/aea22fddea28b9103d2c67dd877efa5a6878184c))
+- **http:** Tighten payment domain checks (#86) ([77e96dd](https://github.com/akira-io/node-sisp/commit/77e96dd153777f0757c9fc263da7b03fbc9aead3))
+- **storage:** Preserve audit side effects ([9ee17a9](https://github.com/akira-io/node-sisp/commit/9ee17a9f01e2ffd47679ac6a09d00ba40189092c))
+- **http:** Guard onEventListenerError calls against re-throws ([57724ec](https://github.com/akira-io/node-sisp/commit/57724ec6788616666c4e25b262b1a742d752b058))
+- **http:** Guard onEventListenerError call sites after #88 extraction ([ef10165](https://github.com/akira-io/node-sisp/commit/ef1016561e5109492b9cdd2c6f57b1762458d41a))
+- **api:** Harden public types ([104b051](https://github.com/akira-io/node-sisp/commit/104b0517007219e137774f46351c855d1cf3b25e))
+- **http:** Read the cancellation identifiers SISP actually sends ([1cc195c](https://github.com/akira-io/node-sisp/commit/1cc195ce6455f71219845cae0ba824c54c13c244))
+
+
+### Code Refactoring
+
+- **storage:** Define ORM-neutral storage port ([be62dfe](https://github.com/akira-io/node-sisp/commit/be62dfe608f5b76ac9cea1503267d8c3ddfa02ee))
+- **storage:** Move knex persistence behind KnexStorage ([46e18d5](https://github.com/akira-io/node-sisp/commit/46e18d5f6ead4346ef619e0ae4eb940481f81f53))
+- **storage:** Build Sisp on the storage port ([3374405](https://github.com/akira-io/node-sisp/commit/3374405651f97839c35161bbe45644a6bd3b09bb))
+- **storage:** Run application transactions through the port ([9aa626f](https://github.com/akira-io/node-sisp/commit/9aa626fef60aec766212a30bc980cc1bb9e46914))
+- **storage:** Export the storage port and neutralize its types ([1262be3](https://github.com/akira-io/node-sisp/commit/1262be3b4e478d031656b2c0d19006d017ca9946))
+- **config:** Split resolved config into shared and stateful halves ([04dac45](https://github.com/akira-io/node-sisp/commit/04dac45877f2f3b24aea7f417dbfee537479c7f5))
+- **domain:** Centralise callback rejection reasons ([2585005](https://github.com/akira-io/node-sisp/commit/2585005225d10740cb9de83bc594a9f37fc933d0))
+- **BREAKING** Drop the merchantId option ([14443eb](https://github.com/akira-io/node-sisp/commit/14443eb03a3ce17332a967c963920dfdb300138e))
+- **BREAKING** Make knex an optional peer dependency ([26a3402](https://github.com/akira-io/node-sisp/commit/26a340235484d8af3eb4a0d654cc668579bac969))
+- **config:** Extract rate limiting into its own module ([c0e8ac4](https://github.com/akira-io/node-sisp/commit/c0e8ac45a58792df04b72aaf4910709076c59cae))
+- **BREAKING** Move the knex-typed surface to the ./knex subpath ([82e4e79](https://github.com/akira-io/node-sisp/commit/82e4e798c1c6bd76999efa5551fac91c25aec4f9))
+- **http:** Extract the mode-independent sandbox handlers ([fdf6b83](https://github.com/akira-io/node-sisp/commit/fdf6b83de74af46fefef834c7be80f054eca1cc5))
+
+
+### Features
+
+- **storage:** Allow injecting a SispStorage into createSisp ([5d1ea7b](https://github.com/akira-io/node-sisp/commit/5d1ea7b8be63f27a6cda3a9f427a271a2108833b))
+- **prisma:** Repositories and mappers for all nine entities ([1283750](https://github.com/akira-io/node-sisp/commit/1283750a8c93a069e9285903fc560f77e2323a58))
+- **prisma:** Wire PrismaStorage with interactive transaction and disconnect ([3d3abcb](https://github.com/akira-io/node-sisp/commit/3d3abcbceb73a648c88792be6669aa34519d0dce))
+- **cli:** Add prisma command to copy the reference schema ([faddfe3](https://github.com/akira-io/node-sisp/commit/faddfe3103fc5d5ff9495333622f78b8cdb1c71b))
+- **http:** Add built-in transaction status endpoint to all adapters ([8e5c4cf](https://github.com/akira-io/node-sisp/commit/8e5c4cf6f14c46b0af25cd6b7e940ead3619cbb8))
+- **core:** Add payment correlation store and callback verifier ports ([830a1f7](https://github.com/akira-io/node-sisp/commit/830a1f75db7585cf6f5fa5639b1f4e89c44f28b8))
+- **events:** Add callback events and make the emitter generic ([5a26224](https://github.com/akira-io/node-sisp/commit/5a262241e89d18328a2701ae90136fb10dc3f848))
+- **callback:** Add the storage-free callback pipeline ([a1de7b5](https://github.com/akira-io/node-sisp/commit/a1de7b5c21c64e0eaf81ef363eda395131c02c00))
+- **callback:** Add stateless and stateful callback verifiers ([a3c62bc](https://github.com/akira-io/node-sisp/commit/a3c62bc616920dcdfc495e1b19fa7b8a95b27e90))
+- **config:** Add the stateless config resolver ([3e7d186](https://github.com/akira-io/node-sisp/commit/3e7d18698ddeabb984057a3b896094cfaecfd775))
+- **http:** Add the signed stateless callback result url ([55dafbc](https://github.com/akira-io/node-sisp/commit/55dafbc64c396c00a7735a7f4bfce2ef7842c133))
+- **http:** Add the stateless http handlers ([3b681a5](https://github.com/akira-io/node-sisp/commit/3b681a553924591e4b7d423e721558f055a2e879))
+- **application:** Add StatelessSisp and its factory ([ddd4258](https://github.com/akira-io/node-sisp/commit/ddd4258dead66122a15a9c3c952f6364dc408e15))
+- **BREAKING** **application:** Replace handlePaymentCallback with handleCallback and share the stateless base ([965a867](https://github.com/akira-io/node-sisp/commit/965a867971c90b7e34828a2775a35f7e12fe9888))
+- **http:** Add stateless express, fastify and nest adapters ([e37caee](https://github.com/akira-io/node-sisp/commit/e37caee2cb8152ccb8b02c8939b22a62dc05246d))
+- **exports:** Export the stateless mode public surface ([ae3dfc2](https://github.com/akira-io/node-sisp/commit/ae3dfc2ac608635b9ba955135597827c6d8fb5e1))
+
+
+### Other
+
+- **prisma:** Add @akira-io/sisp/prisma subpath and reference schema ([a0c8299](https://github.com/akira-io/node-sisp/commit/a0c829969b4b9b611286cb5c132fea4a0f92bafb))
 
 ## [1.0.0-beta.3](https://github.com/akira-io/node-sisp/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2026-06-30)
 
