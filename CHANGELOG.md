@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.6](https://github.com/akira-io/node-sisp/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2026-09-08)
+
+### Bug Fixes
+
+- **BREAKING** **callback:** Verify callbacks before touching transaction state ([72e7fe4](https://github.com/akira-io/node-sisp/commit/72e7fe4f3eb64992b0ba9dd16b2e68965768e3ef))
+- **http:** Rate limit transaction status lookups before authorizing them ([0500e7f](https://github.com/akira-io/node-sisp/commit/0500e7f355dd0e3327c0e1f330bf6788793132b0))
+
+
+### Features
+
+- **BREAKING** **http:** Bind idempotency keys to requests and harden stored data ([2a54d62](https://github.com/akira-io/node-sisp/commit/2a54d6262443224a938180b646fde4cacc15849c))
+
 ## [1.0.0-beta.5](https://github.com/akira-io/node-sisp/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2026-08-05)
 
 ### Bug Fixes
