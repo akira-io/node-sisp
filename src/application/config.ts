@@ -236,7 +236,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     frontendResultUrl: config.frontendResultUrl ?? null,
     appKey,
     baseUrl: config.baseUrl ?? '',
-    basePath: config.basePath ?? '/sisp',
+    basePath: normalizeBasePath(config.basePath ?? '/sisp'),
     allowRetry: booleanSetting(config.allowRetry, true),
     tables: { ...DEFAULT_TABLES, ...config.tables },
     rateLimiting: resolveRateLimiting(config.rateLimiting),
@@ -278,6 +278,12 @@ export function credentialsFromConfig(config: ResolvedSharedConfig): SispCredent
     sandbox: config.sandbox,
     urlMerchantResponse: config.urlMerchantResponse,
   });
+}
+
+export function normalizeBasePath(basePath: string): string {
+  const segments = basePath.split('/').filter((segment) => segment !== '');
+
+  return segments.length === 0 ? '' : `/${segments.join('/')}`;
 }
 
 export function routeUrl(config: ResolvedSharedConfig, route: string): string {

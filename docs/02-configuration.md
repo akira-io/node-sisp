@@ -32,7 +32,7 @@ value.
 | `database` | required | `{ client, connection, autoMigrate }` passed to knex. `connection` is typed loosely (`string \| object \| (() => object \| Promise<object>)`) on the main entry so consumers do not need `knex` installed to typecheck; import `SispKnexDatabaseConfig` from `@akira-io/sisp/knex` for the fully-typed knex connection shapes, including knex's connection-provider function form for rotating credentials |
 | `appKey` | `null` | Key for payload encryption (AES-256-GCM) and signed URLs. Required by `createSisp` to persist payloads; at least 32 characters outside sandbox mode |
 | `baseUrl` | `''` | Absolute origin used when building route URLs |
-| `basePath` | `'/sisp'` | Mount path of the HTTP routes |
+| `basePath` | `'/sisp'` | Mount path of the HTTP routes. Normalized to a leading slash and no trailing slash, so `pay`, `/pay` and `/pay/` all resolve to `/pay` |
 | `urlMerchantResponse` | callback route | Where SISP posts the payment result |
 | `redirectUrl` | `'/'` | Fallback redirect for cancelled or unknown callbacks |
 | `frontendResultUrl` | `null` | When set, a processed callback redirects the browser to `${frontendResultUrl}?ref=…` instead of the JSON result page, handing control to a SPA |
@@ -50,6 +50,7 @@ value.
 rateLimiting: {
   enabled: true,
   perIp: { enabled: true, limit: 100, windowSeconds: 3600 },
+  perIpStatus: { enabled: true, limit: 3600, windowSeconds: 3600 },
   perMerchant: { enabled: false, limit: 500, windowSeconds: 3600 },
   perUser: { enabled: true, limit: 50, windowSeconds: 3600 },
 },
@@ -59,9 +60,11 @@ security: {
 },
 ```
 
-`rateLimiting` guards the payment pipeline with three fixed windows, checked in order: `perIp`, then `perMerchant`, then `perUser`. The first window that is exceeded raises HTTP 429 and the remaining windows record no hit for that request, so the scopes are ordered, not independent. A rule with `enabled: false` is skipped entirely, and `enabled: false` at the top level turns off all three. The refund and transaction-status routes apply only `perIp`, on their own buckets.
+`rateLimiting` guards the payment pipeline with three fixed windows, checked in order: `perIp`, then `perMerchant`, then `perUser`. The first window that is exceeded raises HTTP 429 and the remaining windows record no hit for that request, so the scopes are ordered, not independent. A rule with `enabled: false` is skipped entirely, and `enabled: false` at the top level turns off all three. The refund route applies only `perIp`, and the transaction-status route only `perIpStatus`, each on its own bucket.
 
 `perIp` keys on the resolved client IP. `perMerchant` keys on the `posId` of the `Sisp` instance handling the request, so it caps that merchant regardless of how many addresses the traffic arrives from; it is **off by default**, because exceeding it blocks every payment for the merchant until the window ends. `perUser` keys on an HMAC-SHA-256 of the customer email, using `appKey` as the key, and falls back to the customer phone when no email is present; the value is trimmed and lowercased before hashing, and the scope is skipped when the request carries neither field. A customer who sends an email on one request and only a phone on the next occupies two buckets.
+
+`perIpStatus` covers `GET /transactions/:ref`, which a checkout page polls while it waits for the gateway. It keys on the same resolved client IP as `perIp` but counts into its own bucket, so polling never exhausts the payment budget: at the default of 3600 per hour, one request per second stays inside it, and behind a NAT address every client on it no longer spends from the payment allowance. Lower the limit when the checkout polls slowly, raise `windowSeconds` to spread the same budget over longer sessions, or set `perIpStatus.enabled` to `false` to leave status lookups unlimited.
 
 `security.collectMetadata` set to `false` drops `CaptureRequestMetadata` from the payment pipeline and stops the callback handler from writing to `sisp_request_metadata`, so no IP, user agent, header, or device-fingerprint row is created. Leave it `true` unless a data-protection requirement says otherwise; the reconciliation and audit trails do not depend on it.
 

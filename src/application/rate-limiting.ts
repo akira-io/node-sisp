@@ -13,6 +13,7 @@ export interface RateLimitRule {
 export interface RateLimiting {
   enabled: boolean;
   perIp: RateLimitRule;
+  perIpStatus: RateLimitRule;
   perMerchant: RateLimitRule;
   perUser: RateLimitRule;
 }
@@ -20,6 +21,7 @@ export interface RateLimiting {
 const DEFAULT_RATE_LIMITING: RateLimiting = {
   enabled: true,
   perIp: { enabled: true, limit: 100, windowSeconds: 3600 },
+  perIpStatus: { enabled: true, limit: 3600, windowSeconds: 3600 },
   perMerchant: { enabled: false, limit: 500, windowSeconds: 3600 },
   perUser: { enabled: true, limit: 50, windowSeconds: 3600 },
 };
@@ -30,6 +32,7 @@ export function resolveRateLimiting(
   return {
     enabled: booleanSetting(overrides?.enabled, DEFAULT_RATE_LIMITING.enabled),
     perIp: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perIp, overrides?.perIp),
+    perIpStatus: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perIpStatus, overrides?.perIpStatus),
     perMerchant: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perMerchant, overrides?.perMerchant),
     perUser: resolveRateLimitRule(DEFAULT_RATE_LIMITING.perUser, overrides?.perUser),
   };

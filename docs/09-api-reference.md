@@ -77,8 +77,8 @@
 
 ## `@akira-io/sisp/nest`
 
-- `SispModule.forRoot({ sisp, authorizeRefund?, authorizeTransactionStatus? })` dynamic module, `SispController`, and the `SISP` injection token.
-- `StatelessSispModule.forRoot({ sisp: statelessSisp })` dynamic module, `StatelessSispController`, and the `STATELESS_SISP` injection token.
+- `SispModule.forRoot({ sisp, authorizeRefund?, authorizeTransactionStatus?, globalPrefix? })` dynamic module, `createSispController(path)`, and the `SISP` injection token. The controller path comes from the `basePath` of the instance.
+- `StatelessSispModule.forRoot({ sisp: statelessSisp, globalPrefix? })` dynamic module, `createStatelessSispController(path)`, and the `STATELESS_SISP` injection token.
 
 ## `@akira-io/sisp/knex`
 

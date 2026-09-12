@@ -67,6 +67,11 @@ describe('resolveConfig', () => {
     expect(resolved.database?.autoMigrate).toBe(false);
     expect(resolved.rateLimiting.enabled).toBe(true);
     expect(resolved.rateLimiting.perIp).toEqual({ enabled: true, limit: 100, windowSeconds: 3600 });
+    expect(resolved.rateLimiting.perIpStatus).toEqual({
+      enabled: true,
+      limit: 3600,
+      windowSeconds: 3600,
+    });
     expect(resolved.rateLimiting.perMerchant).toEqual({
       enabled: false,
       limit: 500,
@@ -120,6 +125,7 @@ describe('resolveConfig', () => {
     expect(resolved.tables.invoices).toBe('sisp_invoices');
     expect(resolved.rateLimiting.perIp.limit).toBe(5);
     expect(resolved.rateLimiting.perIp.windowSeconds).toBe(3600);
+    expect(resolved.rateLimiting.perIpStatus.limit).toBe(3600);
     expect(resolved.identifierGeneration.maxAttempts).toBe(2);
     expect(resolved.identifierGeneration.collisionRetrySleepMs).toBe(0);
     expect(resolved.retry.maxAttempts).toBe(2);
@@ -217,5 +223,37 @@ describe('routeUrl', () => {
 
   it('builds relative URLs when baseUrl is empty', () => {
     expect(routeUrl(resolveConfig(minimalConfig), 'sandbox')).toBe('/sisp/sandbox');
+  });
+
+  it('drops a trailing slash on the base path instead of doubling it', () => {
+    const resolved = resolveConfig({ ...minimalConfig, basePath: '/pay/' });
+
+    expect(resolved.basePath).toBe('/pay');
+    expect(routeUrl(resolved, 'sandbox')).toBe('/pay/sandbox');
+  });
+
+  it('adds the leading slash a base path was written without', () => {
+    const resolved = resolveConfig({
+      ...minimalConfig,
+      baseUrl: 'https://shop.test',
+      basePath: 'pay',
+    });
+
+    expect(resolved.basePath).toBe('/pay');
+    expect(routeUrl(resolved, 'callback')).toBe('https://shop.test/pay/callback');
+  });
+
+  it('collapses repeated slashes instead of scanning them', () => {
+    const resolved = resolveConfig({ ...minimalConfig, basePath: '//pay//deep//' });
+
+    expect(resolved.basePath).toBe('/pay/deep');
+    expect(routeUrl(resolved, 'callback')).toBe('/pay/deep/callback');
+  });
+
+  it('serves from the root when the base path is a bare slash', () => {
+    const resolved = resolveConfig({ ...minimalConfig, basePath: '/' });
+
+    expect(resolved.basePath).toBe('');
+    expect(routeUrl(resolved, 'callback')).toBe('/callback');
   });
 });
