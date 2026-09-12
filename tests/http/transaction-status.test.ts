@@ -88,7 +88,7 @@ it('rate limits status lookups per IP', async () => {
     posAutCode: 'TEST_POS_AUT_CODE',
     sandbox: true,
     appKey: 'app-key',
-    rateLimiting: { perIp: { limit: 2, windowSeconds: 3600 } },
+    rateLimiting: { perIpStatus: { limit: 2, windowSeconds: 3600 } },
     database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
   });
 
@@ -99,6 +99,58 @@ it('rate limits status lookups per IP', async () => {
     const result = await limited.handlers.handleTransactionStatus(statusRequest(), 'x');
 
     expect(result.type === 'json' ? result.status : 0).toBe(429);
+  } finally {
+    await limited.destroy();
+  }
+});
+
+it('does not spend the payment per-IP budget on status polling', async () => {
+  const polls = 120;
+
+  for (let index = 0; index < polls; index += 1) {
+    const result = await sisp.handlers.handleTransactionStatus(statusRequest(), 'x');
+
+    expect(result.type === 'json' ? result.status : 0).toBe(404);
+  }
+});
+
+it('keeps status polling inside its own bucket when the payment limit is tight', async () => {
+  const limited = await createSisp({
+    posId: '90051',
+    posAutCode: 'TEST_POS_AUT_CODE',
+    sandbox: true,
+    appKey: 'app-key',
+    rateLimiting: { perIp: { limit: 1, windowSeconds: 3600 } },
+    database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
+  });
+
+  try {
+    for (let index = 0; index < 5; index += 1) {
+      const result = await limited.handlers.handleTransactionStatus(statusRequest(), 'x');
+
+      expect(result.type === 'json' ? result.status : 0).toBe(404);
+    }
+  } finally {
+    await limited.destroy();
+  }
+});
+
+it('leaves status lookups unlimited when perIpStatus is disabled', async () => {
+  const limited = await createSisp({
+    posId: '90051',
+    posAutCode: 'TEST_POS_AUT_CODE',
+    sandbox: true,
+    appKey: 'app-key',
+    rateLimiting: { perIpStatus: { enabled: false, limit: 1 } },
+    database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
+  });
+
+  try {
+    for (let index = 0; index < 5; index += 1) {
+      const result = await limited.handlers.handleTransactionStatus(statusRequest(), 'x');
+
+      expect(result.type === 'json' ? result.status : 0).toBe(404);
+    }
   } finally {
     await limited.destroy();
   }
