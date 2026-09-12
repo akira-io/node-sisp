@@ -61,7 +61,6 @@ export class Sisp extends StatelessSisp {
 
   constructor(
     config: ResolvedSispConfig,
-    readonly db: unknown,
     private readonly _storage: SispStorage,
     events: SispEventEmitter,
     manager: SispManager,

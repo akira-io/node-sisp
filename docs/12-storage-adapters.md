@@ -19,7 +19,7 @@ const sisp = await createSisp({
 });
 ```
 
-`KnexStorage` handles migrations automatically (`autoMigrate: true` by default). The core bundle (`@akira-io/sisp`) never imports `knex` at the type level either: `Sisp.db` is typed `unknown` on the main entry so a stateless consumer never has to install `knex` to typecheck. For raw queries, import `knexOf` from the `@akira-io/sisp/knex` subpath:
+`KnexStorage` handles migrations automatically (`autoMigrate: true` by default). The core bundle (`@akira-io/sisp`) never imports `knex` at the type level either, and it loads the adapter itself through a dynamic import taken only when no `storage` is injected. A consumer that brings its own adapter runs with `knex` absent from `node_modules` and never evaluates the adapter. For raw queries, import `knexOf` from the `@akira-io/sisp/knex` subpath:
 
 ```ts
 import { knexOf } from '@akira-io/sisp/knex';
@@ -28,7 +28,7 @@ const db = knexOf(sisp);
 await db(sisp.config.tables.transactions).where('status', 'pending');
 ```
 
-> Note: `knexOf(sisp)` returns `undefined` at runtime when a non-knex storage is injected; use the repositories via `sisp.models` / `sisp.storage` instead.
+> Note: `knexOf(sisp)` reads the handle off `sisp.storage` and returns `undefined` when that storage is not knex-backed; use the repositories via `sisp.models` / `sisp.storage` instead.
 
 `@akira-io/sisp/knex` also re-exports `createKnexInstance`, `runMigrations`, `MIGRATIONS_TABLE`, `PayloadCipher`, and `runWithLogSource`, all moved off the main entry so importing them is the explicit signal that you are in stateful, knex-backed mode.
 

@@ -32,7 +32,7 @@
 | `cancel(transaction, reason?)` | Cancels and emits `transaction:cancelled` |
 | `manager` | `SispManager` with `extend(name, factory)` |
 | `models` | `transactions`, `transactionItems`, `transactionAttempts`, `paymentIntents`, `invoices`, `transactionLogs`, `blacklist` |
-| `db` | Typed `unknown` on this entry. Pass `sisp` to `knexOf(sisp)` from `@akira-io/sisp/knex` to get the typed knex instance |
+| `storage` | The `SispStorage` the instance was built with. For a raw knex handle pass `sisp` to `knexOf(sisp)` from `@akira-io/sisp/knex` |
 | `handlers` | `SispHttpHandlers` - framework-agnostic HTTP handlers used by the adapters. Key methods: `handlePayment`, `handlePaymentIntent`, `handleCallback`, `handleRetryPayment`, `handleCancel`, `handleRefund`, `handleTransactionStatus(request, ref, authorize?)`, `handleSandbox`, `handleCountries` |
 | `handleCallback(payload)` | Runs the callback pipeline, returns `{ verified, status, reason, payload, transaction }`. Same caveat as the stateless entry: `verified` is authenticity, not a payment verdict |
 | `queryTransactionStatus(transactionOrRef)` | POS transaction-status API call |

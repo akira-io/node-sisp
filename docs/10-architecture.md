@@ -62,14 +62,14 @@ The persistence layer sits behind an ORM-neutral port, `SispStorage`, defined in
 
 Two adapters ship with the package:
 
-- `KnexStorage` (`src/infrastructure/storage/knex/`) - the default, built from the `database` config. Handles migrations automatically. `Sisp.db` is typed `unknown` on the main entry; import `knexOf` from `@akira-io/sisp/knex` for the typed instance and raw queries.
+- `KnexStorage` (`src/infrastructure/storage/knex/`) - the default, built from the `database` config. Handles migrations automatically. The main entry loads it through a dynamic import taken only when no `storage` is injected, so a consumer that brings its own adapter never evaluates the adapter or the `knex` package. In the ESM build the adapter is a separate chunk the entry never imports statically; the CJS build ships it inline in `dist/index.cjs`, still behind the same lazy branch. Import `knexOf` from `@akira-io/sisp/knex` for the typed instance and raw queries.
 - `PrismaStorage` (`src/infrastructure/storage/prisma/`) - available at the `@akira-io/sisp/prisma` subpath. Injected via `createSisp({ storage: createPrismaStorage(prisma, tables, appKey, { provider }) })`. The core bundle never imports `@prisma/client`.
 
 Both adapters are validated by the shared contract suite `tests/storage/contract.ts`, which guarantees behavioral parity. See [Storage Adapters](12-storage-adapters.md) for the Prisma quick start and instructions for implementing custom adapters.
 
 The application layer runs every database transaction through `storage.transaction(tx => ...)` with locked reads via the repository `...ForUpdate` methods, so atomicity and locking are adapter-decided.
 
-Knex-coupled surfaces live at the `@akira-io/sisp/knex` subpath: `knexOf`, `createKnexInstance`, `runMigrations`, `MIGRATIONS_TABLE`, `PayloadCipher`, `runWithLogSource`. The main entry's `database.connection` config type is package-owned (`string | Record<string, unknown>`), not knex's; `Sisp.db` is typed `unknown` there. The CLI `migrate` command still talks to knex directly, since it is a binary and not part of the package's type surface. Engine selection and genericizing the `database` config are a later phase.
+Knex-coupled surfaces live at the `@akira-io/sisp/knex` subpath: `knexOf`, `createKnexInstance`, `runMigrations`, `MIGRATIONS_TABLE`, `PayloadCipher`, `runWithLogSource`. The main entry's `database.connection` config type is package-owned (`string | Record<string, unknown>`), not knex's, and `Sisp` exposes no raw driver handle at all. The CLI `migrate` command still talks to knex directly, since it is a binary and not part of the package's type surface. Engine selection and genericizing the `database` config are a later phase.
 
 ## Differences from the Laravel package
 
