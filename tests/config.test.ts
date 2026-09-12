@@ -216,4 +216,29 @@ describe('routeUrl', () => {
   it('builds relative URLs when baseUrl is empty', () => {
     expect(routeUrl(resolveConfig(minimalConfig), 'sandbox')).toBe('/sisp/sandbox');
   });
+
+  it('drops a trailing slash on the base path instead of doubling it', () => {
+    const resolved = resolveConfig({ ...minimalConfig, basePath: '/pay/' });
+
+    expect(resolved.basePath).toBe('/pay');
+    expect(routeUrl(resolved, 'sandbox')).toBe('/pay/sandbox');
+  });
+
+  it('adds the leading slash a base path was written without', () => {
+    const resolved = resolveConfig({
+      ...minimalConfig,
+      baseUrl: 'https://shop.test',
+      basePath: 'pay',
+    });
+
+    expect(resolved.basePath).toBe('/pay');
+    expect(routeUrl(resolved, 'callback')).toBe('https://shop.test/pay/callback');
+  });
+
+  it('serves from the root when the base path is a bare slash', () => {
+    const resolved = resolveConfig({ ...minimalConfig, basePath: '/' });
+
+    expect(resolved.basePath).toBe('');
+    expect(routeUrl(resolved, 'callback')).toBe('/callback');
+  });
 });

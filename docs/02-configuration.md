@@ -32,7 +32,7 @@ value.
 | `database` | required | `{ client, connection, autoMigrate }` passed to knex. `connection` is typed loosely (`string \| object \| (() => object \| Promise<object>)`) on the main entry so consumers do not need `knex` installed to typecheck; import `SispKnexDatabaseConfig` from `@akira-io/sisp/knex` for the fully-typed knex connection shapes, including knex's connection-provider function form for rotating credentials |
 | `appKey` | `null` | Key for payload encryption (AES-256-GCM) and signed URLs. Required by `createSisp` to persist payloads; at least 32 characters outside sandbox mode |
 | `baseUrl` | `''` | Absolute origin used when building route URLs |
-| `basePath` | `'/sisp'` | Mount path of the HTTP routes |
+| `basePath` | `'/sisp'` | Mount path of the HTTP routes. Normalized to a leading slash and no trailing slash, so `pay`, `/pay` and `/pay/` all resolve to `/pay` |
 | `urlMerchantResponse` | callback route | Where SISP posts the payment result |
 | `redirectUrl` | `'/'` | Fallback redirect for cancelled or unknown callbacks |
 | `frontendResultUrl` | `null` | When set, a processed callback redirects the browser to `${frontendResultUrl}?ref=…` instead of the JSON result page, handing control to a SPA |

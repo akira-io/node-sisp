@@ -13,7 +13,7 @@ import {
 } from '../support/generators';
 import { booleanSetting } from '../support/settings';
 import type { ResolvedSharedConfig, SispGenerators, TransactionStatusConfig } from './config';
-import { DEFAULT_TRANSACTION_STATUS } from './config';
+import { DEFAULT_TRANSACTION_STATUS, normalizeBasePath } from './config';
 import { assertSafeEnvironment } from './environment-guards';
 import type { EventErrorHandler } from './events';
 import type { StatelessCallbackPipe } from './pipelines/callback/stateless/stateless-callback-pipeline';
@@ -85,7 +85,7 @@ export function resolveStatelessConfig(config: StatelessSispConfig): ResolvedSta
     frontendResultUrl: config.frontendResultUrl ?? null,
     appKey,
     baseUrl: config.baseUrl ?? '',
-    basePath: config.basePath ?? '/sisp',
+    basePath: normalizeBasePath(config.basePath ?? '/sisp'),
     generators: {
       merchantReference:
         config.generators?.merchantReference ?? (() => generateMerchantReference()),
