@@ -16,7 +16,7 @@ The core exposes pure handlers (`sisp.handlers.*`) that take a normalized reques
 | GET | `/transactions/:ref` | Transaction status as JSON (`{ ref, status, amount, messageType, detail, error }`); `404` if unknown, `429` past the per-IP limit, `403` when `authorizeTransactionStatus` denies it (allowed by default; the hook runs after the per-IP limit) |
 | POST | `/refund/:transaction` | Refund, denied unless `authorizeRefund` allows it |
 
-Mount the adapter at `basePath` (default `/sisp`) so the signed URLs and the sandbox endpoint resolve correctly.
+Mount the adapter at `basePath` (default `/sisp`) so the signed URLs and the sandbox endpoint resolve correctly. Express and Fastify mount wherever you register them; the Nest module reads `basePath` off the instance and mounts its controller there for you.
 
 ## `/payment` versus `/payment/intent`
 
@@ -78,7 +78,7 @@ import { SispModule } from '@akira-io/sisp/nest';
 export class AppModule {}
 ```
 
-The module registers a controller under the `sisp` path and exports the `SISP` token, so any provider can inject the instance:
+The module builds its controller from the `basePath` of the instance you pass it, so `createSisp({ basePath: '/pay' })` serves `POST /pay/payment` and the signed retry, cancel, and callback URLs all resolve. It also exports the `SISP` token, so any provider can inject the instance:
 
 ```ts
 import { Inject, Injectable } from '@nestjs/common';
@@ -90,6 +90,21 @@ export class BillingService {
   constructor(@Inject(SISP) private readonly sisp: Sisp) {}
 }
 ```
+
+### `setGlobalPrefix`
+
+Nest prefixes controller paths with `app.setGlobalPrefix(...)`, and the package has no way to see it. Put the prefix in `basePath` and repeat it in `globalPrefix` so the module can subtract it from the controller path before Nest adds it back:
+
+```ts
+const sisp = await createSisp({ basePath: '/api/sisp', /* ... */ });
+
+@Module({ imports: [SispModule.forRoot({ sisp, globalPrefix: 'api' })] })
+export class AppModule {}
+
+app.setGlobalPrefix('api');
+```
+
+The routes land on `/api/sisp/*`, which is what `basePath` promised the gateway. `forRoot` throws when `basePath` does not start with `globalPrefix`, rather than letting the gateway return to a 404. The same option exists on `StatelessSispModule.forRoot`.
 
 ## Stateless adapters
 

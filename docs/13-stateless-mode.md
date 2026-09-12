@@ -277,9 +277,9 @@ export class PrismaOrdersCorrelationStore implements PaymentCorrelationStore {
 
 Refund, retry, cancel, transactions and transaction-status routes do not exist in stateless mode. Express (`statelessSispRoutes`) and Fastify (`statelessSispFastifyPlugin`) mount the conditional routes above and 404 on anything else, which is honest: there is no 501 pretending a capability exists.
 
-**Nest is the exception.** Decorators cannot be applied conditionally, so `StatelessSispModule.forRoot({ sisp })` and its `StatelessSispController` declare every stateless route unconditionally. `POST /payment` raises `CorrelationRequiredError` (a 500) when no `correlation` store is configured, and `GET /callback` redirects to `redirectUrl` instead of returning a signed result when no `appKey` is configured. If you mount `StatelessSispModule` under Nest, configure both `correlation` and `appKey`, or do not mount the module at all.
+**Nest is the exception.** Decorators cannot be applied conditionally, so `StatelessSispModule.forRoot({ sisp })` and the controller it builds declare every stateless route unconditionally. `POST /payment` raises `CorrelationRequiredError` (a 500) when no `correlation` store is configured, and `GET /callback` redirects to `redirectUrl` instead of returning a signed result when no `appKey` is configured. If you mount `StatelessSispModule` under Nest, configure both `correlation` and `appKey`, or do not mount the module at all.
 
-The adapter names: `statelessSispRoutes` (Express), `statelessSispFastifyPlugin` (Fastify), `StatelessSispModule` / `StatelessSispController` / `STATELESS_SISP` (Nest), mirroring the stateful `sispRoutes`, `sispFastifyPlugin`, and `SispModule`.
+The adapter names: `statelessSispRoutes` (Express), `statelessSispFastifyPlugin` (Fastify), `StatelessSispModule` / `createStatelessSispController` / `STATELESS_SISP` (Nest), mirroring the stateful `sispRoutes`, `sispFastifyPlugin`, and `SispModule`.
 
 `UserCancelled` is read from the request body or query before any fingerprint check, in both stateless and stateful mode. SISP does not sign this field, so there is no fingerprint to verify it against; that part of the design cannot change. What both modes do instead is bind the `callback:rejected` event to a payment the consumer actually created, so a bare `UserCancelled=true` cannot forge the event on its own.
 
