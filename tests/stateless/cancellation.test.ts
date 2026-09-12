@@ -44,6 +44,7 @@ describe('StatelessSispHttpHandlers cancellations', () => {
     expect(result.type).toBe('redirect');
     expect(rejected).toHaveBeenCalledOnce();
     expect(rejected.mock.calls[0]?.[0].reason).toBe('user_cancelled');
+    expect(rejected.mock.calls[0]?.[0].status).toBe('cancelled');
     expect(correlation.processed).toHaveLength(1);
     expect(correlation.processed[0]?.outcome.status).toBe('cancelled');
   });

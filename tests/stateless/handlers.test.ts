@@ -125,9 +125,39 @@ describe('StatelessSispHttpHandlers', () => {
     );
 
     expect(result.type).toBe('json');
-    expect(result.type === 'json' ? (result.data as { verified: boolean }).verified : true).toBe(
-      false,
+
+    const data = result.type === 'json' ? (result.data as Record<string, unknown>) : {};
+
+    expect(data.verified).toBe(false);
+    expect(data.status).toBeNull();
+  });
+
+  it('signs a rejected callback result without a status a consumer could switch on', async () => {
+    const correlation = new InMemoryPaymentCorrelationStore();
+    const { handlers } = build(correlation);
+
+    await handlers.handlePayment(request({ body: { amount: '1500', items } }));
+
+    const recorded = correlation.recorded[0];
+    const result = await handlers.handleCallback(
+      request({
+        method: 'POST',
+        path: '/sisp/callback',
+        body: {
+          merchantRespMerchantRef: recorded?.merchantRef,
+          merchantRespMerchantSession: recorded?.merchantSession,
+          merchantRespPurchaseAmount: '1500',
+          messageType: '8',
+          resultFingerPrint: 'forged',
+        },
+      }),
     );
+
+    const location = result.type === 'redirect' ? result.location : '';
+
+    expect(location).toContain('verified=0');
+    expect(location).toContain('reason=invalid_callback_fingerprint');
+    expect(location).not.toContain('status=');
   });
 
   it('serves the country list', () => {

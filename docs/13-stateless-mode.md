@@ -68,6 +68,12 @@ That shape is what `handleCallback` returns and what the `callback:verified` eve
 
 A callback that did not verify carries no error fields at all. Its `errorCode` and `additionalErrorMessage` are attacker-controlled text on an unauthenticated POST, so they never reach the signed URL; you get `reason` instead.
 
+`status` is withheld the same way, and for the same reason. It is derived from `messageType`, which is attacker-controlled text on that same unauthenticated POST, so a rejected outcome reports `status: null` rather than the verdict its payload asked for, and the signed URL carries no `status` parameter at all:
+
+```
+{ merchant_ref: 'R123', verified: false, status: null, reason: 'invalid_callback_fingerprint', error: null }
+```
+
 ### Where the customer lands
 
 `GET` on the signed result URL answers with JSON, not a redirect. That is the end of the package's involvement: the customer's browser stops on your API. Build your own page over the signed result if you want them back in the shop. Cancellation is the exception and redirects to `redirectUrl` directly, because there is no signed result to hand over.
@@ -94,7 +100,9 @@ sisp.on('callback:verified', (event) => {
 });
 ```
 
-`GET /callback`, the signed stateless result, and `StatelessPaymentResponseData` all carry the same `status` field, derived from `mapTransactionStatus`. This applies equally to stateful `Sisp`: `outcome.transaction.status` already exposed the gateway verdict there, and `outcome.status` now mirrors it on the return value of `handleCallback` and on the `callback:*` events too, so the same check works unchanged after [growing into stateful](#growing-into-stateful).
+`GET /callback`, the signed stateless result, and `StatelessPaymentResponseData` all carry the same `status` field, derived from `mapTransactionStatus` whenever the callback verified and `null` whenever it did not. This applies equally to stateful `Sisp`: `outcome.transaction.status` already exposed the gateway verdict there, and `outcome.status` mirrors it on the return value of `handleCallback` and on the `callback:*` events too, so the same check works unchanged after [growing into stateful](#growing-into-stateful). A replayed stateful callback is a rejected outcome, so its `outcome.status` is `null` too; the verdict of the callback that was already processed is on `outcome.transaction.status`.
+
+Cancellation is the one rejected outcome that still carries a status. `TransactionStatus.Cancelled` there comes from the package noticing `UserCancelled`, not from anything the payload claimed.
 
 ## The correlation port
 

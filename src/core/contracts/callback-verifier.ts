@@ -6,7 +6,7 @@ import type { ExpectedPayment } from './payment-correlation-store';
 
 export interface CallbackOutcome {
   verified: boolean;
-  status: TransactionStatus;
+  status: TransactionStatus | null;
   reason: CallbackRejectionReason | null;
   payload: CallbackPayload;
 }
