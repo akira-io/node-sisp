@@ -108,16 +108,12 @@ export function createSispController(path: string): Type<unknown> {
       @Req() req: Request,
       @Res() res: Response,
     ): Promise<void> {
-      if (!(await this.authorizeRefund(req))) {
-        res.status(403).json({
-          success: false,
-          message: 'Unauthorized to refund this transaction.',
-        });
-
-        return;
-      }
-
-      send(res, await this.sisp.handlers.handleRefund(toRequestInfo(req), Number(transaction)));
+      send(
+        res,
+        await this.sisp.handlers.handleRefund(toRequestInfo(req), Number(transaction), () =>
+          this.authorizeRefund(req),
+        ),
+      );
     }
   }
 

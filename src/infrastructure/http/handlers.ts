@@ -125,9 +125,13 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
     });
   }
 
-  async handleRefund(incoming: HttpRequestInfo, transactionId: number): Promise<HttpResult> {
+  async handleRefund(
+    incoming: HttpRequestInfo,
+    transactionId: number,
+    authorize: () => boolean | Promise<boolean> = () => false,
+  ): Promise<HttpResult> {
     const request = this.withClientIp(incoming);
-    return this.lifecycle.handleRefund(request, transactionId);
+    return this.lifecycle.handleRefund(request, transactionId, authorize);
   }
   async handleTransactionStatus(
     incoming: HttpRequestInfo,

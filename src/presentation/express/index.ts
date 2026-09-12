@@ -69,21 +69,9 @@ export function sispRoutes(sisp: Sisp, options: SispRoutesOptions = {}): Router 
   });
 
   router.post('/refund/:transaction', (req, res, next) => {
-    Promise.resolve(authorizeRefund(req))
-      .then((authorized) => {
-        if (!authorized) {
-          res.status(403).json({
-            success: false,
-            message: 'Unauthorized to refund this transaction.',
-          });
-
-          return;
-        }
-
-        return sisp.handlers
-          .handleRefund(toRequestInfo(req), Number(req.params.transaction))
-          .then((result) => send(res, result));
-      })
+    sisp.handlers
+      .handleRefund(toRequestInfo(req), Number(req.params.transaction), () => authorizeRefund(req))
+      .then((result) => send(res, result))
       .catch(next);
   });
 
