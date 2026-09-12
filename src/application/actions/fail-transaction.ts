@@ -42,7 +42,7 @@ export class FailTransactionAction {
       const failed = await runWithLogSource('callback', () =>
         tx.transactions.update(transaction.id, {
           merchant_session: transaction.merchant_session,
-          transaction_id: String(payload.transactionID) || null,
+          transaction_id: String(payload.transactionID),
           message_type: payload.messageType,
           merchant_response: merchantResponse,
           response_code: payload.merchantRespCp,

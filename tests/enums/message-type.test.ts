@@ -14,9 +14,23 @@ describe('message types', () => {
     expect(MessageType.Error).toBe('6');
   });
 
-  it.each(SUCCESS_MESSAGE_TYPES)('recognises %s as a success type', (messageType) => {
+  it.each([
+    '8',
+    'P',
+    'M',
+    'A',
+    'B',
+    'C',
+    '10',
+    '?',
+  ])('recognises %s as a success type', (messageType) => {
     expect(isSuccessMessageType(messageType)).toBe(true);
     expect(isErrorMessageType(messageType)).toBe(false);
+  });
+
+  it('does not treat the error type as a success type', () => {
+    expect(isSuccessMessageType('6')).toBe(false);
+    expect(isErrorMessageType('6')).toBe(true);
   });
 
   it.each([
@@ -33,7 +47,7 @@ describe('message types', () => {
 });
 
 describe('mapTransactionStatus', () => {
-  it.each([...SUCCESS_MESSAGE_TYPES])('maps %s to completed', (messageType) => {
+  it.each(['8', 'P', 'M', 'A', 'B', 'C', '10', '?'])('maps %s to completed', (messageType) => {
     expect(mapTransactionStatus(messageType)).toBe(TransactionStatus.Completed);
   });
 

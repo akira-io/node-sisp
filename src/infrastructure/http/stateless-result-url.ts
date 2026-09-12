@@ -27,7 +27,7 @@ export function statelessResultData(
     verified: reason === null,
     status,
     reason,
-    error: structuredErrorFrom(payload),
+    error: reason === null ? structuredErrorFrom(payload) : null,
   };
 }
 
@@ -40,6 +40,7 @@ export function signStatelessResult(
     ref: data.merchant_ref,
     verified: data.verified ? '1' : '0',
     status: data.status,
+    hasError: data.error === null ? '0' : '1',
     errorCode: data.error?.code ?? '',
     errorMessage: data.error?.customerMessage ?? '',
   };
@@ -70,17 +71,20 @@ export function readStatelessResult(
     return null;
   }
 
-  const errorCode = typeof query.errorCode === 'string' ? query.errorCode : '';
-  const errorMessage = typeof query.errorMessage === 'string' ? query.errorMessage : '';
-
   return {
     merchant_ref: typeof query.ref === 'string' ? query.ref : '',
     verified: query.verified === '1',
     status: query.status,
     reason: reason === undefined ? null : reason,
-    error:
-      errorCode === '' && errorMessage === ''
-        ? null
-        : { code: errorCode, description: '', detail: '', customerMessage: errorMessage },
+    error: query.hasError === '1' ? carriedError(query) : null,
+  };
+}
+
+function carriedError(query: Record<string, unknown>): PaymentErrorData {
+  return {
+    code: typeof query.errorCode === 'string' ? query.errorCode : '',
+    description: '',
+    detail: '',
+    customerMessage: typeof query.errorMessage === 'string' ? query.errorMessage : '',
   };
 }

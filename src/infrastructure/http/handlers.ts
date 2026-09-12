@@ -27,6 +27,7 @@ import {
   PaymentRetryLimitExceededError,
   RateLimitExceededError,
 } from '../../domain/errors/exceptions';
+import type { TransactionAttemptRecord } from '../../domain/records';
 import {
   type PaymentRequest,
   paymentRequestToFormFields,
@@ -149,7 +150,7 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
       return json({ message: 'Transaction not found.' }, 404);
     }
 
-    const error = callbackErrorFrom(await this.attempts.currentByTransaction(transaction.id));
+    const error = callbackErrorFrom(await this.readableAttempt(transaction.id));
 
     return json({
       ref: transaction.merchant_ref,
@@ -160,6 +161,14 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
       error,
     });
   }
+  private async readableAttempt(transactionId: number): Promise<TransactionAttemptRecord | null> {
+    try {
+      return await this.attempts.currentByTransaction(transactionId);
+    } catch {
+      return null;
+    }
+  }
+
   async handleRetryPayment(incoming: HttpRequestInfo): Promise<HttpResult> {
     const request = this.withClientIp(incoming);
     return this.lifecycle.handleRetryPayment(request);

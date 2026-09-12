@@ -15,7 +15,7 @@ import type {
 import { CallbackRejectionReasons } from '../../domain/enums/callback-rejection-reason';
 import { TransactionStatus } from '../../domain/enums/transaction-status';
 import { TransactionNotFoundError } from '../../domain/errors/exceptions';
-import type { TransactionRecord } from '../../domain/records';
+import type { TransactionAttemptRecord, TransactionRecord } from '../../domain/records';
 import { callbackPayloadFrom } from '../../domain/value-objects/callback-payload';
 import type { UrlSigner } from '../../support/signed-url';
 import {
@@ -101,7 +101,11 @@ export class CallbackHandlers {
 
     const invoice = await invoices.findByTransaction(transaction.id);
     const retry = await lifecycle.retryAvailability(transaction);
-    const attempt = await this.deps.attempts.currentByTransaction(transaction.id);
+    const attempt = await this.runQuietly<TransactionAttemptRecord | null>(
+      () => this.deps.attempts.currentByTransaction(transaction.id),
+      null,
+      'callback:rejected',
+    );
 
     return json(paymentResponseData(transaction, invoice, retry, attempt));
   }

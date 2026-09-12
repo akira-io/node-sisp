@@ -85,7 +85,7 @@ export interface CallbackErrorFields {
 }
 
 export function structuredErrorFrom(payload: CallbackErrorFields): PaymentErrorData | null {
-  if (!isErrorMessageType(payload.messageType) && payload.additionalErrorMessage === '') {
+  if (!isErrorMessageType(payload.messageType)) {
     return null;
   }
 

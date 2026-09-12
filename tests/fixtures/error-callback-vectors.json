@@ -1,5 +1,5 @@
 {
-  "source": "Pagamento Web - Especificação do Protocolo de Segurança v2.0, secção 2.4.2.2",
+  "source": "derived from Pagamento Web - Especificacao do Protocolo de Seguranca v2.0, section 2.4.2.2; the digests are re-derived independently of the implementation by specFingerprint in tests/fingerprints/error-callback-validation.test.ts",
   "callback": [
     {
       "posAutCode": "TEST_POS_AUT_CODE",

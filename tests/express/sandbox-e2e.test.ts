@@ -112,6 +112,15 @@ describe('sandbox end-to-end payment flow', () => {
     const result = await runSandboxPayment('failed');
 
     expect(result.body.transaction.status).toBe('failed');
+    const transaction = await sisp.models.transactions.findByRef(
+      result.body.transaction.merchant_ref,
+    );
+    const attempt = await sisp.models.transactionAttempts.currentByTransaction(
+      result.body.transaction.id,
+    );
+
+    expect(attempt?.failure_reason).toBeNull();
+    expect(transaction?.merchant_response).not.toBe('callback_details_mismatch');
     expect(result.body.error.code).toBe('C');
     expect(result.body.error.description).toBe('Transaction processed with error');
     expect(result.body.error.customerMessage).toBe('Saldo do cartão insuficiente');

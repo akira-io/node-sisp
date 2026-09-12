@@ -4,6 +4,7 @@ import {
   generateCallbackFingerprint,
   validateCallbackFingerprint,
 } from '../../src/infrastructure/fingerprints/callback-fingerprint';
+import { sha512Base64 } from '../../src/infrastructure/fingerprints/hash';
 import { computeToken } from '../../src/infrastructure/fingerprints/token';
 import vectors from '../fixtures/error-callback-vectors.json';
 
@@ -13,7 +14,32 @@ if (decline === undefined) {
   throw new Error('expected at least one error callback vector');
 }
 
+function specFingerprint(posAutCode: string, post: Record<string, string>): string {
+  return sha512Base64(
+    sha512Base64(posAutCode) +
+      post.messageType +
+      post.merchantRespMessageID +
+      post.merchantRespErrorCode +
+      post.merchantRespErrorDetail +
+      post.merchantRespErrorDescription +
+      post.merchantRespMerchantRef +
+      post.merchantRespMerchantSession +
+      post.merchantRespAdditionalErrorMessage +
+      post.merchantRespTimeStamp,
+  );
+}
+
 describe('error callback fingerprint', () => {
+  it.each(
+    vectors.callback,
+  )('agrees with section 2.4.2.2 spelled out independently for $post.merchantRespMerchantRef', ({
+    posAutCode,
+    post,
+    fingerprint,
+  }) => {
+    expect(specFingerprint(posAutCode, post)).toBe(fingerprint);
+  });
+
   it.each(vectors.callback)('matches the specification vector for $post.merchantRespMerchantRef', ({
     posAutCode,
     post,
@@ -38,6 +64,8 @@ describe('error callback fingerprint', () => {
   });
 
   it.each([
+    'merchantRespMessageID',
+    'merchantRespMerchantSession',
     'merchantRespErrorCode',
     'merchantRespErrorDetail',
     'merchantRespErrorDescription',
