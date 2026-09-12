@@ -243,6 +243,13 @@ describe('routeUrl', () => {
     expect(routeUrl(resolved, 'callback')).toBe('https://shop.test/pay/callback');
   });
 
+  it('collapses repeated slashes instead of scanning them', () => {
+    const resolved = resolveConfig({ ...minimalConfig, basePath: '//pay//deep//' });
+
+    expect(resolved.basePath).toBe('/pay/deep');
+    expect(routeUrl(resolved, 'callback')).toBe('/pay/deep/callback');
+  });
+
   it('serves from the root when the base path is a bare slash', () => {
     const resolved = resolveConfig({ ...minimalConfig, basePath: '/' });
 

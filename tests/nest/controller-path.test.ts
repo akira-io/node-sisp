@@ -14,6 +14,10 @@ describe('controllerPath', () => {
     expect(controllerPath('/pay/')).toBe('pay');
   });
 
+  it('collapses repeated slashes', () => {
+    expect(controllerPath('//pay//deep//')).toBe('pay/deep');
+  });
+
   it('maps an empty base path to the root path', () => {
     expect(controllerPath('')).toBe('');
   });

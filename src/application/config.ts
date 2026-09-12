@@ -281,9 +281,9 @@ export function credentialsFromConfig(config: ResolvedSharedConfig): SispCredent
 }
 
 export function normalizeBasePath(basePath: string): string {
-  const trimmed = basePath.replace(/^\/+/, '').replace(/\/+$/, '');
+  const segments = basePath.split('/').filter((segment) => segment !== '');
 
-  return trimmed === '' ? '' : `/${trimmed}`;
+  return segments.length === 0 ? '' : `/${segments.join('/')}`;
 }
 
 export function routeUrl(config: ResolvedSharedConfig, route: string): string {
