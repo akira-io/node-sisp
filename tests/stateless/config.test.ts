@@ -82,4 +82,14 @@ describe('resolveStatelessConfig', () => {
     expect(typeof resolved.generators.merchantSession()).toBe('string');
     expect(typeof resolved.generators.timeStamp()).toBe('string');
   });
+
+  it('normalizes the base path so the generated URLs resolve', () => {
+    const resolved = resolveStatelessConfig({
+      posId: '90000045',
+      posAutCode: 'code',
+      basePath: '/pay/',
+    });
+
+    expect(resolved.basePath).toBe('/pay');
+  });
 });
