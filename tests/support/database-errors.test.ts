@@ -69,4 +69,30 @@ describe('database error helpers', () => {
       }),
     ).toBe(true);
   });
+
+  it('looks through the cause chain a query builder wraps the driver error in', () => {
+    const wrapped = Object.assign(new Error('Failed query: insert into "sisp_payment_intents"'), {
+      cause: { code: '23505', constraint: 'sisp_payment_intents_idempotency_key_key' },
+    });
+
+    expect(isUniqueConstraintError(wrapped)).toBe(true);
+  });
+
+  it('looks through the cause chain for an existing index error', () => {
+    const wrapped = Object.assign(new Error('Failed query: create index'), {
+      cause: { code: '42P07' },
+    });
+
+    expect(isIndexAlreadyExistsError(wrapped)).toBe(true);
+  });
+
+  it('stops walking a cause chain that loops back on itself', () => {
+    const first = new Error('outer') as Error & { cause?: unknown };
+    const second = new Error('inner') as Error & { cause?: unknown };
+
+    first.cause = second;
+    second.cause = first;
+
+    expect(isUniqueConstraintError(first)).toBe(false);
+  });
 });

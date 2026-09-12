@@ -135,6 +135,102 @@ The same locking behavior applies to the knex adapter: `pg` and `mysql2` use `FO
 
 `sisp_request_metadata.custom_metadata` is declared `Json` but holds AES-256-GCM ciphertext, not a queryable document. Read it through the adapter, which decrypts it; JSON operators against that column match nothing.
 
+## Drizzle adapter
+
+`DrizzleStorage` is shipped at the `@akira-io/sisp/drizzle` subpath. The core bundle never imports `drizzle-orm`; the dependency is optional and only loaded when you import the subpath yourself.
+
+### Quick start
+
+**1. Install the peer:**
+
+```bash
+npm install drizzle-orm
+```
+
+**2. Build the storage over your existing Drizzle database and migrate:**
+
+```ts
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import { createSisp } from '@akira-io/sisp';
+import { createDrizzleStorage } from '@akira-io/sisp/drizzle';
+
+const db = drizzle(new Pool({ connectionString: process.env.DATABASE_URL }));
+
+const storage = createDrizzleStorage(db, undefined, process.env.SISP_APP_KEY, {
+  dialect: 'postgresql',
+  autoMigrate: true,
+});
+
+await storage.migrate();
+
+const sisp = await createSisp({
+  posId: process.env.SISP_POS_ID,
+  posAutCode: process.env.SISP_POS_AUT_CODE,
+  appKey: process.env.SISP_APP_KEY,
+  storage,
+});
+```
+
+`createSisp` only calls `migrate()` for the storage it builds itself from a `database` config. An injected storage is yours to migrate, so call `storage.migrate()` before the first payment, or manage the schema with Drizzle Kit and leave `autoMigrate` off.
+
+Pass `undefined` as the `tables` argument to use the default table names. `dialect` is one of `postgresql`, `mysql` or `sqlite` and must match the driver the Drizzle instance was built with; it decides row locking, conflict handling and how timestamps are bound.
+
+### `createDrizzleStorage` signature
+
+```ts
+function createDrizzleStorage(
+  db: DrizzleDatabase,
+  tables: SispTables | undefined,
+  appKey: string | null,
+  options: {
+    dialect: 'postgresql' | 'mysql' | 'sqlite';
+    schema?: SispDrizzleSchema;
+    autoMigrate?: boolean;
+  },
+): SispStorage
+```
+
+### Tables and migrations
+
+The adapter builds its own Drizzle table definitions from one canonical specification, so the three dialects cannot drift apart. Import them when you want to query the `sisp_*` tables with your own Drizzle code:
+
+```ts
+import { sispDrizzleSchema } from '@akira-io/sisp/drizzle';
+
+const schema = sispDrizzleSchema('postgresql', sisp.config.tables);
+
+await db.select().from(schema.transactions).where(eq(schema.transactions.status, 'pending'));
+```
+
+`migrate()` creates every table, foreign key, unique constraint and index from that same specification, and runs only when `autoMigrate: true`. It emits `CREATE TABLE IF NOT EXISTS`, so repeating it on a database it created is a no-op.
+
+It never alters an existing table. Because of that, it checks after the create pass that every table carries every column the adapter writes, and throws naming the table when one does not. A schema created by an older release, which lacks `sisp_transactions.pos_id` or `sisp_payment_intents.request_hash`, is therefore refused at startup rather than failing later on the first payment; upgrade it through the knex migrations or your own Drizzle Kit migration first.
+
+`migrate()` takes no migration lock, unlike the knex path, which serializes on a Postgres advisory lock. Two processes calling it concurrently against the same Postgres database can race on `CREATE TABLE IF NOT EXISTS`. Run it once at deploy time rather than on every replica's boot.
+
+To manage the schema with Drizzle Kit instead, leave `autoMigrate` off and generate migrations from the exported definitions; the DDL the adapter would emit is available through `createSispTablesSql(tables, dialect)` if you prefer to inspect or apply it yourself.
+
+Index names follow the knex convention, `<table>_<columns>_index`, so a database created by either path recognises the other's indexes. MySQL rejects identifiers past 64 characters, so on that dialect only, a longer name is shortened with a deterministic suffix.
+
+### Row locking and transactions
+
+`findByIdForUpdate` and `findByRefAndSessionForUpdate` take `FOR UPDATE` on `postgresql` and `mysql`, and no-op on `sqlite`, matching the knex and Prisma adapters.
+
+`storage.transaction()` delegates to Drizzle's own `transaction()` on `postgresql` and `mysql`, where the driver hands the unit of work its own connection. A database handle that exposes no `transaction()` is refused rather than silently run without one. Nested calls run inline on the open transaction rather than opening a savepoint, as they do on the Prisma adapter.
+
+`sqlite` has no connection to scope a transaction to: `drizzle-orm/better-sqlite3` runs its native transaction synchronously and would commit before an asynchronous unit of work had finished, so the adapter issues `BEGIN`, `COMMIT` and `ROLLBACK` itself over the one handle. Because that handle is shared, every statement the adapter runs on `sqlite` is serialized behind any open unit of work. Without that, a second concurrent transaction would fail on a nested `BEGIN`, and a write issued outside the unit of work would be swallowed by its `ROLLBACK`. Serializing costs nothing that `better-sqlite3` was not already paying, since it is synchronous and single-writer; it does mean the `sqlite` dialect gives you no write concurrency, which is a reason to prefer `postgresql` under load.
+
+That serialization has no ceiling. A unit of work whose callback never settles, because it awaits a request that never returns, holds every other `sqlite` statement in the process behind it, with no timeout to break the wait. The Prisma adapter caps the equivalent at 20 seconds through `transactionOptions`; this adapter has no such cap yet. Keep work inside `storage.transaction()` to database calls, and do the network calls outside it.
+
+`destroy()` is a no-op. The Drizzle handle and its pool are yours; close them yourself when the process shuts down.
+
+### Verified dialects
+
+The shared contract suite runs the Drizzle adapter on **sqlite and Postgres**. The Postgres run needs `SISP_TEST_POSTGRES_URL`; it executes the generated DDL, asserts the foreign keys the canonical schema declares, and then runs the same suite the sqlite and Prisma adapters run. CI sets that variable, so a green build means both dialects were executed.
+
+**MySQL is not executed anywhere.** Its schema, its DDL and its three divergent code paths (insert without `RETURNING`, `ON DUPLICATE KEY UPDATE`, `longtext` payload columns) are covered by parity tests and by a fake driver, not by a real server. Treat MySQL as unverified until [#107](https://github.com/akira-io/node-sisp/issues/107) closes for it. On MySQL the adapter also inherits [#137](https://github.com/akira-io/node-sisp/issues/137): the first rate limit hit can still be lost under `REPEATABLE READ`.
+
 ## Upgrading the schema
 
 Release 1.0.0-beta.6 adds `sisp_payment_intents.request_hash` (knex migration `0006`) and `sisp_transactions.pos_id` (`0007`), and the Prisma schema gains the unique constraints and indexes listed above. Both adapters write the new columns on every insert, so run the migrations before deploying the new package version:
@@ -146,7 +242,7 @@ Release 1.0.0-beta.6 adds `sisp_payment_intents.request_hash` (knex migration `0
 
 ## Contract suite
 
-The shared suite `tests/storage/contract.ts` runs against both `KnexStorage` and `PrismaStorage`, guaranteeing behavioral parity. If a future adapter passes the contract suite, it is safe to use in production.
+The shared suite `tests/storage/contract.ts` runs against `KnexStorage`, `PrismaStorage` and `DrizzleStorage`, guaranteeing behavioral parity. If a future adapter passes the contract suite, it is safe to use in production. The suite runs on sqlite only ([#107](https://github.com/akira-io/node-sisp/issues/107)), so a green run is not by itself proof of parity on Postgres or MySQL.
 
 ## Custom adapters
 
@@ -155,17 +251,17 @@ Any ORM or persistence library can satisfy the `SispStorage` port. Implement the
 ```ts
 import type { SispStorage } from '@akira-io/sisp';
 
-class DrizzleStorage implements SispStorage {
+class SequelizeStorage implements SispStorage {
   // ...implement all nine repositories
 }
 
 const sisp = await createSisp({
   posId: '...',
   posAutCode: '...',
-  storage: new DrizzleStorage(db),
+  storage: new SequelizeStorage(db),
 });
 ```
 
-Drizzle, Sequelize, TypeORM, and any other ORM follow the same pattern.
+Sequelize, TypeORM, and any other ORM follow the same pattern.
 
 **Previous:** [Idempotency and Attempts](11-idempotency.md) | **Next:** [Stateless Mode](13-stateless-mode.md)
