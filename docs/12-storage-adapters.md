@@ -106,9 +106,16 @@ function createPrismaStorage(
   prisma: PrismaClientLike,
   tables: SispTables | undefined,
   appKey: string | null,
-  options: { provider: 'postgresql' | 'mysql' | 'sqlite' },
+  options: {
+    provider: 'postgresql' | 'mysql' | 'sqlite';
+    transactionOptions?: { maxWait?: number; timeout?: number; isolationLevel?: string };
+  },
 ): SispStorage
 ```
+
+### The `transactionOptions` option
+
+Every interactive transaction the adapter opens - the callback pipeline, `storage.transaction()`, `transactions.update` and `rateLimits.hit` - is given `{ maxWait: 5000, timeout: 20000 }` instead of Prisma's 5 second default. The callback pipeline holds two row locks and writes four rows, so a database under load can exceed 5 seconds and abort a transaction that was about to commit; knex has no equivalent cap, and the default restores parity between the two adapters. Override `transactionOptions` to raise or lower it.
 
 ### The `provider` option
 

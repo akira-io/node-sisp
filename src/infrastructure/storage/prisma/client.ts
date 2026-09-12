@@ -22,7 +22,10 @@ export interface PrismaDelegate {
     where: Record<string, unknown>;
     data: Record<string, unknown>;
   }): Promise<{ count: number }>;
-  createMany(args: { data: Record<string, unknown>[] }): Promise<{ count: number }>;
+  createMany(args: {
+    data: Record<string, unknown>[];
+    skipDuplicates?: boolean;
+  }): Promise<{ count: number }>;
   count(args?: { where?: Record<string, unknown> }): Promise<number>;
   delete(args: { where: Record<string, unknown> }): Promise<Record<string, unknown>>;
   deleteMany(args?: { where?: Record<string, unknown> }): Promise<{ count: number }>;
@@ -32,18 +35,33 @@ export interface PrismaDelegate {
   }): Promise<Record<string, unknown>>;
 }
 
+export interface PrismaTransactionOptions {
+  maxWait?: number;
+  timeout?: number;
+  isolationLevel?: string;
+}
+
 export interface PrismaClientLike {
   $queryRawUnsafe(query: string, ...values: unknown[]): Promise<unknown>;
-  $transaction?<T>(work: (txc: PrismaClientLike) => Promise<T>): Promise<T>;
+  $transaction?<T>(
+    work: (txc: PrismaClientLike) => Promise<T>,
+    options?: PrismaTransactionOptions,
+  ): Promise<T>;
   $disconnect?(): Promise<void>;
 }
+
+export const DEFAULT_TRANSACTION_OPTIONS: PrismaTransactionOptions = {
+  maxWait: 5_000,
+  timeout: 20_000,
+};
 
 export function runInTransaction<T>(
   client: PrismaClientLike,
   fn: (txc: PrismaClientLike) => Promise<T>,
+  options: PrismaTransactionOptions = DEFAULT_TRANSACTION_OPTIONS,
 ): Promise<T> {
   if (typeof client.$transaction === 'function') {
-    return client.$transaction(fn);
+    return client.$transaction(fn, options);
   }
 
   return fn(client);

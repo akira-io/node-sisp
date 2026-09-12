@@ -6,7 +6,6 @@ import type {
   NewTransaction,
   TransactionChanges,
 } from '../../../../domain/storage-types';
-import { fromCents, toCents } from '../../../../support/sisp-amount';
 import type { PayloadCipher } from '../../knex/encryption';
 import {
   normalizeListLimit,
@@ -14,49 +13,27 @@ import {
   normalizeListOrder,
 } from '../../knex/list-options';
 import { currentLogSource } from '../../knex/log-context';
-import { stableStringify } from '../../knex/models/transaction-row';
 import { nowIso } from '../../knex/records';
 import {
   DELEGATE_NAMES,
   delegate,
   type PrismaClientLike,
+  type PrismaTransactionOptions,
   rawExec,
   runInTransaction,
 } from '../client';
 import { lockRowForUpdate } from '../locking';
-import { mapTransaction, newTransactionToData, type PrismaRow } from '../mapping';
+import { mapTransaction, newTransactionToData } from '../mapping';
 import type { PrismaSqlProvider } from '../prisma-storage';
 import { pruneTransactionLogs } from './log-pruning';
-
-const MAPPED_COLUMNS: Record<string, string> = {
-  transaction_id: 'transactionId',
-  message_type: 'messageType',
-  response_code: 'responseCode',
-  merchant_response: 'merchantResponse',
-  merchant_session: 'merchantSession',
-  customer_name: 'customerName',
-  customer_email: 'customerEmail',
-  customer_phone: 'customerPhone',
-  customer_country: 'customerCountry',
-  customer_city: 'customerCity',
-  customer_address: 'customerAddress',
-  customer_postal_code: 'customerPostalCode',
-  cancelled_at: 'cancelledAt',
-  refunded_at: 'refundedAt',
-  amount_cents: 'amountCents',
-  fingerprint: 'fingerprint',
-  status: 'status',
-  payload: 'payload',
-  locale: 'locale',
-};
-
-const DATE_COLUMNS = new Set(['cancelledAt', 'refundedAt']);
+import { computeDiff, normalizeChanges, toWriteData } from './transaction-changes';
 
 export function makeTransactionRepository(
   client: PrismaClientLike,
   tables: SispTables,
   cipher: PayloadCipher,
   provider: PrismaSqlProvider,
+  txOptions?: PrismaTransactionOptions,
 ): TransactionRepository {
   const model = () => delegate(client, DELEGATE_NAMES.transactions);
   const logs = () => delegate(client, DELEGATE_NAMES.transactionLogs);
@@ -193,13 +170,23 @@ export function makeTransactionRepository(
     },
 
     async update(id: number, changes: TransactionChanges): Promise<TransactionRecord> {
-      return runInTransaction(client, async (txc) => {
-        const scoped = makeTransactionRepository(txc, tables, cipher, provider) as unknown as {
-          updateLocked: typeof updateLocked;
-        };
+      return runInTransaction(
+        client,
+        async (txc) => {
+          const scoped = makeTransactionRepository(
+            txc,
+            tables,
+            cipher,
+            provider,
+            txOptions,
+          ) as unknown as {
+            updateLocked: typeof updateLocked;
+          };
 
-        return scoped.updateLocked(id, changes);
-      });
+          return scoped.updateLocked(id, changes);
+        },
+        txOptions,
+      );
     },
     updateLocked,
   } as TransactionRepository & { updateLocked: typeof updateLocked };
@@ -222,74 +209,4 @@ export function makeTransactionRepository(
 
     return findOrFail(id);
   }
-}
-
-function normalizeChanges(changes: TransactionChanges): Record<string, unknown> {
-  const normalized: Record<string, unknown> = { ...changes };
-
-  if ('amount' in normalized) {
-    const amountCents = toCents(changes.amount ?? 0);
-
-    normalized.amount = fromCents(amountCents);
-    normalized.amount_cents = amountCents;
-  }
-
-  return normalized;
-}
-
-function computeDiff(
-  current: TransactionRecord,
-  normalized: Record<string, unknown>,
-  cipher: PayloadCipher,
-): { changed: string[]; oldValues: Record<string, unknown>; newValues: Record<string, unknown> } {
-  const changed: string[] = [];
-  const oldValues: Record<string, unknown> = {};
-  const newValues: Record<string, unknown> = {};
-
-  for (const [attribute, newValue] of Object.entries(normalized)) {
-    const oldValue = current[attribute as keyof TransactionRecord] ?? null;
-    const normalizedNew = newValue ?? null;
-
-    if (stableStringify(oldValue) === stableStringify(normalizedNew)) {
-      continue;
-    }
-
-    changed.push(attribute);
-    oldValues[attribute] = attribute === 'payload' ? cipher.store(oldValue) : oldValue;
-    newValues[attribute] = attribute === 'payload' ? cipher.store(normalizedNew) : normalizedNew;
-  }
-
-  return { changed, oldValues, newValues };
-}
-
-function toWriteData(
-  normalized: Record<string, unknown>,
-  changed: string[],
-  cipher: PayloadCipher,
-): PrismaRow {
-  const data: PrismaRow = {};
-
-  for (const attribute of changed) {
-    if (attribute === 'amount') {
-      continue;
-    }
-
-    const column = MAPPED_COLUMNS[attribute] ?? attribute;
-
-    if (attribute === 'payload') {
-      data[column] = cipher.store(normalized[attribute]);
-      continue;
-    }
-
-    if (attribute === 'amount_cents') {
-      data[column] = BigInt(toCents(normalized.amount as number | string));
-      continue;
-    }
-
-    const value = normalized[attribute];
-
-    data[column] = DATE_COLUMNS.has(column) && typeof value === 'string' ? new Date(value) : value;
-  }
-
-  return data;
 }
