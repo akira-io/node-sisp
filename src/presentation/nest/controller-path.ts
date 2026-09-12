@@ -1,5 +1,8 @@
 function trimSlashes(path: string): string {
-  return path.replace(/^\/+/, '').replace(/\/+$/, '');
+  return path
+    .split('/')
+    .filter((segment) => segment !== '')
+    .join('/');
 }
 
 export function controllerPath(basePath: string, globalPrefix?: string): string {
