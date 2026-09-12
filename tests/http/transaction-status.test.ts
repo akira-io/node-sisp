@@ -3,6 +3,8 @@ import request from 'supertest';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
+import { TransactionStatus } from '../../src/domain/enums/transaction-status';
+import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
 import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
 import { sispRoutes } from '../../src/presentation/express';
 
@@ -62,7 +64,7 @@ it('returns 404 for an unknown reference', async () => {
   }
 });
 
-it('exposes a structured error instead of the raw merchant response', async () => {
+it('exposes the decline reason SISP sent instead of the raw merchant response', async () => {
   const created = await sisp.models.transactions.create({
     merchantRef: 'R20260612100001',
     merchantSession: 'S20260612100001',
@@ -75,11 +77,30 @@ it('exposes a structured error instead of the raw merchant response', async () =
     merchant_response: 'internal reason',
   });
 
+  const attempt = await sisp.models.transactionAttempts.createFromTransaction(created);
+
+  await sisp.models.transactionAttempts.update(attempt.id, {
+    status: TransactionStatus.Failed,
+    message_type: '6',
+    callback_payload: callbackPayloadFrom({
+      messageType: '6',
+      merchantRespErrorCode: 'C',
+      merchantRespErrorDescription: 'Transaction processed with error',
+      merchantRespErrorDetail: 'Insufficient funds',
+      merchantRespAdditionalErrorMessage: 'Saldo do cartão insuficiente',
+    }),
+  });
+
   const result = await sisp.handlers.handleTransactionStatus(statusRequest(), created.merchant_ref);
   const data = result.type === 'json' ? (result.data as Record<string, unknown>) : {};
 
-  expect(data.detail).not.toBe('internal reason');
-  expect((data.error as { code: string }).code).toBe('6');
+  expect(data.detail).toBe('Saldo do cartão insuficiente');
+  expect(data.error).toMatchObject({
+    code: 'C',
+    description: 'Transaction processed with error',
+    detail: 'Insufficient funds',
+    customerMessage: 'Saldo do cartão insuficiente',
+  });
 });
 
 it('rate limits status lookups per IP', async () => {

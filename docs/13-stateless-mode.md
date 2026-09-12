@@ -50,11 +50,27 @@ app.use('/sisp', statelessSispRoutes(sisp));
 
 ## `verified` is authenticity, not a payment verdict
 
-`verified` means the callback's fingerprint checked out and its amount/currency/transaction code matched what you expected: the `correlation` record, the `expected` argument, or the `expectedPayment` lookup. It says nothing about whether the gateway approved or declined the payment. A correctly signed decline is still `verified: true`, because nothing about a decline breaks the fingerprint or the amount match:
+`verified` means the callback's fingerprint checked out and its amount/currency/transaction code matched what you expected: the `correlation` record, the `expected` argument, or the `expectedPayment` lookup. It says nothing about whether the gateway approved or declined the payment. A correctly signed decline is still `verified: true`, because nothing about a decline breaks the fingerprint, and the amount is not compared against a callback that does not send one - an error response never does:
 
 ```
-{ merchant_ref: 'R123', verified: true, status: 'failed', reason: null, error: { code: '6', ... } }
+{ merchant_ref: 'R123', verified: true, status: 'failed', reason: null, error: { code: 'C', description: '...', detail: '...', customerMessage: 'Saldo do cartão insuficiente' } }
 ```
+
+### What survives the signed result URL
+
+That shape is what `handleCallback` returns and what the `callback:verified` event carries. When `appKey` is configured, the HTTP handler instead redirects to a signed result URL, and `GET` on it carries only the customer-facing half of the error - `code` and `customerMessage`. `description` and `detail` come back empty:
+
+```
+{ code: 'F', description: '', detail: '', customerMessage: 'FALHA NA AUTENTICACAO CLIENTE' }
+```
+
+`description` and `detail` are gateway diagnostics; `customerMessage` is `merchantRespAdditionalErrorMessage`, which the specification defines as the message to show the end customer. Keeping the diagnostics out of the URL keeps them out of access logs, `Referer` headers and browser history. Read them from the event payload if you need them. Stateful mode does not lose them, because it reads the stored callback back from the attempt.
+
+A callback that did not verify carries no error fields at all. Its `errorCode` and `additionalErrorMessage` are attacker-controlled text on an unauthenticated POST, so they never reach the signed URL; you get `reason` instead.
+
+### Where the customer lands
+
+`GET` on the signed result URL answers with JSON, not a redirect. That is the end of the package's involvement: the customer's browser stops on your API. Build your own page over the signed result if you want them back in the shop. Cancellation is the exception and redirects to `redirectUrl` directly, because there is no signed result to hand over.
 
 Check `status` for the gateway's verdict instead:
 
@@ -281,7 +297,7 @@ Refund, retry, cancel, transactions and transaction-status routes do not exist i
 
 The adapter names: `statelessSispRoutes` (Express), `statelessSispFastifyPlugin` (Fastify), `StatelessSispModule` / `createStatelessSispController` / `STATELESS_SISP` (Nest), mirroring the stateful `sispRoutes`, `sispFastifyPlugin`, and `SispModule`.
 
-`UserCancelled` is read from the request body or query before any fingerprint check, in both stateless and stateful mode. SISP does not sign this field, so there is no fingerprint to verify it against; that part of the design cannot change. What both modes do instead is bind the `callback:rejected` event to a payment the consumer actually created, so a bare `UserCancelled=true` cannot forge the event on its own.
+The cancellation flag, spelled `userCancelled` in the specification table and `UserCancelled` in SISP's PHP sample, is read in either casing from the request body or query before any fingerprint check, in both stateless and stateful mode. SISP does not sign this field, so there is no fingerprint to verify it against; that part of the design cannot change. What both modes do instead is bind the `callback:rejected` event to a payment the consumer actually created, so a bare `UserCancelled=true` cannot forge the event on its own.
 
 In stateless mode, `rejectCancelled` calls `correlation.claim(merchantRef, merchantSession)` before emitting anything. `callback:rejected` fires only when the claim comes back `claimed` - meaning a `record()` call earlier in the same flow put that exact pair there - and the pair is then marked processed via `markProcessed`, so a replayed cancellation for the same pair claims `already_processed` and does not emit a second time. When `claim` returns `missing` or `already_processed`, the handler still redirects to `redirectUrl`, it just does not emit. **Without a `correlation` store configured, there is nothing to claim against, so `rejectCancelled` never emits `callback:rejected` for a cancellation at all** - it only ever redirects. If your integration needs to react to user cancellations in stateless mode, configure `correlation`.
 

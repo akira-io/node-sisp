@@ -204,19 +204,6 @@ $callbackCases = [
         ],
     ],
     [
-        'posAutCode' => 'TEST_POS_AUT_CODE',
-        'post' => [
-            'messageType' => '6',
-            'merchantRespMerchantRef' => 'R1',
-            'merchantRespMerchantSession' => 'S1',
-            'merchantRespPurchaseAmount' => '8.03',
-            'merchantRespTid' => 'T1',
-            'merchantResp' => '',
-            'merchantRespTimeStamp' => '2026-06-12 10:00:05',
-            'merchantRespAdditionalErrorMessage' => 'Sandbox transaction failed',
-        ],
-    ],
-    [
         'posAutCode' => 'secret',
         'post' => [
             'messageType' => 'P',

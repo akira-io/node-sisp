@@ -18,7 +18,6 @@ describe('stateless result url', () => {
       callbackPayloadFrom({ merchantRespMerchantRef: 'REF123', messageType: '8' }),
       TransactionStatus.Completed,
       null,
-      'pt',
     );
     const url = signStatelessResult(signer, PATH, data);
     const query = queryOf(url);
@@ -37,7 +36,6 @@ describe('stateless result url', () => {
       callbackPayloadFrom({ merchantRespMerchantRef: 'REF123', messageType: '6' }),
       TransactionStatus.Failed,
       null,
-      'pt',
     );
     const restored = readStatelessResult(
       signer,
@@ -50,12 +48,38 @@ describe('stateless result url', () => {
     expect(restored?.status).toBe(TransactionStatus.Failed);
   });
 
-  it('round-trips a rejected result with its structured error', () => {
+  it('carries the decline reason of a verified error callback through the signed url', () => {
     const data = statelessResultData(
-      callbackPayloadFrom({ merchantRespMerchantRef: 'REF123', messageType: '6' }),
+      callbackPayloadFrom({
+        merchantRespMerchantRef: 'REF123',
+        messageType: '6',
+        merchantRespErrorCode: 'C',
+        merchantRespAdditionalErrorMessage: 'Saldo do cartão insuficiente',
+      }),
+      TransactionStatus.Failed,
+      null,
+    );
+    const restored = readStatelessResult(
+      signer,
+      PATH,
+      queryOf(signStatelessResult(signer, PATH, data)),
+    );
+
+    expect(restored?.verified).toBe(true);
+    expect(restored?.error?.code).toBe('C');
+    expect(restored?.error?.customerMessage).toBe('Saldo do cartão insuficiente');
+  });
+
+  it('withholds the error fields of a callback that did not verify', () => {
+    const data = statelessResultData(
+      callbackPayloadFrom({
+        merchantRespMerchantRef: 'REF123',
+        messageType: '6',
+        merchantRespErrorCode: 'C',
+        merchantRespAdditionalErrorMessage: 'Saldo do cartão insuficiente',
+      }),
       TransactionStatus.Failed,
       CallbackRejectionReasons.DetailsMismatch,
-      'en',
     );
     const restored = readStatelessResult(
       signer,
@@ -65,7 +89,7 @@ describe('stateless result url', () => {
 
     expect(restored?.verified).toBe(false);
     expect(restored?.reason).toBe(CallbackRejectionReasons.DetailsMismatch);
-    expect(restored?.error?.code).toBe('6');
+    expect(restored?.error).toBeNull();
   });
 
   it('rejects a tampered query', () => {
@@ -73,7 +97,6 @@ describe('stateless result url', () => {
       callbackPayloadFrom({ merchantRespMerchantRef: 'REF123', messageType: '8' }),
       TransactionStatus.Completed,
       null,
-      'pt',
     );
     const query = queryOf(signStatelessResult(signer, PATH, data));
 
@@ -89,7 +112,8 @@ describe('stateless result url', () => {
       ref: 'REF123',
       verified: '0',
       status: TransactionStatus.Failed,
-      messageType: '',
+      errorCode: '',
+      errorMessage: '',
       reason: 'invented',
     });
 
@@ -101,7 +125,8 @@ describe('stateless result url', () => {
       ref: 'REF123',
       verified: '1',
       status: 'invented',
-      messageType: '',
+      errorCode: '',
+      errorMessage: '',
     });
 
     expect(readStatelessResult(signer, PATH, queryOf(signedPath))).toBeNull();
@@ -111,7 +136,13 @@ describe('stateless result url', () => {
     const expiredAt = new Date(Date.now() - 60_000);
     const signedPath = signer.sign(
       PATH,
-      { ref: 'REF123', verified: '1', status: TransactionStatus.Completed, messageType: '' },
+      {
+        ref: 'REF123',
+        verified: '1',
+        status: TransactionStatus.Completed,
+        errorCode: '',
+        errorMessage: '',
+      },
       expiredAt,
     );
 

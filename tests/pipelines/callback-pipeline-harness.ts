@@ -101,6 +101,25 @@ export async function createPendingTransaction(
   return transaction;
 }
 
+export function signedErrorCallback(overrides: Record<string, unknown> = {}) {
+  const post: Record<string, unknown> = {
+    messageType: '6',
+    merchantRespMessageID: 'MSG-ABCDEFGH',
+    merchantRespErrorCode: 'C',
+    merchantRespErrorDetail: 'Insufficient funds',
+    merchantRespErrorDescription: 'Transaction processed with error',
+    merchantRespMerchantRef: 'R20260612100000',
+    merchantRespMerchantSession: 'S20260612100000',
+    merchantRespAdditionalErrorMessage: 'Saldo do cartão insuficiente',
+    merchantRespTimeStamp: '2026-06-12 10:00:05',
+    ...overrides,
+  };
+
+  const fingerprint = generateCallbackFingerprint(token, callbackPayloadFrom(post));
+
+  return callbackPayloadFrom({ ...post, resultFingerPrint: fingerprint });
+}
+
 export function signedCallback(
   overrides: Record<string, unknown> = {},
   omittedFields: string[] = [],

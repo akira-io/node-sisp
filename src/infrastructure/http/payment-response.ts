@@ -1,10 +1,9 @@
-import {
-  errorActionLabel,
-  errorCategoryLabel,
-  errorMessageTypeFromValue,
-  errorMessageTypeLabel,
-} from '../../domain/enums/error-message-type';
-import type { InvoiceRecord, TransactionRecord } from '../storage/knex/records';
+import { isErrorMessageType } from '../../domain/enums/message-type';
+import type {
+  InvoiceRecord,
+  TransactionAttemptRecord,
+  TransactionRecord,
+} from '../storage/knex/records';
 
 export interface PaymentResponseData {
   transaction: {
@@ -29,11 +28,9 @@ export interface PaymentResponseData {
 
 export interface PaymentErrorData {
   code: string;
-  label: string;
-  category: string;
-  categoryLabel: string;
-  action: string;
-  actionLabel: string;
+  description: string;
+  detail: string;
+  customerMessage: string;
 }
 
 export interface RetryAvailability {
@@ -45,6 +42,7 @@ export function paymentResponseData(
   transaction: TransactionRecord,
   invoice: InvoiceRecord | null,
   retry: RetryAvailability = { allowed: false, url: null },
+  attempt: TransactionAttemptRecord | null = null,
 ): PaymentResponseData {
   return {
     transaction: {
@@ -56,7 +54,7 @@ export function paymentResponseData(
       merchant_ref: transaction.merchant_ref,
       message_type: transaction.message_type,
     },
-    error: structuredError(transaction),
+    error: callbackErrorFrom(attempt),
     allowRetry: retry.allowed,
     retryUrl: retry.url,
     invoice: invoice
@@ -78,30 +76,53 @@ export function formatAmountEcv(amount: number): string {
   return `${formatted} ECV`;
 }
 
-export function structuredErrorFrom(
-  messageType: string | null,
-  language: string,
-): PaymentErrorData | null {
-  if (messageType === null || messageType === '') {
-    return null;
+export interface CallbackErrorFields {
+  messageType: string;
+  errorCode: string;
+  errorDescription: string;
+  errorDetail: string;
+  additionalErrorMessage: string;
+}
+
+export function structuredErrorFrom(payload: CallbackErrorFields): PaymentErrorData | null {
+  if (typeof payload !== 'object' || payload === null) {
+    throw new TypeError(
+      'structuredErrorFrom takes a callback payload. It used to take a message type and a language; passing either of those now silently reports a decline as no error.',
+    );
   }
 
-  const errorType = errorMessageTypeFromValue(messageType);
-
-  if (errorType === null) {
+  if (!isErrorMessageType(payload.messageType)) {
     return null;
   }
 
   return {
-    code: errorType.value,
-    label: errorMessageTypeLabel(errorType, language),
-    category: errorType.category,
-    categoryLabel: errorCategoryLabel(errorType, language),
-    action: errorType.action,
-    actionLabel: errorActionLabel(errorType, language),
+    code: payload.errorCode,
+    description: payload.errorDescription,
+    detail: payload.errorDetail,
+    customerMessage: payload.additionalErrorMessage,
   };
 }
 
-function structuredError(transaction: TransactionRecord): PaymentErrorData | null {
-  return structuredErrorFrom(transaction.message_type, transaction.locale.slice(0, 2));
+export function callbackErrorFrom(
+  attempt: TransactionAttemptRecord | null,
+): PaymentErrorData | null {
+  const stored = attempt?.callback_payload;
+
+  if (typeof stored !== 'object' || stored === null || Array.isArray(stored)) {
+    return null;
+  }
+
+  const fields = stored as Record<string, unknown>;
+
+  return structuredErrorFrom({
+    messageType: string(fields.messageType),
+    errorCode: string(fields.errorCode),
+    errorDescription: string(fields.errorDescription),
+    errorDetail: string(fields.errorDetail),
+    additionalErrorMessage: string(fields.additionalErrorMessage),
+  });
+}
+
+function string(value: unknown): string {
+  return typeof value === 'string' ? value : '';
 }

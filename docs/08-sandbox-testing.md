@@ -9,7 +9,7 @@ Force a specific outcome with the `status` field:
 | Status | messageType | Result |
 |--------|-------------|--------|
 | `success` (default) | `8` | completed |
-| `failed` | `6` | failed, with structured error data |
+| `failed` | `6` | failed, posted as a real error callback (`merchantRespErrorCode`, `merchantRespErrorDescription`, `merchantRespAdditionalErrorMessage`, no amount) |
 | anything else | `P` | completed (service payment) |
 
 Generate payloads directly when testing your own callback handling:

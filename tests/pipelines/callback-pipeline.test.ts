@@ -4,6 +4,7 @@ import { TransactionNotFoundError } from '../../src/domain/errors/exceptions';
 import {
   createPendingTransaction,
   signedCallback,
+  signedErrorCallback,
   useCallbackPipeline,
 } from './callback-pipeline-harness';
 
@@ -120,10 +121,49 @@ describe('HandleCallbackPipeline', () => {
     expect(context.failureReason).toBe('callback_details_mismatch');
   });
 
+  it('fails a transaction on a verified error callback without calling it a mismatch', async () => {
+    await createPendingTransaction(h);
+    const failed = vi.fn();
+    h.events.on('payment:failed', failed);
+
+    const context = await h.pipeline.run(new CallbackContext(signedErrorCallback()));
+
+    expect(context.failureReason).toBeNull();
+    expect(context.requireTransaction().status).toBe('failed');
+    expect(context.requireTransaction().message_type).toBe('6');
+    expect(failed).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reprocess a replayed error callback', async () => {
+    await createPendingTransaction(h);
+    const failed = vi.fn();
+    h.events.on('payment:failed', failed);
+
+    const payload = signedErrorCallback();
+
+    await h.pipeline.run(new CallbackContext(payload));
+    const replay = await h.pipeline.run(new CallbackContext(payload));
+
+    expect(replay.transactionStatusPropagated).toBe(false);
+    expect(failed).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an error callback whose signed fields were tampered with', async () => {
+    await createPendingTransaction(h);
+    const payload = signedErrorCallback();
+
+    const context = await h.pipeline.run(
+      new CallbackContext({ ...payload, additionalErrorMessage: 'Pagamento aceite' }),
+    );
+
+    expect(context.failureReason).toBe('invalid_callback_fingerprint');
+  });
+
   it.each([
     'posID',
     'currency',
     'transactionCode',
+    'merchantRespPurchaseAmount',
   ])('accepts success callbacks that omit %s', async (field) => {
     await createPendingTransaction(h);
 

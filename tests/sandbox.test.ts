@@ -38,7 +38,10 @@ describe('BuildSandboxPayloadAction', () => {
     const pending = actionFor().handle({ amount: 100 }, 'whatever');
 
     expect(failed.messageType).toBe('6');
-    expect(failed.additionalErrorMessage).toBe('Sandbox transaction failed');
+    expect(failed.errorCode).toBe('C');
+    expect(failed.errorDescription).toBe('Transaction processed with error');
+    expect(failed.additionalErrorMessage).toBe('Saldo do cartão insuficiente');
+    expect(failed.amountProvided).toBe(false);
     expect(pending.messageType).toBe('P');
     expect(validateCallbackFingerprint(computeToken('TEST_POS_AUT_CODE'), failed)).toBe(true);
   });

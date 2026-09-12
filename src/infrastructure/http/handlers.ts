@@ -27,6 +27,7 @@ import {
   PaymentRetryLimitExceededError,
   RateLimitExceededError,
 } from '../../domain/errors/exceptions';
+import type { TransactionAttemptRecord } from '../../domain/records';
 import {
   type PaymentRequest,
   paymentRequestToFormFields,
@@ -39,7 +40,7 @@ import { CallbackHandlers } from './callback-handlers';
 import { buildGatewayFormAction } from './gateway-form-action';
 import { LifecycleHandlers } from './lifecycle-handlers';
 import { PaymentContextResolver } from './payment-context-resolver';
-import { structuredErrorFrom } from './payment-response';
+import { callbackErrorFrom } from './payment-response';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
 import { SandboxHandlers } from './sandbox-handlers';
@@ -72,6 +73,7 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
   private readonly config: ResolvedSispConfig;
   private readonly manager: SispManager;
   private readonly transactions: TransactionRepository;
+  private readonly attempts: TransactionAttemptRepository;
   private readonly lifecycle: LifecycleHandlers;
   private readonly paymentContexts: PaymentContextResolver;
   private readonly callbackHandlers: CallbackHandlers;
@@ -81,6 +83,7 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
     this.config = deps.config;
     this.manager = deps.manager;
     this.transactions = deps.transactions;
+    this.attempts = deps.attempts;
     this.sandboxHandlers = new SandboxHandlers({
       config: deps.config,
       buildSandboxPayload: deps.buildSandboxPayload,
@@ -147,20 +150,25 @@ export class SispHttpHandlers implements StatelessHttpHandlers {
       return json({ message: 'Transaction not found.' }, 404);
     }
 
-    const error = structuredErrorFrom(
-      transaction.message_type ?? '',
-      this.config.languageMessages.slice(0, 2).toLowerCase(),
-    );
+    const error = callbackErrorFrom(await this.readableAttempt(transaction.id));
 
     return json({
       ref: transaction.merchant_ref,
       status: transaction.status,
       amount: fromCents(transaction.amount_cents),
       messageType: transaction.message_type,
-      detail: error?.label ?? null,
+      detail: error?.customerMessage ?? null,
       error,
     });
   }
+  private async readableAttempt(transactionId: number): Promise<TransactionAttemptRecord | null> {
+    try {
+      return await this.attempts.currentByTransaction(transactionId);
+    } catch {
+      return null;
+    }
+  }
+
   async handleRetryPayment(incoming: HttpRequestInfo): Promise<HttpResult> {
     const request = this.withClientIp(incoming);
     return this.lifecycle.handleRetryPayment(request);
