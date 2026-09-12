@@ -37,11 +37,15 @@ await sisp.models.blacklist.remove('ip', '10.0.0.1');
 
 Blacklisted IPs are rejected before any work happens. Rate limits are DB-backed fixed windows per identifier; exceeding a window blocks the identifier for the window duration. Both tables are shared with the Laravel package schema.
 
-Both guards key on the client IP. Behind a load balancer, configure the framework to trust the proxy or set `security.clientIp` to read the right header, otherwise every customer shares the proxy's address and one busy hour locks everyone out. A resolver that returns nothing falls back to the socket address; requests with no IP at all skip the per-IP guards rather than sharing an empty bucket.
+Rate limiting has three scopes, checked in that order: `rateLimiting.perIp`, `rateLimiting.perMerchant` keyed on the `posId` of the `Sisp` instance handling the request, and `rateLimiting.perUser` keyed on an HMAC-SHA-256 of the customer email, or the phone when no email is present. The key is `appKey`, so `sisp_rate_limits` never holds a plaintext address and the hash cannot be brute-forced back to an email by anyone without the key; the value is trimmed and lowercased first, so a consumer reproducing the identifier must do the same. A request with no customer identity skips that scope instead of sharing one bucket. The refund and transaction-status routes apply only the per-IP scope.
+
+Exceeding a window does not merely reject the request: it blocks that identifier until the window elapses. For `perUser` that costs one customer an hour with the default window; for `perMerchant` it stops every payment for the merchant, which is why that scope ships disabled and has to be turned on deliberately. Payments made through `sisp.forCredentials(...)` build requests without running the payment pipeline, so no scope applies to them.
+
+The blacklist and the per-IP scope key on the client IP. Behind a load balancer, configure the framework to trust the proxy or set `security.clientIp` to read the right header, otherwise every customer shares the proxy's address and one busy hour locks everyone out. A resolver that returns nothing falls back to the socket address; requests with no IP at all skip the per-IP guards rather than sharing an empty bucket.
 
 ## Metadata redaction
 
-Captured request metadata stores a copy of the query, body, and headers with sensitive keys redacted (authorization, cookie, password, token, card, cvv, pin, email, phone, address, postal code, customer name, pan, and friends), plus a SHA-256 device fingerprint. The `custom_metadata` column is encrypted at rest with the same `appKey` cipher as the payload. There is no built-in retention for `sisp_request_metadata`; prune it on your own schedule.
+Captured request metadata stores a copy of the query, body, and headers with sensitive keys redacted (authorization, cookie, password, token, card, cvv, pin, email, phone, address, postal code, customer name, pan, and friends), plus a SHA-256 device fingerprint. The `custom_metadata` column is encrypted at rest with the same `appKey` cipher as the payload. There is no built-in retention for `sisp_request_metadata`; prune it on your own schedule. Setting `security.collectMetadata` to `false` stops the capture entirely, for both the payment pipeline and the callback handler.
 
 ## Multi-merchant isolation
 

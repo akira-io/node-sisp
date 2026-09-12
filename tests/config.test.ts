@@ -67,8 +67,16 @@ describe('resolveConfig', () => {
     expect(resolved.database?.autoMigrate).toBe(false);
     expect(resolved.rateLimiting.enabled).toBe(true);
     expect(resolved.rateLimiting.perIp).toEqual({ enabled: true, limit: 100, windowSeconds: 3600 });
-    expect(resolved.rateLimiting.perMerchant.limit).toBe(500);
-    expect(resolved.rateLimiting.perUser.limit).toBe(50);
+    expect(resolved.rateLimiting.perMerchant).toEqual({
+      enabled: false,
+      limit: 500,
+      windowSeconds: 3600,
+    });
+    expect(resolved.rateLimiting.perUser).toEqual({
+      enabled: true,
+      limit: 50,
+      windowSeconds: 3600,
+    });
     expect(resolved.security.collectMetadata).toBe(true);
     expect(resolved.security.clientIp).toBeNull();
     expect(resolved.identifierGeneration).toEqual({

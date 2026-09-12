@@ -8,11 +8,11 @@ Both flows run through pipelines of small single-purpose pipes, the same semanti
 2. **Duplicate guard.** A body carrying a `merchantRef` and `merchantSession` that already exist is redirected instead of reprocessed.
 3. **PaymentContextResolver.** Reads the configured idempotency key, reserves `sisp_payment_intents`, and reuses the existing transaction when the same checkout is posted again.
 4. **EnsureIpIsNotBlacklisted.** Rejects blacklisted IPs with HTTP 403.
-5. **EnforceRateLimits.** DB-backed per-IP window, HTTP 429 when exceeded.
+5. **EnforceRateLimits.** DB-backed fixed windows per IP, per merchant (`posID`), and per customer (hashed email or phone), HTTP 429 when any enabled window is exceeded.
 6. **BuildPaymentRequest.** Fills refs, session, and timestamp from the generators, signs the request fingerprint, and builds the base64 `purchaseRequest` when `is3DSec` is `'1'` (missing customer data throws `MissingThreeDSecureDataError`).
 7. **PersistTransaction.** Inside one DB transaction: pending transaction row, first transaction attempt, customer data, and items with prices in cents. Identifier collisions are retried with a new signed request.
 8. **Invoice stub.** Created after the core transaction write. Invoice failures never break the payment.
-9. **CaptureRequestMetadata.** IP, user agent, device type, browser, OS, device fingerprint, and a redacted copy of the request.
+9. **CaptureRequestMetadata.** IP, user agent, device type, browser, OS, device fingerprint, and a redacted copy of the request. Omitted from the pipeline when `security.collectMetadata` is `false`.
 
 The handler responds with an auto-submitting HTML form. Its action is the driver's payment endpoint with `FingerPrint`, `TimeStamp`, and `FingerPrintVersion` repeated on the query string, exactly as SISP expects.
 
