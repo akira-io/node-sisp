@@ -7,6 +7,8 @@ import {
   DELEGATE_NAMES,
   delegate,
   type PrismaClientLike,
+  type PrismaDelegate,
+  type PrismaTransactionOptions,
   rawExec,
   runInTransaction,
 } from '../client';
@@ -53,105 +55,124 @@ function isCurrentlyBlocked(row: RateLimitRow): boolean {
   return until > Date.now();
 }
 
+async function insertIgnoringConflicts(
+  model: PrismaDelegate,
+  provider: PrismaSqlProvider,
+  data: Record<string, unknown>,
+): Promise<void> {
+  if (provider === 'postgresql') {
+    await model.createMany({ data: [data], skipDuplicates: true });
+
+    return;
+  }
+
+  try {
+    await model.create({ data });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
+    }
+  }
+}
+
 export function makeRateLimitRepository(
   client: PrismaClientLike,
   tables: SispTables,
   provider: PrismaSqlProvider,
+  txOptions?: PrismaTransactionOptions,
 ): RateLimitRepository {
   return {
     async hit(params: RateLimitHit): Promise<boolean> {
-      return runInTransaction(client, async (txc) => {
-        const model = () => delegate(txc, DELEGATE_NAMES.rateLimits);
-        const filter: Record<string, unknown> = {
-          identifier: params.identifier,
-          limitType: params.limitType,
-          context: params.context ?? '',
-        };
-
-        let existing = await model().findFirst({ where: filter });
-
-        if (!existing) {
-          const timestamp = nowIso();
-
-          try {
-            await model().create({
-              data: {
-                ...filter,
-                hits: 0,
-                limit: params.limit,
-                windowSeconds: params.windowSeconds,
-                resetAt: new Date(futureIso(params.windowSeconds)),
-                isBlocked: false,
-                createdAt: new Date(timestamp),
-                updatedAt: new Date(timestamp),
-              },
-            });
-          } catch (error) {
-            if (!isUniqueConstraintError(error)) {
-              throw error;
-            }
-          }
-
-          existing = await model().findFirst({ where: filter });
-        }
-
-        if (!existing) {
-          return false;
-        }
-
-        await lockRowForUpdate(rawExec(txc), provider, tables.rateLimits, 'id', existing.id);
-
-        const locked = await model().findFirst({ where: { id: existing.id } });
-
-        if (!locked) {
-          return false;
-        }
-
-        let row = locked as unknown as RateLimitRow;
-
-        if (parseResetAt(row.resetAt) <= Date.now()) {
-          const reset: PrismaRow = {
-            hits: 0,
-            resetAt: new Date(futureIso(params.windowSeconds)),
-            isBlocked: false,
-            blockedUntil: null,
-            updatedAt: new Date(nowIso()),
+      return runInTransaction(
+        client,
+        async (txc) => {
+          const model = () => delegate(txc, DELEGATE_NAMES.rateLimits);
+          const filter: Record<string, unknown> = {
+            identifier: params.identifier,
+            limitType: params.limitType,
+            context: params.context ?? '',
           };
 
-          await model().update({
-            where: { id: row.id },
-            data: reset,
-          });
+          let existing = await model().findFirst({ where: filter });
 
-          row = { ...row, hits: 0, isBlocked: false, blockedUntil: null };
-        }
+          if (!existing) {
+            const timestamp = nowIso();
 
-        if (isCurrentlyBlocked(row)) {
-          return true;
-        }
+            await insertIgnoringConflicts(model(), provider, {
+              ...filter,
+              hits: 0,
+              limit: params.limit,
+              windowSeconds: params.windowSeconds,
+              resetAt: new Date(futureIso(params.windowSeconds)),
+              isBlocked: false,
+              createdAt: new Date(timestamp),
+              updatedAt: new Date(timestamp),
+            });
 
-        const hits = Number(row.hits) + 1;
+            existing = await model().findFirst({ where: filter });
+          }
 
-        await model().update({
-          where: { id: row.id },
-          data: { hits, updatedAt: new Date(nowIso()) },
-        });
+          if (!existing) {
+            throw new Error(
+              `Rate limit row for ${params.limitType}:${params.identifier} could not be read or created.`,
+            );
+          }
 
-        if (hits > params.limit) {
-          await model().update({
-            where: { id: row.id },
-            data: {
-              isBlocked: true,
-              blockedUntil: new Date(futureIso(params.windowSeconds)),
+          await lockRowForUpdate(rawExec(txc), provider, tables.rateLimits, 'id', existing.id);
+
+          const locked = await model().findFirst({ where: { id: existing.id } });
+
+          if (!locked) {
+            return false;
+          }
+
+          let row = locked as unknown as RateLimitRow;
+
+          if (parseResetAt(row.resetAt) <= Date.now()) {
+            const reset: PrismaRow = {
+              hits: 0,
+              resetAt: new Date(futureIso(params.windowSeconds)),
+              isBlocked: false,
+              blockedUntil: null,
               updatedAt: new Date(nowIso()),
-            },
+            };
+
+            await model().update({
+              where: { id: row.id },
+              data: reset,
+            });
+
+            row = { ...row, hits: 0, isBlocked: false, blockedUntil: null };
+          }
+
+          if (isCurrentlyBlocked(row)) {
+            return true;
+          }
+
+          const hits = Number(row.hits) + 1;
+
+          await model().update({
+            where: { id: row.id },
+            data: { hits, updatedAt: new Date(nowIso()) },
           });
 
-          return true;
-        }
+          if (hits > params.limit) {
+            await model().update({
+              where: { id: row.id },
+              data: {
+                isBlocked: true,
+                blockedUntil: new Date(futureIso(params.windowSeconds)),
+                updatedAt: new Date(nowIso()),
+              },
+            });
 
-        return false;
-      });
+            return true;
+          }
+
+          return false;
+        },
+        txOptions,
+      );
     },
   };
 }

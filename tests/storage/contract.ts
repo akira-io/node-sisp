@@ -1,11 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_TABLES } from '../../src/application/config';
 import type { SispStorage } from '../../src/core/contracts/storage';
 
-export function runStorageContract(makeStorage: () => Promise<SispStorage>): void {
+export type StoredJsonType =
+  | 'object'
+  | 'array'
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'json-null'
+  | 'sql-null';
+
+export interface ContractSubject {
+  storage: SispStorage;
+  storedJsonType(table: string, column: string, id: number): Promise<StoredJsonType>;
+}
+
+export function runStorageContract(makeSubject: () => Promise<ContractSubject>): void {
+  let subject: ContractSubject;
   let storage: SispStorage;
 
   beforeEach(async () => {
-    storage = await makeStorage();
+    subject = await makeSubject();
+    storage = subject.storage;
   });
 
   afterEach(async () => {
@@ -164,9 +181,136 @@ export function runStorageContract(makeStorage: () => Promise<SispStorage>): voi
 
       const [entry] = await storage.transactionLogs.listByTransaction(created.id);
 
-      expect(entry?.changed_attributes).toContain('payload');
+      expect(entry?.changed_attributes).toEqual(['payload']);
+      expect(
+        await subject.storedJsonType(
+          DEFAULT_TABLES.transactionLogs,
+          'changed_attributes',
+          entry?.id ?? 0,
+        ),
+      ).toBe('array');
+      expect(
+        await subject.storedJsonType(DEFAULT_TABLES.transactionLogs, 'new_values', entry?.id ?? 0),
+      ).toBe('object');
       expect(entry?.old_values).toMatchObject({ payload: { posID: '90051' } });
       expect(entry?.new_values).toMatchObject({ payload: { posID: '90051', refunds: [1] } });
+    });
+  });
+
+  describe('transactionItems.metadata', () => {
+    it('stores metadata as a JSON object, not as an encoded string', async () => {
+      const tx = await storage.transactions.create({
+        merchantRef: 'REF-CONTRACT-ITEM',
+        merchantSession: 'SES-CONTRACT-ITEM',
+        amount: 4200,
+      });
+
+      await storage.transactionItems.createMany(tx.id, [
+        {
+          productName: 'Ticket',
+          quantity: 1,
+          unitPrice: 42,
+          totalPrice: 42,
+          metadata: { seat: '12A', tags: ['vip'] },
+        },
+      ]);
+
+      const [item] = await storage.transactionItems.listByTransaction(tx.id);
+
+      expect(item?.metadata).toEqual({ seat: '12A', tags: ['vip'] });
+      expect(
+        await subject.storedJsonType(DEFAULT_TABLES.transactionItems, 'metadata', item?.id ?? 0),
+      ).toBe('object');
+    });
+
+    it('stores a missing metadata as SQL NULL, not as the JSON null document', async () => {
+      const tx = await storage.transactions.create({
+        merchantRef: 'REF-CONTRACT-ITEM-NULL',
+        merchantSession: 'SES-CONTRACT-ITEM-NULL',
+        amount: 100,
+      });
+
+      await storage.transactionItems.createMany(tx.id, [
+        { productName: 'Ticket', quantity: 1, unitPrice: 1, totalPrice: 1 },
+        {
+          productName: 'Programme',
+          quantity: 1,
+          unitPrice: 1,
+          totalPrice: 1,
+          metadata: { printed: true },
+        },
+      ]);
+
+      const [item] = await storage.transactionItems.listByTransaction(tx.id);
+
+      expect(item?.metadata).toBeNull();
+      expect(
+        await subject.storedJsonType(DEFAULT_TABLES.transactionItems, 'metadata', item?.id ?? 0),
+      ).toBe('sql-null');
+
+      const [, withMetadata] = await storage.transactionItems.listByTransaction(tx.id);
+
+      expect(withMetadata?.metadata).toEqual({ printed: true });
+      expect(
+        await subject.storedJsonType(
+          DEFAULT_TABLES.transactionItems,
+          'metadata',
+          withMetadata?.id ?? 0,
+        ),
+      ).toBe('object');
+    });
+  });
+
+  describe('transactionAttempts.update', () => {
+    it('writes an explicit null over a stored callback_received_at', async () => {
+      const tx = await storage.transactions.create({
+        merchantRef: 'REF-CONTRACT-ATTEMPT',
+        merchantSession: 'SES-CONTRACT-ATTEMPT',
+        amount: 500,
+      });
+
+      const attempt = await storage.transactionAttempts.createFromTransaction(
+        (await storage.transactions.findById(tx.id)) as NonNullable<
+          Awaited<ReturnType<typeof storage.transactions.findById>>
+        >,
+      );
+
+      const received = await storage.transactionAttempts.update(attempt.id, {
+        status: 'completed',
+        callback_received_at: new Date('2024-06-01T10:00:00.000Z').toISOString(),
+      });
+
+      expect(received.callback_received_at).not.toBeNull();
+
+      const cleared = await storage.transactionAttempts.update(attempt.id, {
+        status: 'pending',
+        callback_received_at: null,
+      });
+
+      expect(cleared.callback_received_at).toBeNull();
+    });
+
+    it('leaves callback_received_at untouched when the field is absent', async () => {
+      const tx = await storage.transactions.create({
+        merchantRef: 'REF-CONTRACT-ATTEMPT-KEEP',
+        merchantSession: 'SES-CONTRACT-ATTEMPT-KEEP',
+        amount: 500,
+      });
+
+      const attempt = await storage.transactionAttempts.createFromTransaction(
+        (await storage.transactions.findById(tx.id)) as NonNullable<
+          Awaited<ReturnType<typeof storage.transactions.findById>>
+        >,
+      );
+
+      await storage.transactionAttempts.update(attempt.id, {
+        status: 'completed',
+        callback_received_at: new Date('2024-06-01T10:00:00.000Z').toISOString(),
+      });
+
+      const kept = await storage.transactionAttempts.update(attempt.id, { status: 'completed' });
+
+      expect(kept.callback_received_at).not.toBeNull();
     });
   });
 }

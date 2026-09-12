@@ -106,9 +106,16 @@ function createPrismaStorage(
   prisma: PrismaClientLike,
   tables: SispTables | undefined,
   appKey: string | null,
-  options: { provider: 'postgresql' | 'mysql' | 'sqlite' },
+  options: {
+    provider: 'postgresql' | 'mysql' | 'sqlite';
+    transactionOptions?: { maxWait?: number; timeout?: number; isolationLevel?: string };
+  },
 ): SispStorage
 ```
+
+### The `transactionOptions` option
+
+Every interactive transaction the adapter opens - the callback pipeline, `storage.transaction()`, `transactions.update` and `rateLimits.hit` - is given `{ maxWait: 5000, timeout: 20000 }` instead of Prisma's 5 second default. The callback pipeline holds two row locks and writes four rows, so a database under load can exceed 5 seconds and abort a transaction that was about to commit; knex has no equivalent cap, and the default restores parity between the two adapters. Override `transactionOptions` to raise or lower it. The cost of the higher ceiling is that a transaction holding the `FOR UPDATE` lock on a hot row - the rate limit row of one identifier, for instance - can hold it four times longer before the database gives up on it.
 
 ### The `provider` option
 
@@ -121,6 +128,12 @@ The `provider` value controls how the adapter issues row-level locks:
 | `sqlite` | No-op - SQLite serializes writes at the connection level |
 
 The same locking behavior applies to the knex adapter: `pg` and `mysql2` use `FOR UPDATE`, `better-sqlite3` no-ops.
+
+### JSON columns
+
+`sisp_transaction_items.metadata` and the three value columns of `sisp_transaction_logs` hold a JSON document, not a string of JSON. Both adapters write a value the column stores as a document - the Prisma adapter passes the structure itself, knex passes the serialized form the `json` column parses on the way in - so `metadata->>'key'` works in Postgres. Rows written by an earlier version of the Prisma adapter stored the document as an encoded string; reads still parse those, so no backfill is required, but queries that reach into the column will not see them until they are rewritten.
+
+`sisp_request_metadata.custom_metadata` is declared `Json` but holds AES-256-GCM ciphertext, not a queryable document. Read it through the adapter, which decrypts it; JSON operators against that column match nothing.
 
 ## Upgrading the schema
 

@@ -1,7 +1,12 @@
 import { DEFAULT_TABLES, type SispTables } from '../../../application/config';
 import type { SispStorage, SispStorageTx } from '../../../core/contracts/storage';
 import { PayloadCipher } from '../knex/encryption';
-import { type PrismaClientLike, runInTransaction } from './client';
+import {
+  DEFAULT_TRANSACTION_OPTIONS,
+  type PrismaClientLike,
+  type PrismaTransactionOptions,
+  runInTransaction,
+} from './client';
 import { makeBlacklistRepository } from './repositories/blacklist';
 import { makeInvoiceRepository } from './repositories/invoice';
 import { makePaymentIntentRepository } from './repositories/payment-intent';
@@ -30,20 +35,21 @@ class PrismaStorage implements SispStorage {
     private readonly tables: SispTables,
     private readonly cipher: PayloadCipher,
     private readonly provider: PrismaSqlProvider,
+    private readonly txOptions: PrismaTransactionOptions,
   ) {
-    this.transactions = makeTransactionRepository(prisma, tables, cipher, provider);
+    this.transactions = makeTransactionRepository(prisma, tables, cipher, provider, txOptions);
     this.transactionItems = makeTransactionItemRepository(prisma, tables);
     this.transactionAttempts = makeTransactionAttemptRepository(prisma, tables, cipher, provider);
     this.paymentIntents = makePaymentIntentRepository(prisma, tables);
     this.invoices = makeInvoiceRepository(prisma, tables);
     this.transactionLogs = makeTransactionLogRepository(prisma, tables, cipher);
     this.blacklist = makeBlacklistRepository(prisma, tables);
-    this.rateLimits = makeRateLimitRepository(prisma, tables, provider);
+    this.rateLimits = makeRateLimitRepository(prisma, tables, provider, txOptions);
     this.requestMetadata = makeRequestMetadataRepository(prisma, tables, cipher);
   }
 
   async transaction<T>(work: (tx: SispStorageTx) => Promise<T>): Promise<T> {
-    return runInTransaction(this.prisma, (txc) => work(this.scoped(txc)));
+    return runInTransaction(this.prisma, (txc) => work(this.scoped(txc)), this.txOptions);
   }
 
   async destroy(): Promise<void> {
@@ -52,7 +58,13 @@ class PrismaStorage implements SispStorage {
 
   private scoped(txc: PrismaClientLike): SispStorageTx {
     return {
-      transactions: makeTransactionRepository(txc, this.tables, this.cipher, this.provider),
+      transactions: makeTransactionRepository(
+        txc,
+        this.tables,
+        this.cipher,
+        this.provider,
+        this.txOptions,
+      ),
       transactionItems: makeTransactionItemRepository(txc, this.tables),
       transactionAttempts: makeTransactionAttemptRepository(
         txc,
@@ -64,22 +76,34 @@ class PrismaStorage implements SispStorage {
       invoices: makeInvoiceRepository(txc, this.tables),
       transactionLogs: makeTransactionLogRepository(txc, this.tables, this.cipher),
       blacklist: makeBlacklistRepository(txc, this.tables),
-      rateLimits: makeRateLimitRepository(txc, this.tables, this.provider),
+      rateLimits: makeRateLimitRepository(txc, this.tables, this.provider, this.txOptions),
       requestMetadata: makeRequestMetadataRepository(txc, this.tables, this.cipher),
     };
   }
+}
+
+function withTransactionDefaults(
+  overrides: PrismaTransactionOptions | undefined,
+): PrismaTransactionOptions {
+  const defined = Object.entries(overrides ?? {}).filter(([, value]) => value !== undefined);
+
+  return { ...DEFAULT_TRANSACTION_OPTIONS, ...Object.fromEntries(defined) };
 }
 
 export function createPrismaStorage(
   prisma: PrismaClientLike,
   tables: SispTables | undefined,
   appKey: string | null,
-  options: { provider: PrismaSqlProvider },
+  options: {
+    provider: PrismaSqlProvider;
+    transactionOptions?: PrismaTransactionOptions;
+  },
 ): SispStorage {
   return new PrismaStorage(
     prisma,
     tables ?? DEFAULT_TABLES,
     new PayloadCipher(appKey),
     options.provider,
+    withTransactionDefaults(options.transactionOptions),
   );
 }

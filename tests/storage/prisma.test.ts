@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import { DEFAULT_TABLES } from '../../src/application/config';
 import { createPrismaStorage } from '../../src/infrastructure/storage/prisma';
 import { runStorageContract } from './contract';
+import { sqliteStoredJsonType } from './json-type';
 import { resolvePrismaCli } from './prisma/cli';
 
 const schemaPath = new URL('./prisma/fixture.prisma', import.meta.url).pathname;
@@ -59,7 +60,23 @@ if (prismaCli === null) {
 
       await prisma.$connect();
 
-      return createPrismaStorage(prisma, DEFAULT_TABLES, 'app-key', { provider: 'sqlite' });
+      return {
+        storage: createPrismaStorage(prisma, DEFAULT_TABLES, 'app-key', { provider: 'sqlite' }),
+        async storedJsonType(table, column, id) {
+          const probe = new Database(dbPath, { readonly: true });
+
+          try {
+            return sqliteStoredJsonType(
+              (sql, ...values) => probe.prepare(sql).get(...values) as Record<string, unknown>,
+              table,
+              column,
+              id,
+            );
+          } finally {
+            probe.close();
+          }
+        },
+      };
     });
   });
 }
