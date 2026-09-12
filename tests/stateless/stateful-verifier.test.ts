@@ -3,6 +3,7 @@ import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
 import { CallbackRejectionReasons } from '../../src/domain/enums/callback-rejection-reason';
 import { TransactionStatus } from '../../src/domain/enums/transaction-status';
+import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
 import type { HttpRequestInfo } from '../../src/infrastructure/http/request-info';
 import { extractForm } from '../helpers/auto-submit-form';
 
@@ -109,6 +110,48 @@ describe('stateful handleCallback', () => {
 
     expect(outcome.verified).toBe(false);
     expect(outcome.reason).toBe(CallbackRejectionReasons.DetailsMismatch);
+    expect(outcome.status).toBeNull();
+
+    await sisp.destroy();
+  });
+
+  it('carries no status on a forged purchase callback that asked to read as completed', async () => {
+    const sisp = await statefulSisp();
+    const rejected = vi.fn();
+
+    sisp.on('callback:rejected', rejected);
+
+    const { merchantRef, merchantSession } = await submitPayment(sisp);
+
+    const payload = callbackPayloadFrom({
+      merchantRespMerchantRef: merchantRef,
+      merchantRespMerchantSession: merchantSession,
+      merchantRespPurchaseAmount: 1500,
+      messageType: '8',
+      resultFingerPrint: 'forged',
+    });
+    const outcome = await sisp.handleCallback(payload);
+
+    expect(outcome.verified).toBe(false);
+    expect(outcome.reason).toBe(CallbackRejectionReasons.InvalidFingerprint);
+    expect(outcome.status).toBeNull();
+    expect(rejected).toHaveBeenCalledWith(expect.objectContaining({ status: null }));
+
+    await sisp.destroy();
+  });
+
+  it('carries no status when the same authentic callback is replayed', async () => {
+    const sisp = await statefulSisp();
+    const { merchantRef, merchantSession } = await submitPayment(sisp);
+    const payload = sisp.generateSandboxPayload({ amount: 1500, merchantRef, merchantSession });
+
+    await sisp.handleCallback(payload);
+    const replayed = await sisp.handleCallback(payload);
+
+    expect(replayed.verified).toBe(false);
+    expect(replayed.reason).toBe(CallbackRejectionReasons.Replayed);
+    expect(replayed.status).toBeNull();
+    expect(replayed.transaction.status).toBe(TransactionStatus.Completed);
 
     await sisp.destroy();
   });

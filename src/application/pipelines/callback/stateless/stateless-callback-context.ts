@@ -25,9 +25,11 @@ export class StatelessCallbackContext {
   }
 
   toOutcome(): CallbackOutcome {
+    const verified = !this.failed();
+
     return {
-      verified: !this.failed(),
-      status: mapTransactionStatus(this.payload.messageType),
+      verified,
+      status: verified ? mapTransactionStatus(this.payload.messageType) : null,
       reason: this.reason,
       payload: this.payload,
     };

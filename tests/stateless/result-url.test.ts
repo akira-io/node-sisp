@@ -78,7 +78,7 @@ describe('stateless result url', () => {
         merchantRespErrorCode: 'C',
         merchantRespAdditionalErrorMessage: 'Saldo do cartão insuficiente',
       }),
-      TransactionStatus.Failed,
+      null,
       CallbackRejectionReasons.DetailsMismatch,
     );
     const restored = readStatelessResult(
@@ -90,6 +90,18 @@ describe('stateless result url', () => {
     expect(restored?.verified).toBe(false);
     expect(restored?.reason).toBe(CallbackRejectionReasons.DetailsMismatch);
     expect(restored?.error).toBeNull();
+  });
+
+  it('leaves the status out of the signed url of a callback that did not verify', () => {
+    const data = statelessResultData(
+      callbackPayloadFrom({ merchantRespMerchantRef: 'REF123', messageType: '8' }),
+      null,
+      CallbackRejectionReasons.InvalidFingerprint,
+    );
+    const query = queryOf(signStatelessResult(signer, PATH, data));
+
+    expect(query.status).toBeUndefined();
+    expect(readStatelessResult(signer, PATH, query)?.status).toBeNull();
   });
 
   it('rejects a tampered query', () => {

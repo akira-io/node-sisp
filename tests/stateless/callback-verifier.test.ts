@@ -83,9 +83,56 @@ describe('StatelessCallbackVerifier', () => {
     expect(outcome.reason).toBe(CallbackRejectionReasons.InvalidFingerprint);
     expect(rejected).toHaveBeenCalledWith({
       payload,
-      status: TransactionStatus.Failed,
+      status: null,
       reason: CallbackRejectionReasons.InvalidFingerprint,
     });
+  });
+
+  it('carries no status on a forged purchase callback that asked to read as completed', async () => {
+    const events = new SispEventEmitter();
+    const rejected = vi.fn();
+
+    events.on('callback:rejected', rejected);
+
+    const payload = callbackPayloadFrom({
+      merchantRespMerchantRef: 'REF123',
+      merchantRespMerchantSession: 'S1',
+      merchantRespPurchaseAmount: 1500,
+      messageType: '8',
+      resultFingerPrint: 'forged',
+    });
+    const outcome = await verifier(events).verify(payload, { amount: 1500 });
+
+    expect(outcome.verified).toBe(false);
+    expect(outcome.status).toBeNull();
+    expect(outcome.reason).toBe(CallbackRejectionReasons.InvalidFingerprint);
+    expect(rejected).toHaveBeenCalledWith(expect.objectContaining({ status: null }));
+  });
+
+  it('carries no status on a forged error callback either', async () => {
+    const events = new SispEventEmitter();
+
+    const payload = callbackPayloadFrom({
+      merchantRespMerchantRef: 'REF123',
+      merchantRespMerchantSession: 'S1',
+      messageType: '6',
+      resultFingerPrint: 'forged',
+    });
+    const outcome = await verifier(events).verify(payload);
+
+    expect(outcome.verified).toBe(false);
+    expect(outcome.status).toBeNull();
+  });
+
+  it('carries no status when an authentic callback does not match the expected payment', async () => {
+    const events = new SispEventEmitter();
+
+    const payload = signedPayload();
+    const outcome = await verifier(events).verify(payload, { amount: 9999 });
+
+    expect(outcome.verified).toBe(false);
+    expect(outcome.status).toBeNull();
+    expect(outcome.reason).toBe(CallbackRejectionReasons.DetailsMismatch);
   });
 
   it('reports a failed status for an authentic decline instead of reading as a success', async () => {

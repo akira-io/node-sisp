@@ -12,14 +12,14 @@ const RESULT_URL_TTL_MINUTES = 5;
 export interface StatelessPaymentResponseData {
   merchant_ref: string;
   verified: boolean;
-  status: TransactionStatus;
+  status: TransactionStatus | null;
   reason: CallbackRejectionReason | null;
   error: PaymentErrorData | null;
 }
 
 export function statelessResultData(
   payload: CallbackPayload,
-  status: TransactionStatus,
+  status: TransactionStatus | null,
   reason: CallbackRejectionReason | null,
 ): StatelessPaymentResponseData {
   return {
@@ -39,11 +39,14 @@ export function signStatelessResult(
   const params: Record<string, string> = {
     ref: data.merchant_ref,
     verified: data.verified ? '1' : '0',
-    status: data.status,
     hasError: data.error === null ? '0' : '1',
     errorCode: data.error?.code ?? '',
     errorMessage: data.error?.customerMessage ?? '',
   };
+
+  if (data.status !== null) {
+    params.status = data.status;
+  }
 
   if (data.reason !== null) {
     params.reason = data.reason;
@@ -67,14 +70,14 @@ export function readStatelessResult(
     return null;
   }
 
-  if (!isTransactionStatus(query.status)) {
+  if (query.status !== undefined && !isTransactionStatus(query.status)) {
     return null;
   }
 
   return {
     merchant_ref: typeof query.ref === 'string' ? query.ref : '',
     verified: query.verified === '1',
-    status: query.status,
+    status: query.status === undefined ? null : query.status,
     reason: reason === undefined ? null : reason,
     error: query.hasError === '1' ? carriedError(query) : null,
   };

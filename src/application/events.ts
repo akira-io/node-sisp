@@ -10,7 +10,7 @@ export interface PaymentEvent {
 
 export interface CallbackEvent {
   payload: CallbackPayload;
-  status: TransactionStatus;
+  status: TransactionStatus | null;
   reason: CallbackRejectionReason | null;
 }
 

@@ -21,9 +21,10 @@ export class StatefulCallbackVerifier implements CallbackVerifier<StoredCallback
   async verify(payload: CallbackPayload): Promise<StoredCallbackOutcome> {
     const context = await this.pipeline.run(new CallbackContext(payload));
     const reason = isCallbackRejectionReason(context.failureReason) ? context.failureReason : null;
+    const verified = !context.failed() && !context.replay;
     const outcome: StoredCallbackOutcome = {
-      verified: !context.failed() && !context.replay,
-      status: mapTransactionStatus(payload.messageType),
+      verified,
+      status: verified ? mapTransactionStatus(payload.messageType) : null,
       reason: context.replay ? CallbackRejectionReasons.Replayed : reason,
       payload,
       transaction: context.requireTransaction(),

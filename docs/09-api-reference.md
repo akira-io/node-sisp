@@ -16,7 +16,7 @@
 | `payment()` | `PaymentBuilder` with fluent setters and `build()` |
 | `buildRequestPayload(data)` | Signed `PaymentRequest` from raw data |
 | `validateCallback(payload)` | Constant-time fingerprint check |
-| `handleCallback(payload, expected?)` | Runs the callback pipeline, returns `{ verified, status, reason, payload }`. `verified` means the callback is authentic (fingerprint and amount/currency/code matched against `correlation`, the `expected` argument, or the `expectedPayment` lookup); it is not a payment verdict. A `completed` callback with nothing to match against is rejected with `expected_payment_missing`. Check `status` for that - see [Stateless Mode](13-stateless-mode.md#verified-is-authenticity-not-a-payment-verdict) |
+| `handleCallback(payload, expected?)` | Runs the callback pipeline, returns `{ verified, status, reason, payload }`. `verified` means the callback is authentic (fingerprint and amount/currency/code matched against `correlation`, the `expected` argument, or the `expectedPayment` lookup); it is not a payment verdict. A `completed` callback with nothing to match against is rejected with `expected_payment_missing`. Check `status` for that - see [Stateless Mode](13-stateless-mode.md#verified-is-authenticity-not-a-payment-verdict). `status` is `null` on a rejected outcome, because it is derived from a `messageType` nobody authenticated |
 | `generateSandboxPayload(data, status?, errorOverrides?)` | Signed fake callback. `errorOverrides` replaces any of `errorCode`, `errorDescription`, `errorDetail` and `additionalErrorMessage` on a `failed` payload |
 | `queryTransactionStatus(merchantRef)` | POS transaction-status API call |
 | `driver(name?)` | Resolves the active or a named `SispDriver` |
@@ -47,7 +47,7 @@
 | Event | Payload |
 |-------|---------|
 | `payment:completed` / `payment:failed` / `payment:pending` | `{ transaction, payload }` |
-| `callback:verified` / `callback:rejected` | `{ payload, status, reason }`, emitted in both stateless and stateful mode. `callback:verified` fires for every authentic, matching callback, including declines - check `status`, not the event name, before fulfilling anything. For a `UserCancelled` request, `callback:rejected` fires only when the reference matches a payment the consumer recorded (see [Stateless mode](13-stateless-mode.md) for exact conditions in each mode) |
+| `callback:verified` / `callback:rejected` | `{ payload, status, reason }`, emitted in both stateless and stateful mode. `status` is `null` on `callback:rejected`, except on a `UserCancelled` request, where `cancelled` comes from the package rather than the payload. `callback:verified` fires for every authentic, matching callback, including declines - check `status`, not the event name, before fulfilling anything. For a `UserCancelled` request, `callback:rejected` fires only when the reference matches a payment the consumer recorded (see [Stateless mode](13-stateless-mode.md) for exact conditions in each mode) |
 | `transaction:cancelled` | `{ transaction, reason }` |
 | `transaction:refunded` | `{ transaction, amount, reason }` |
 
