@@ -67,6 +67,11 @@ describe('resolveConfig', () => {
     expect(resolved.database?.autoMigrate).toBe(false);
     expect(resolved.rateLimiting.enabled).toBe(true);
     expect(resolved.rateLimiting.perIp).toEqual({ enabled: true, limit: 100, windowSeconds: 3600 });
+    expect(resolved.rateLimiting.perIpStatus).toEqual({
+      enabled: true,
+      limit: 3600,
+      windowSeconds: 3600,
+    });
     expect(resolved.rateLimiting.perMerchant.limit).toBe(500);
     expect(resolved.rateLimiting.perUser.limit).toBe(50);
     expect(resolved.security.collectMetadata).toBe(true);
@@ -112,6 +117,7 @@ describe('resolveConfig', () => {
     expect(resolved.tables.invoices).toBe('sisp_invoices');
     expect(resolved.rateLimiting.perIp.limit).toBe(5);
     expect(resolved.rateLimiting.perIp.windowSeconds).toBe(3600);
+    expect(resolved.rateLimiting.perIpStatus.limit).toBe(3600);
     expect(resolved.identifierGeneration.maxAttempts).toBe(2);
     expect(resolved.identifierGeneration.collisionRetrySleepMs).toBe(0);
     expect(resolved.retry.maxAttempts).toBe(2);

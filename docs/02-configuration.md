@@ -50,6 +50,7 @@ value.
 rateLimiting: {
   enabled: true,
   perIp: { enabled: true, limit: 100, windowSeconds: 3600 },
+  perIpStatus: { enabled: true, limit: 3600, windowSeconds: 3600 },
   perMerchant: { enabled: true, limit: 500, windowSeconds: 3600 },
   perUser: { enabled: true, limit: 50, windowSeconds: 3600 },
 },
@@ -58,6 +59,8 @@ security: {
   clientIp: (request) => headerValue(request, 'x-real-ip'),
 },
 ```
+
+`perIp` covers payment submissions and refunds. `perIpStatus` covers `GET /transactions/:ref`, which a checkout page polls while it waits for the gateway. Status lookups are counted in their own bucket, so they never exhaust the payment budget, but until now that bucket was measured against `perIp`: polling every three seconds spent the 100 requests in five minutes, and behind a NAT address every client on it spent from the same 100. `perIpStatus` gives the bucket its own ceiling, 3600 per hour by default, which one request per second never reaches. Lower the limit when the checkout polls slowly, raise `windowSeconds` to spread the same budget over longer sessions, or set `perIpStatus.enabled` to `false` to leave status lookups unlimited.
 
 `security.clientIp` resolves the address used for per-IP rate limits, the IP blacklist, and request metadata. Without it the package uses the adapter's `req.ip`, which behind a reverse proxy is the proxy's address unless the framework is told to trust it (`app.set('trust proxy', ...)` in Express, `trustProxy` in Fastify). When the resolver returns `null` or an empty string the package falls back to the adapter's `req.ip`; per-IP limits and blacklist checks are skipped only when that is empty too, instead of sharing one bucket.
 

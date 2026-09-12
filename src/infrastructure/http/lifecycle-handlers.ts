@@ -3,7 +3,7 @@ import type { CancelTransactionAction } from '../../application/actions/cancel-t
 import type { CreateRetryPaymentAttemptAction } from '../../application/actions/create-retry-payment-attempt';
 import type { RefundTransactionAction } from '../../application/actions/refund-transaction';
 import type { RetryPaymentAction } from '../../application/actions/retry-payment';
-import type { ResolvedSispConfig } from '../../application/config';
+import type { RateLimitRule, ResolvedSispConfig } from '../../application/config';
 import type {
   RateLimitRepository,
   TransactionAttemptRepository,
@@ -180,18 +180,25 @@ export class LifecycleHandlers {
   }
 
   private async refundRateLimitExceeded(request: HttpRequestInfo): Promise<boolean> {
-    return this.ipRateLimitExceeded(request, 'refund');
+    return this.ipRateLimitExceeded(request, 'refund', this.deps.config.rateLimiting.perIp);
   }
 
   async statusRateLimitExceeded(request: HttpRequestInfo): Promise<boolean> {
-    return this.ipRateLimitExceeded(request, 'transaction-status');
+    return this.ipRateLimitExceeded(
+      request,
+      'transaction-status',
+      this.deps.config.rateLimiting.perIpStatus,
+    );
   }
 
-  private async ipRateLimitExceeded(request: HttpRequestInfo, context: string): Promise<boolean> {
+  private async ipRateLimitExceeded(
+    request: HttpRequestInfo,
+    context: string,
+    rule: RateLimitRule,
+  ): Promise<boolean> {
     const { config, rateLimits } = this.deps;
-    const { enabled, perIp } = config.rateLimiting;
 
-    if (!enabled || !perIp.enabled || request.ip === '') {
+    if (!config.rateLimiting.enabled || !rule.enabled || request.ip === '') {
       return false;
     }
 
@@ -199,8 +206,8 @@ export class LifecycleHandlers {
       identifier: request.ip,
       limitType: 'ip',
       context,
-      limit: perIp.limit,
-      windowSeconds: perIp.windowSeconds,
+      limit: rule.limit,
+      windowSeconds: rule.windowSeconds,
     });
   }
 
