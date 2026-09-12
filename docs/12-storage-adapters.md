@@ -129,6 +129,10 @@ The `provider` value controls how the adapter issues row-level locks:
 
 The same locking behavior applies to the knex adapter: `pg` and `mysql2` use `FOR UPDATE`, `better-sqlite3` no-ops.
 
+### JSON columns
+
+`sisp_transaction_items.metadata`, `sisp_invoices.metadata`, `sisp_request_metadata.custom_metadata` and the three `sisp_transaction_logs` value columns hold a JSON document, not a string of JSON. Both adapters write the structure itself, so `metadata->>'key'` works in Postgres. Rows written by an earlier version stored the document as an encoded string; reads still parse those, so no backfill is required, but queries that reach into the column will not see them until they are rewritten.
+
 ## Upgrading the schema
 
 Release 1.0.0-beta.6 adds `sisp_payment_intents.request_hash` (knex migration `0006`) and `sisp_transactions.pos_id` (`0007`), and the Prisma schema gains the unique constraints and indexes listed above. Both adapters write the new columns on every insert, so run the migrations before deploying the new package version:

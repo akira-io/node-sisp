@@ -24,6 +24,34 @@ function constraintsByModel(schemaPath: string): Record<string, string[]> {
   return result;
 }
 
+function fieldTypesByModel(schemaPath: string): Record<string, Record<string, string>> {
+  const source = readFileSync(schemaPath, 'utf8');
+  const result: Record<string, Record<string, string>> = {};
+
+  for (const match of source.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)) {
+    const fields: Record<string, string> = {};
+
+    for (const line of (match[2] as string).split('\n')) {
+      const field = line.trim().match(/^(\w+)\s+(\w+\??)/);
+
+      if (field === null || line.trim().startsWith('@@')) {
+        continue;
+      }
+
+      fields[field[1] as string] = field[2] as string;
+    }
+
+    result[match[1] as string] = fields;
+  }
+
+  return result;
+}
+
+const SQLITE_SUBSTITUTIONS: Record<string, string> = {
+  'Decimal?': 'Float?',
+  Decimal: 'Float',
+};
+
 function camelCase(name: string): string {
   return name.charAt(0).toLowerCase() + name.slice(1);
 }
@@ -51,6 +79,31 @@ describe('prisma schema parity', () => {
         '@@unique([transactionId, attemptNumber])',
       ]),
     );
+  });
+
+  it('shipped schema and test fixture declare the same field types', () => {
+    const shipped = fieldTypesByModel(shippedSchema);
+    const fixture = fieldTypesByModel(fixtureSchema);
+    const expected: Record<string, Record<string, string>> = {};
+
+    for (const [model, fields] of Object.entries(shipped)) {
+      expected[model] = Object.fromEntries(
+        Object.entries(fields).map(([field, type]) => [field, SQLITE_SUBSTITUTIONS[type] ?? type]),
+      );
+    }
+
+    expect(fixture).toEqual(expected);
+  });
+
+  it('declares every column the adapter writes structured JSON into as Json', () => {
+    const shipped = fieldTypesByModel(shippedSchema);
+
+    expect(shipped.SispTransactionItem?.metadata).toBe('Json?');
+    expect(shipped.SispInvoice?.metadata).toBe('Json?');
+    expect(shipped.SispRequestMetadata?.customMetadata).toBe('Json?');
+    expect(shipped.SispTransactionLog?.changedAttributes).toBe('Json');
+    expect(shipped.SispTransactionLog?.oldValues).toBe('Json?');
+    expect(shipped.SispTransactionLog?.newValues).toBe('Json?');
   });
 
   it('camelCased model names equal the adapter DELEGATE_NAMES', () => {

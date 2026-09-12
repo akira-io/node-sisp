@@ -1,11 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_TABLES } from '../../src/application/config';
 import type { SispStorage } from '../../src/core/contracts/storage';
 
-export function runStorageContract(makeStorage: () => Promise<SispStorage>): void {
+export type StoredJsonType = 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
+
+export interface ContractSubject {
+  storage: SispStorage;
+  storedJsonType(table: string, column: string, id: number): Promise<StoredJsonType>;
+}
+
+export function runStorageContract(makeSubject: () => Promise<ContractSubject>): void {
+  let subject: ContractSubject;
   let storage: SispStorage;
 
   beforeEach(async () => {
-    storage = await makeStorage();
+    subject = await makeSubject();
+    storage = subject.storage;
   });
 
   afterEach(async () => {
@@ -167,6 +177,49 @@ export function runStorageContract(makeStorage: () => Promise<SispStorage>): voi
       expect(entry?.changed_attributes).toContain('payload');
       expect(entry?.old_values).toMatchObject({ payload: { posID: '90051' } });
       expect(entry?.new_values).toMatchObject({ payload: { posID: '90051', refunds: [1] } });
+    });
+  });
+
+  describe('transactionItems.metadata', () => {
+    it('stores metadata as a JSON object, not as an encoded string', async () => {
+      const tx = await storage.transactions.create({
+        merchantRef: 'REF-CONTRACT-ITEM',
+        merchantSession: 'SES-CONTRACT-ITEM',
+        amount: 4200,
+      });
+
+      await storage.transactionItems.createMany(tx.id, [
+        {
+          productName: 'Ticket',
+          quantity: 1,
+          unitPrice: 42,
+          totalPrice: 42,
+          metadata: { seat: '12A', tags: ['vip'] },
+        },
+      ]);
+
+      const [item] = await storage.transactionItems.listByTransaction(tx.id);
+
+      expect(item?.metadata).toEqual({ seat: '12A', tags: ['vip'] });
+      expect(
+        await subject.storedJsonType(DEFAULT_TABLES.transactionItems, 'metadata', item?.id ?? 0),
+      ).toBe('object');
+    });
+
+    it('stores a missing metadata as SQL NULL', async () => {
+      const tx = await storage.transactions.create({
+        merchantRef: 'REF-CONTRACT-ITEM-NULL',
+        merchantSession: 'SES-CONTRACT-ITEM-NULL',
+        amount: 100,
+      });
+
+      await storage.transactionItems.createMany(tx.id, [
+        { productName: 'Ticket', quantity: 1, unitPrice: 1, totalPrice: 1 },
+      ]);
+
+      const [item] = await storage.transactionItems.listByTransaction(tx.id);
+
+      expect(item?.metadata).toBeNull();
     });
   });
 }
