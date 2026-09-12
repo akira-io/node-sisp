@@ -11,7 +11,7 @@ beforeEach(async () => {
     posAutCode: 'TEST_POS_AUT_CODE',
     sandbox: true,
     appKey: 'app-key',
-    rateLimiting: { perIp: { limit: 2, windowSeconds: 3600 } },
+    rateLimiting: { perIp: { limit: 2, windowSeconds: 3600 }, perUser: { enabled: false } },
     security: { clientIp: (request) => headerValue(request, 'x-real-ip') },
     database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
   });

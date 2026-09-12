@@ -149,11 +149,13 @@ export class CallbackHandlers {
     const transaction = outcome.transaction;
     const eventName = paymentEventNameFor(transaction);
 
-    await this.runQuietly(
-      () => storeMetadata.handle(request, transaction.id),
-      undefined,
-      eventName,
-    );
+    if (config.security.collectMetadata) {
+      await this.runQuietly(
+        () => storeMetadata.handle(request, transaction.id),
+        undefined,
+        eventName,
+      );
+    }
     await this.runQuietly(() => updateInvoiceStatus.handle(transaction), undefined, eventName);
 
     if (config.frontendResultUrl) {

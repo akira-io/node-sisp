@@ -20,7 +20,7 @@ export interface RateLimiting {
 const DEFAULT_RATE_LIMITING: RateLimiting = {
   enabled: true,
   perIp: { enabled: true, limit: 100, windowSeconds: 3600 },
-  perMerchant: { enabled: true, limit: 500, windowSeconds: 3600 },
+  perMerchant: { enabled: false, limit: 500, windowSeconds: 3600 },
   perUser: { enabled: true, limit: 50, windowSeconds: 3600 },
 };
 

@@ -44,7 +44,7 @@ beforeEach(async () => {
     url: 'https://gateway.vinti4.test/payment',
     baseUrl: 'http://localhost:3000',
     appKey: 'app-key-with-thirty-two-characters!',
-    rateLimiting: { perIp: { limit: 3, windowSeconds: 3600 } },
+    rateLimiting: { perIp: { limit: 3, windowSeconds: 3600 }, perUser: { enabled: false } },
     database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
   });
   const database = config.database;
@@ -60,14 +60,17 @@ beforeEach(async () => {
   invoices = storage.invoices;
   metadata = new RequestMetadata(db, config.tables, new PayloadCipher(config.appKey));
 
-  const buildRequestPayload = new BuildRequestPayloadAction(
-    config,
-    new StaticCredentialsResolver(credentialsFromConfig(config)),
-  );
+  const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(config));
+  const buildRequestPayload = new BuildRequestPayloadAction(config, credentialsResolver);
 
   pipeline = new ProcessPaymentPipeline([
     new EnsureIpIsNotBlacklisted(storage.blacklist),
-    new EnforceRateLimits(storage.rateLimits, config.rateLimiting),
+    new EnforceRateLimits(
+      storage.rateLimits,
+      config.rateLimiting,
+      credentialsResolver,
+      config.appKey,
+    ),
     new BuildPaymentRequest(buildRequestPayload),
     new PersistTransaction(config, storage, buildRequestPayload),
     new CaptureRequestMetadata(new StoreRequestMetadataAction(metadata)),

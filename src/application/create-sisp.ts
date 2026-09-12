@@ -69,7 +69,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
   const rateLimits = storage.rateLimits;
   const paymentPreflightPipes = [
     new EnsureIpIsNotBlacklisted(models.blacklist),
-    new EnforceRateLimits(rateLimits, resolved.rateLimiting),
+    new EnforceRateLimits(rateLimits, resolved.rateLimiting, credentialsResolver, resolved.appKey),
   ];
 
   const paymentPipeline = new ProcessPaymentPipeline(
@@ -77,7 +77,7 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
       ...paymentPreflightPipes,
       new BuildPaymentRequest(services.buildRequestPayload),
       new PersistTransaction(resolved, storage, services.buildRequestPayload),
-      new CaptureRequestMetadata(storeMetadata),
+      ...(resolved.security.collectMetadata ? [new CaptureRequestMetadata(storeMetadata)] : []),
     ]),
     paymentPreflightPipes,
   );

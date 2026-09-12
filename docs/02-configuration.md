@@ -50,7 +50,7 @@ value.
 rateLimiting: {
   enabled: true,
   perIp: { enabled: true, limit: 100, windowSeconds: 3600 },
-  perMerchant: { enabled: true, limit: 500, windowSeconds: 3600 },
+  perMerchant: { enabled: false, limit: 500, windowSeconds: 3600 },
   perUser: { enabled: true, limit: 50, windowSeconds: 3600 },
 },
 security: {
@@ -58,6 +58,12 @@ security: {
   clientIp: (request) => headerValue(request, 'x-real-ip'),
 },
 ```
+
+`rateLimiting` guards the payment pipeline with three fixed windows, checked in order: `perIp`, then `perMerchant`, then `perUser`. The first window that is exceeded raises HTTP 429 and the remaining windows record no hit for that request, so the scopes are ordered, not independent. A rule with `enabled: false` is skipped entirely, and `enabled: false` at the top level turns off all three. The refund and transaction-status routes apply only `perIp`, on their own buckets.
+
+`perIp` keys on the resolved client IP. `perMerchant` keys on the `posId` of the `Sisp` instance handling the request, so it caps that merchant regardless of how many addresses the traffic arrives from; it is **off by default**, because exceeding it blocks every payment for the merchant until the window ends. `perUser` keys on an HMAC-SHA-256 of the customer email, using `appKey` as the key, and falls back to the customer phone when no email is present; the value is trimmed and lowercased before hashing, and the scope is skipped when the request carries neither field. A customer who sends an email on one request and only a phone on the next occupies two buckets.
+
+`security.collectMetadata` set to `false` drops `CaptureRequestMetadata` from the payment pipeline and stops the callback handler from writing to `sisp_request_metadata`, so no IP, user agent, header, or device-fingerprint row is created. Leave it `true` unless a data-protection requirement says otherwise; the reconciliation and audit trails do not depend on it.
 
 `security.clientIp` resolves the address used for per-IP rate limits, the IP blacklist, and request metadata. Without it the package uses the adapter's `req.ip`, which behind a reverse proxy is the proxy's address unless the framework is told to trust it (`app.set('trust proxy', ...)` in Express, `trustProxy` in Fastify). When the resolver returns `null` or an empty string the package falls back to the adapter's `req.ip`; per-IP limits and blacklist checks are skipped only when that is empty too, instead of sharing one bucket.
 
