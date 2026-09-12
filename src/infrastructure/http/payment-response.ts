@@ -85,6 +85,12 @@ export interface CallbackErrorFields {
 }
 
 export function structuredErrorFrom(payload: CallbackErrorFields): PaymentErrorData | null {
+  if (typeof payload !== 'object' || payload === null) {
+    throw new TypeError(
+      'structuredErrorFrom takes a callback payload. It used to take a message type and a language; passing either of those now silently reports a decline as no error.',
+    );
+  }
+
   if (!isErrorMessageType(payload.messageType)) {
     return null;
   }

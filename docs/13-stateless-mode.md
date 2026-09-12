@@ -50,11 +50,27 @@ app.use('/sisp', statelessSispRoutes(sisp));
 
 ## `verified` is authenticity, not a payment verdict
 
-`verified` means the callback's fingerprint checked out and its amount/currency/transaction code matched what you expected: the `correlation` record, the `expected` argument, or the `expectedPayment` lookup. It says nothing about whether the gateway approved or declined the payment. A correctly signed decline is still `verified: true`, because nothing about a decline breaks the fingerprint or the amount match:
+`verified` means the callback's fingerprint checked out and its amount/currency/transaction code matched what you expected: the `correlation` record, the `expected` argument, or the `expectedPayment` lookup. It says nothing about whether the gateway approved or declined the payment. A correctly signed decline is still `verified: true`, because nothing about a decline breaks the fingerprint, and the amount is not compared against a callback that does not send one - an error response never does:
 
 ```
 { merchant_ref: 'R123', verified: true, status: 'failed', reason: null, error: { code: 'C', description: '...', detail: '...', customerMessage: 'Saldo do cartão insuficiente' } }
 ```
+
+### What survives the signed result URL
+
+That shape is what `handleCallback` returns and what the `callback:verified` event carries. When `appKey` is configured, the HTTP handler instead redirects to a signed result URL, and `GET` on it carries only the customer-facing half of the error - `code` and `customerMessage`. `description` and `detail` come back empty:
+
+```
+{ code: 'F', description: '', detail: '', customerMessage: 'FALHA NA AUTENTICACAO CLIENTE' }
+```
+
+`description` and `detail` are gateway diagnostics; `customerMessage` is `merchantRespAdditionalErrorMessage`, which the specification defines as the message to show the end customer. Keeping the diagnostics out of the URL keeps them out of access logs, `Referer` headers and browser history. Read them from the event payload if you need them. Stateful mode does not lose them, because it reads the stored callback back from the attempt.
+
+A callback that did not verify carries no error fields at all. Its `errorCode` and `additionalErrorMessage` are attacker-controlled text on an unauthenticated POST, so they never reach the signed URL; you get `reason` instead.
+
+### Where the customer lands
+
+`GET` on the signed result URL answers with JSON, not a redirect. That is the end of the package's involvement: the customer's browser stops on your API. Build your own page over the signed result if you want them back in the shop. Cancellation is the exception and redirects to `redirectUrl` directly, because there is no signed result to hand over.
 
 Check `status` for the gateway's verdict instead:
 

@@ -21,6 +21,15 @@ describe('structuredErrorFrom', () => {
     ).toBeNull();
   });
 
+  it.each([
+    '6',
+    '',
+    null,
+    undefined,
+  ])('refuses the old message-type argument %s instead of reporting no error', (messageType) => {
+    expect(() => structuredErrorFrom(messageType as never)).toThrow(TypeError);
+  });
+
   it('does not call a success an error just because it carries a customer message', () => {
     expect(
       structuredErrorFrom(
