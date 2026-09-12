@@ -14,17 +14,43 @@ type ResolvedCredentials = ReturnType<CredentialsResolver['resolve']>;
 
 export type SandboxStatus = 'success' | 'failed' | (string & {});
 
+const ROUTE_ONLY_STATUSES = ['cancelled', 'tampered'];
+
+export interface SandboxErrorOverrides {
+  readonly errorCode?: string;
+  readonly errorDescription?: string;
+  readonly errorDetail?: string;
+  readonly additionalErrorMessage?: string;
+}
+
+export const OBSERVED_SANDBOX_DECLINE = Object.freeze({
+  errorCode: 'F',
+  errorDescription: 'FALHA NA AUTENTICACAO CLIENTE',
+  errorDetail: 'FALHA NA AUTENTICACAO CLIENTE',
+  additionalErrorMessage: 'FALHA NA AUTENTICACAO CLIENTE',
+});
+
 export class BuildSandboxPayloadAction {
   constructor(
     private readonly config: ResolvedSharedConfig,
     private readonly credentialsResolver: CredentialsResolver,
   ) {}
 
-  handle(data: PaymentRequestData, status: SandboxStatus = 'success'): CallbackPayload {
+  handle(
+    data: PaymentRequestData,
+    status: SandboxStatus = 'success',
+    errorOverrides: SandboxErrorOverrides = {},
+  ): CallbackPayload {
     const credentials = this.credentialsResolver.resolve();
 
     if (!credentials.sandbox) {
       throw new Error('Sandbox payloads can only be generated when SISP sandbox mode is enabled.');
+    }
+
+    if (ROUTE_ONLY_STATUSES.includes(status)) {
+      throw new Error(
+        `The ${status} outcome is built by the sandbox route, not by a callback payload.`,
+      );
     }
 
     const identifiers: CallbackIdentifiers = {
@@ -35,7 +61,7 @@ export class BuildSandboxPayloadAction {
 
     const post =
       status === 'failed'
-        ? errorPost(identifiers, credentials.fingerprintVersion)
+        ? errorPost(identifiers, credentials.fingerprintVersion, errorOverrides)
         : successPost(identifiers, data, credentials, this.config, successMessageTypeFor(status));
 
     const fingerprint = generateCallbackFingerprint(
@@ -60,18 +86,21 @@ function successMessageTypeFor(status: SandboxStatus): string {
 function errorPost(
   identifiers: CallbackIdentifiers,
   fingerprintVersion: string,
+  overrides: SandboxErrorOverrides,
 ): Record<string, unknown> {
   return {
     messageType: MessageType.Error,
     merchantRespMessageID: `MSG-${randomToken(8)}`,
-    merchantRespErrorCode: 'C',
-    merchantRespErrorDetail: 'Sandbox decline',
-    merchantRespErrorDescription: 'Transaction processed with error',
+    merchantRespErrorCode: overrides.errorCode ?? OBSERVED_SANDBOX_DECLINE.errorCode,
+    merchantRespErrorDetail: overrides.errorDetail ?? OBSERVED_SANDBOX_DECLINE.errorDetail,
+    merchantRespErrorDescription:
+      overrides.errorDescription ?? OBSERVED_SANDBOX_DECLINE.errorDescription,
     merchantRespMerchantRef: identifiers.merchantRef,
     merchantRespMerchantSession: identifiers.merchantSession,
-    merchantRespAdditionalErrorMessage: 'Saldo do cartão insuficiente',
+    merchantRespAdditionalErrorMessage:
+      overrides.additionalErrorMessage ?? OBSERVED_SANDBOX_DECLINE.additionalErrorMessage,
     merchantRespTimeStamp: identifiers.timeStamp,
-    merchantRespScreenError: 'Pagamento recusado',
+    languageMessages: 'EN',
     resultFingerPrintVersion: fingerprintVersion,
   };
 }

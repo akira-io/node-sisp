@@ -14,7 +14,7 @@ import type { BuildRequestPayloadAction } from './actions/build-request-payload'
 import { PaymentBuilder } from './builders/payment-builder';
 import type { ResolvedSharedConfig } from './config';
 import type { SispEventEmitter, SispEventMap, SispEventName } from './events';
-import type { BuildSandboxPayloadAction, SandboxStatus } from './sandbox';
+import type { BuildSandboxPayloadAction, SandboxErrorOverrides, SandboxStatus } from './sandbox';
 
 export class StatelessSisp {
   constructor(
@@ -54,8 +54,9 @@ export class StatelessSisp {
   generateSandboxPayload(
     data: PaymentRequestData,
     status: SandboxStatus = 'success',
+    errorOverrides: SandboxErrorOverrides = {},
   ): CallbackPayload {
-    return this.buildSandboxPayloadAction.handle(data, status);
+    return this.buildSandboxPayloadAction.handle(data, status, errorOverrides);
   }
 
   async queryTransactionStatus(merchantRef: string): Promise<TransactionStatusResponse> {

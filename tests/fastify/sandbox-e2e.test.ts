@@ -59,7 +59,10 @@ describe('fastify sandbox end-to-end payment flow', () => {
     expect(paymentForm.action).toContain('/sisp/sandbox?');
     expect(paymentForm.action).toContain('FingerPrint=');
 
-    const sandboxResponse = await postForm(paymentForm.action, paymentForm.fields);
+    const sandboxResponse = await postForm(paymentForm.action, {
+      ...paymentForm.fields,
+      status: 'success',
+    });
 
     expect(sandboxResponse.statusCode).toBe(200);
 
