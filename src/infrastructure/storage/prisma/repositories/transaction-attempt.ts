@@ -19,6 +19,25 @@ import { lockRowForUpdate } from '../locking';
 import { mapTransactionAttempt } from '../mapping';
 import type { PrismaSqlProvider } from '../prisma-storage';
 
+const ATTEMPT_COLUMNS = {
+  status: 'status',
+  gateway_transaction_id: 'gatewayTransactionId',
+  message_type: 'messageType',
+  response_code: 'responseCode',
+  merchant_response: 'merchantResponse',
+  fingerprint: 'fingerprint',
+  callback_payload: 'callbackPayload',
+  failure_reason: 'failureReason',
+  callback_received_at: 'callbackReceivedAt',
+} satisfies Record<keyof TransactionAttemptChanges, string>;
+
+type AttemptEncoder = (value: unknown, cipher: PayloadCipher) => unknown;
+
+const ATTEMPT_ENCODERS: Partial<Record<keyof TransactionAttemptChanges, AttemptEncoder>> = {
+  callback_payload: (value, cipher) => cipher.store(value),
+  callback_received_at: (value) => (value === null ? null : new Date(value as string)),
+};
+
 export function makeTransactionAttemptRepository(
   client: PrismaClientLike,
   tables: SispTables,
@@ -190,43 +209,18 @@ export function makeTransactionAttemptRepository(
       id: number,
       changes: TransactionAttemptChanges,
     ): Promise<TransactionAttemptRecord> {
-      // TODO: new TransactionAttemptChanges fields must be added to this whitelist.
       const data: Record<string, unknown> = { updatedAt: new Date(nowIso()) };
 
-      if ('status' in changes) {
-        data.status = changes.status;
-      }
+      for (const [field, column] of Object.entries(ATTEMPT_COLUMNS)) {
+        if (!(field in changes)) {
+          continue;
+        }
 
-      if ('gateway_transaction_id' in changes) {
-        data.gatewayTransactionId = changes.gateway_transaction_id ?? null;
-      }
+        const key = field as keyof TransactionAttemptChanges;
+        const value = changes[key] ?? null;
+        const encode = ATTEMPT_ENCODERS[key];
 
-      if ('message_type' in changes) {
-        data.messageType = changes.message_type ?? null;
-      }
-
-      if ('response_code' in changes) {
-        data.responseCode = changes.response_code ?? null;
-      }
-
-      if ('merchant_response' in changes) {
-        data.merchantResponse = changes.merchant_response ?? null;
-      }
-
-      if ('fingerprint' in changes) {
-        data.fingerprint = changes.fingerprint ?? null;
-      }
-
-      if ('callback_payload' in changes) {
-        data.callbackPayload = cipher.store(changes.callback_payload ?? null);
-      }
-
-      if ('failure_reason' in changes) {
-        data.failureReason = changes.failure_reason ?? null;
-      }
-
-      if ('callback_received_at' in changes && changes.callback_received_at != null) {
-        data.callbackReceivedAt = new Date(changes.callback_received_at);
+        data[column] = encode === undefined ? value : encode(value, cipher);
       }
 
       await model().update({
