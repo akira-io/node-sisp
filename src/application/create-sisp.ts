@@ -2,8 +2,8 @@ import {
   type CredentialsResolver,
   StaticCredentialsResolver,
 } from '../core/contracts/credentials-resolver';
+import type { SispStorage } from '../core/contracts/storage';
 import { SispHttpHandlers } from '../infrastructure/http/handlers';
-import { KnexStorage } from '../infrastructure/storage/knex/knex-storage';
 import { UrlSigner } from '../support/signed-url';
 import { BuildRefundRequestAction } from './actions/build-refund-request';
 import { CanRetryPaymentAction } from './actions/can-retry-payment';
@@ -30,21 +30,24 @@ import { Sisp, type SispModels } from './sisp';
 import { StatefulCallbackVerifier } from './verifiers/stateful-callback-verifier';
 import { customizePipes, wireCredentialScopedServices } from './wiring';
 
+async function createDefaultStorage(resolved: ResolvedSispConfig): Promise<SispStorage> {
+  const { KnexStorage } = await import('../infrastructure/storage/knex/knex-storage');
+
+  return KnexStorage.create(
+    resolved.database as Required<SispDatabaseConfig>,
+    resolved.tables,
+    resolved.appKey,
+  );
+}
+
 export async function createSisp(config: SispConfig): Promise<Sisp> {
   const resolved = resolveConfig(config);
-  const storage =
-    config.storage ??
-    (await KnexStorage.create(
-      resolved.database as Required<SispDatabaseConfig>,
-      resolved.tables,
-      resolved.appKey,
-    ));
+  const storage = config.storage ?? (await createDefaultStorage(resolved));
 
   if (!config.storage && resolved.database?.autoMigrate) {
     await storage.migrate?.();
   }
 
-  const db = (storage as KnexStorage).raw;
   const credentialsResolver = new StaticCredentialsResolver(credentialsFromConfig(resolved));
   const events = new SispEventEmitter(resolved.onEventListenerError ?? undefined);
 
@@ -124,7 +127,6 @@ export async function createSisp(config: SispConfig): Promise<Sisp> {
 
   return new Sisp(
     resolved,
-    db,
     storage,
     events,
     services.manager,
