@@ -17,7 +17,7 @@
 | `buildRequestPayload(data)` | Signed `PaymentRequest` from raw data |
 | `validateCallback(payload)` | Constant-time fingerprint check |
 | `handleCallback(payload, expected?)` | Runs the callback pipeline, returns `{ verified, status, reason, payload }`. `verified` means the callback is authentic (fingerprint and amount/currency/code matched against `correlation`, the `expected` argument, or the `expectedPayment` lookup); it is not a payment verdict. A `completed` callback with nothing to match against is rejected with `expected_payment_missing`. Check `status` for that - see [Stateless Mode](13-stateless-mode.md#verified-is-authenticity-not-a-payment-verdict) |
-| `generateSandboxPayload(data, status?)` | Signed fake callback |
+| `generateSandboxPayload(data, status?, errorOverrides?)` | Signed fake callback. `errorOverrides` replaces any of `errorCode`, `errorDescription`, `errorDetail` and `additionalErrorMessage` on a `failed` payload |
 | `queryTransactionStatus(merchantRef)` | POS transaction-status API call |
 | `driver(name?)` | Resolves the active or a named `SispDriver` |
 | `on(event, listener)` / `off(...)` | Typed event subscription |
@@ -32,7 +32,7 @@
 | `cancel(transaction, reason?)` | Cancels and emits `transaction:cancelled` |
 | `manager` | `SispManager` with `extend(name, factory)` |
 | `models` | `transactions`, `transactionItems`, `transactionAttempts`, `paymentIntents`, `invoices`, `transactionLogs`, `blacklist` |
-| `db` | Typed `unknown` on this entry. Pass `sisp` to `knexOf(sisp)` from `@akira-io/sisp/knex` to get the typed knex instance |
+| `storage` | The `SispStorage` the instance was built with. For a raw knex handle pass `sisp` to `knexOf(sisp)` from `@akira-io/sisp/knex` |
 | `handlers` | `SispHttpHandlers` - framework-agnostic HTTP handlers used by the adapters. Key methods: `handlePayment`, `handlePaymentIntent`, `handleCallback`, `handleRetryPayment`, `handleCancel`, `handleRefund`, `handleTransactionStatus(request, ref, authorize?)`, `handleSandbox`, `handleCountries` |
 | `handleCallback(payload)` | Runs the callback pipeline, returns `{ verified, status, reason, payload, transaction }`. Same caveat as the stateless entry: `verified` is authenticity, not a payment verdict |
 | `queryTransactionStatus(transactionOrRef)` | POS transaction-status API call |

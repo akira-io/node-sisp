@@ -53,7 +53,7 @@ app.use('/sisp', statelessSispRoutes(sisp));
 `verified` means the callback's fingerprint checked out and its amount/currency/transaction code matched what you expected: the `correlation` record, the `expected` argument, or the `expectedPayment` lookup. It says nothing about whether the gateway approved or declined the payment. A correctly signed decline is still `verified: true`, because nothing about a decline breaks the fingerprint, and the amount is not compared against a callback that does not send one - an error response never does:
 
 ```
-{ merchant_ref: 'R123', verified: true, status: 'failed', reason: null, error: { code: 'C', description: '...', detail: '...', customerMessage: 'Saldo do cartão insuficiente' } }
+{ merchant_ref: 'R123', verified: true, status: 'failed', reason: null, error: { code: 'F', description: '...', detail: '...', customerMessage: 'FALHA NA AUTENTICACAO CLIENTE' } }
 ```
 
 ### What survives the signed result URL
