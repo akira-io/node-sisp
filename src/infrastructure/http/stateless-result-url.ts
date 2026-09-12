@@ -21,14 +21,13 @@ export function statelessResultData(
   payload: CallbackPayload,
   status: TransactionStatus,
   reason: CallbackRejectionReason | null,
-  language: string,
 ): StatelessPaymentResponseData {
   return {
     merchant_ref: payload.merchantRef,
     verified: reason === null,
     status,
     reason,
-    error: structuredErrorFrom(payload.messageType, language),
+    error: reason === null ? structuredErrorFrom(payload) : null,
   };
 }
 
@@ -41,7 +40,9 @@ export function signStatelessResult(
     ref: data.merchant_ref,
     verified: data.verified ? '1' : '0',
     status: data.status,
-    messageType: data.error?.code ?? '',
+    hasError: data.error === null ? '0' : '1',
+    errorCode: data.error?.code ?? '',
+    errorMessage: data.error?.customerMessage ?? '',
   };
 
   if (data.reason !== null) {
@@ -55,7 +56,6 @@ export function readStatelessResult(
   signer: UrlSigner,
   path: string,
   query: Record<string, unknown>,
-  language = 'pt',
 ): StatelessPaymentResponseData | null {
   if (!signer.validate(path, query)) {
     return null;
@@ -71,13 +71,20 @@ export function readStatelessResult(
     return null;
   }
 
-  const messageType = typeof query.messageType === 'string' ? query.messageType : '';
-
   return {
     merchant_ref: typeof query.ref === 'string' ? query.ref : '',
     verified: query.verified === '1',
     status: query.status,
     reason: reason === undefined ? null : reason,
-    error: structuredErrorFrom(messageType, language),
+    error: query.hasError === '1' ? carriedError(query) : null,
+  };
+}
+
+function carriedError(query: Record<string, unknown>): PaymentErrorData {
+  return {
+    code: typeof query.errorCode === 'string' ? query.errorCode : '',
+    description: '',
+    detail: '',
+    customerMessage: typeof query.errorMessage === 'string' ? query.errorMessage : '',
   };
 }

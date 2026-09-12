@@ -90,7 +90,7 @@ export class MatchExpectedPayment implements StatelessCallbackPipe {
 
     return (
       expectedThousandths !== null &&
-      expectedThousandths === toThousandths(payload.amount) &&
+      (!payload.amountProvided || expectedThousandths === toThousandths(payload.amount)) &&
       (!payload.currencyProvided ||
         expected.currency === undefined ||
         expected.currency === payload.currency) &&

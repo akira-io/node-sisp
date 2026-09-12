@@ -48,6 +48,31 @@ describe('StatelessSispHttpHandlers cancellations', () => {
     expect(correlation.processed[0]?.outcome.status).toBe('cancelled');
   });
 
+  it('reads the flag spelled userCancelled, as the specification table writes it', async () => {
+    const correlation = new InMemoryPaymentCorrelationStore();
+    const { handlers, events } = build(correlation);
+    const rejected = vi.fn();
+
+    events.on('callback:rejected', rejected);
+
+    const fields = await recordPayment(handlers);
+    const result = await handlers.handleCallback(
+      request({
+        method: 'POST',
+        path: '/sisp/callback',
+        body: {
+          userCancelled: 'true',
+          merchantRef: fields.merchantRef,
+          merchantSession: fields.merchantSession,
+        },
+      }),
+    );
+
+    expect(result.type).toBe('redirect');
+    expect(rejected).toHaveBeenCalledOnce();
+    expect(rejected.mock.calls[0]?.[0].reason).toBe('user_cancelled');
+  });
+
   it('treats UserCancelled=on as cancelled, matching the stateful handler', async () => {
     const correlation = new InMemoryPaymentCorrelationStore();
     const { handlers, events } = build(correlation);

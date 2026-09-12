@@ -15,7 +15,7 @@ import { paymentRequestDataFrom } from '../../domain/value-objects/payment-reque
 import type { UrlSigner } from '../../support/signed-url';
 import type { SispManager } from '../drivers/sisp-manager';
 import { renderAutoSubmitForm } from './auto-submit-form';
-import { booleanFromInput, cancellationPayloadFrom } from './callback-processing';
+import { cancellationPayloadFrom, isUserCancelled } from './callback-processing';
 import { buildGatewayFormAction } from './gateway-form-action';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, html, json, redirect } from './results';
@@ -102,7 +102,7 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
   }
 
   async handleCallback(request: HttpRequestInfo): Promise<HttpResult> {
-    if (booleanFromInput(request.body.UserCancelled ?? request.query.UserCancelled)) {
+    if (isUserCancelled(request)) {
       return await this.rejectCancelled(request);
     }
 
@@ -173,12 +173,7 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
   }
 
   private respondWithOutcome(outcome: CallbackOutcome): HttpResult {
-    const data = statelessResultData(
-      outcome.payload,
-      outcome.status,
-      outcome.reason,
-      this.config.languageMessages.slice(0, 2).toLowerCase(),
-    );
+    const data = statelessResultData(outcome.payload, outcome.status, outcome.reason);
 
     if (this.config.appKey === null || this.config.appKey === '') {
       return json(data);
@@ -198,7 +193,6 @@ export class StatelessSispHttpHandlers implements StatelessHttpHandlers {
       this.urlSigner,
       `${this.config.basePath}/callback`,
       request.query,
-      this.config.languageMessages.slice(0, 2).toLowerCase(),
     );
 
     if (data === null) {

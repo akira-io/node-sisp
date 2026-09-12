@@ -18,8 +18,14 @@ export interface CallbackPayload {
   readonly entityCode: string;
   readonly clientReceipt: string;
   readonly additionalErrorMessage: string;
+  readonly errorCode: string;
+  readonly errorDetail: string;
+  readonly errorDescription: string;
+  readonly screenError: string;
+  readonly fingerprintVersion: string;
   readonly merchantRespCp: string;
   readonly reloadCode: string;
+  readonly amountProvided: boolean;
   readonly currencyProvided: boolean;
   readonly transactionCodeProvided: boolean;
   readonly posIDProvided: boolean;
@@ -46,8 +52,14 @@ export function callbackPayloadFrom(data: Record<string, unknown>): CallbackPayl
     entityCode: text(data.merchantRespEntityCode),
     clientReceipt: text(data.merchantRespClientReceipt),
     additionalErrorMessage: text(data.merchantRespAdditionalErrorMessage),
+    errorCode: text(data.merchantRespErrorCode),
+    errorDetail: text(data.merchantRespErrorDetail),
+    errorDescription: text(data.merchantRespErrorDescription),
+    screenError: text(data.merchantRespScreenError),
+    fingerprintVersion: text(data.resultFingerPrintVersion),
     merchantRespCp: text(data.merchantRespCP),
     reloadCode: text(data.reloadCode),
+    amountProvided: 'merchantRespPurchaseAmount' in data,
     currencyProvided: 'currency' in data,
     transactionCodeProvided: 'transactionCode' in data,
     posIDProvided: 'posID' in data,
@@ -58,24 +70,29 @@ export function callbackPayloadToFormFields(
   payload: CallbackPayload,
 ): Record<string, string | number> {
   return {
+    ...(payload.amountProvided ? { merchantRespPurchaseAmount: payload.amount } : {}),
+    ...(payload.currencyProvided ? { currency: payload.currency } : {}),
+    ...(payload.transactionCodeProvided ? { transactionCode: payload.transactionCode } : {}),
+    ...(payload.posIDProvided ? { posID: payload.posID } : {}),
     merchantRespMerchantRef: payload.merchantRef,
     merchantRespMerchantSession: payload.merchantSession,
     merchantRespTimeStamp: payload.timeStamp,
-    merchantRespPurchaseAmount: payload.amount,
-    currency: payload.currency,
-    transactionCode: payload.transactionCode,
     merchantRespTid: payload.transactionID,
     messageType: payload.messageType,
     merchantResp: payload.merchantResponse,
     merchantRespCP: payload.merchantRespCp,
     resultFingerPrint: payload.fingerprint,
-    posID: payload.posID,
     merchantRespMessageID: payload.messageID,
     merchantRespPan: payload.pan,
     merchantRespReferenceNumber: payload.reference,
     merchantRespEntityCode: payload.entityCode,
     merchantRespClientReceipt: payload.clientReceipt,
     merchantRespAdditionalErrorMessage: payload.additionalErrorMessage,
+    merchantRespErrorCode: payload.errorCode,
+    merchantRespErrorDetail: payload.errorDetail,
+    merchantRespErrorDescription: payload.errorDescription,
+    merchantRespScreenError: payload.screenError,
+    resultFingerPrintVersion: payload.fingerprintVersion,
     reloadCode: payload.reloadCode,
   };
 }

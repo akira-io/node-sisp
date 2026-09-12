@@ -1,0 +1,56 @@
+{
+  "source": "derived from Pagamento Web - Especificacao do Protocolo de Seguranca v2.0, section 2.4.2.2. The digests are re-derived independently of the implementation by specFingerprint in tests/fingerprints/error-callback-validation.test.ts. The field order was confirmed against three error callbacks captured from the live mc.vinti4net.cv gateway, which matched this concatenation and none of six plausible alternatives; those bodies are not reproduced here because recomputing them needs a production posAutCode.",
+  "callback": [
+    {
+      "posAutCode": "TEST_POS_AUT_CODE",
+      "post": {
+        "messageType": "6",
+        "merchantRespMessageID": "MSG-ABCDEFGH",
+        "merchantRespErrorCode": "C",
+        "merchantRespErrorDetail": "Insufficient funds",
+        "merchantRespErrorDescription": "Transaction processed with error",
+        "merchantRespMerchantRef": "R20260612100000",
+        "merchantRespMerchantSession": "S20260612100000",
+        "merchantRespAdditionalErrorMessage": "Saldo do cartão insuficiente",
+        "merchantRespTimeStamp": "2026-06-12 10:00:05",
+        "merchantRespScreenError": "Pagamento recusado",
+        "resultFingerPrintVersion": "1"
+      },
+      "fingerprint": "kU7sEkasAQnrCLtYi8RuNaay+T6GLsvsRpM510UVPc90EGlXe+kar+Z5/QjhBVjYwE+mgxr78DQvYQPo12V7bg=="
+    },
+    {
+      "posAutCode": "secret",
+      "post": {
+        "messageType": "6",
+        "merchantRespMessageID": "",
+        "merchantRespErrorCode": "",
+        "merchantRespErrorDetail": "",
+        "merchantRespErrorDescription": "",
+        "merchantRespMerchantRef": "R-çã",
+        "merchantRespMerchantSession": "S-éü",
+        "merchantRespAdditionalErrorMessage": "Cartão expirado. Consulte o seu banco",
+        "merchantRespTimeStamp": "2026-01-01 00:00:00",
+        "merchantRespScreenError": "",
+        "resultFingerPrintVersion": ""
+      },
+      "fingerprint": "BTaSUoT1y10iz5XAqlZvxiBk23e/dYWTuErzZVVGyucr/geuR+LVPl/NRMDU32r+nvXUzQphiAJCpb/RU6NyTA=="
+    },
+    {
+      "posAutCode": "TEST_POS_AUT_CODE",
+      "post": {
+        "messageType": "6",
+        "merchantRespMessageID": "DuEbp1l6qYNTKIbz01y1",
+        "merchantRespErrorCode": "F",
+        "merchantRespErrorDetail": "FALHA NA AUTENTICACAO CLIENTE",
+        "merchantRespErrorDescription": "FALHA NA AUTENTICACAO CLIENTE",
+        "merchantRespMerchantRef": "Rmty42n92xhktp4",
+        "merchantRespMerchantSession": "Smty42n93z2s0t0",
+        "merchantRespAdditionalErrorMessage": "FALHA NA AUTENTICACAO CLIENTE",
+        "merchantRespTimeStamp": "2026-09-12 07:16:47",
+        "merchantRespScreenError": "",
+        "resultFingerPrintVersion": "1"
+      },
+      "fingerprint": "T0/AawRg+fLzI3r1aoSOoQ0PZXY3m2LBrQ1xINxHyp/tneloaxiKOE+OB1KXHPt5PhgU6J0YRNRLre1BQqivFw=="
+    }
+  ]
+}

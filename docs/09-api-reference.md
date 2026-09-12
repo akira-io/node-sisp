@@ -53,7 +53,7 @@
 
 ### Utilities
 
-`fromCents`, `toCents`, `toThousandths`, `computeToken`, `generatePaymentFingerprint`, `generateCallbackFingerprint`, `generateRefundFingerprint`, `validateCallbackFingerprint`, `callbackPayloadFrom`, `callbackPayloadToFormFields`, `paymentRequestToFormFields`, `paymentRequestDataFrom`, `validatePaymentInput`, `allCountries`, `findCountryByNumeric`, `getCountryName`, `getCountryFlag`, `getCountryNumericCode`, `mapTransactionStatus`, `errorMessageTypeFromValue` and label helpers, `booleanSetting`, `structuredErrorFrom`, `resolveStatelessConfig`, `readStatelessResult`, `signStatelessResult`, `statelessResultData`, `isCallbackRejectionReason`.
+`fromCents`, `toCents`, `toThousandths`, `computeToken`, `generatePaymentFingerprint`, `generateCallbackFingerprint`, `generateRefundFingerprint`, `validateCallbackFingerprint`, `callbackPayloadFrom`, `callbackPayloadToFormFields`, `paymentRequestToFormFields`, `paymentRequestDataFrom`, `validatePaymentInput`, `allCountries`, `findCountryByNumeric`, `getCountryName`, `getCountryFlag`, `getCountryNumericCode`, `mapTransactionStatus`, `MessageType`, `SUCCESS_MESSAGE_TYPES`, `isSuccessMessageType`, `isErrorMessageType`, `booleanSetting`, `structuredErrorFrom`, `callbackErrorFrom`, `resolveStatelessConfig`, `readStatelessResult`, `signStatelessResult`, `statelessResultData`, `isCallbackRejectionReason`.
 
 `runMigrations`, `createKnexInstance`, `PayloadCipher`, and `runWithLogSource` moved to `@akira-io/sisp/knex` (see below) so the main entry stays knex-free at the type level.
 
