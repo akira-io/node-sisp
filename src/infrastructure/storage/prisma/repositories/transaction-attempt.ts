@@ -217,7 +217,12 @@ export function makeTransactionAttemptRepository(
         }
 
         const key = field as keyof TransactionAttemptChanges;
-        const value = changes[key] ?? null;
+        const value = changes[key];
+
+        if (value === undefined) {
+          continue;
+        }
+
         const encode = ATTEMPT_ENCODERS[key];
 
         data[column] = encode === undefined ? value : encode(value, cipher);

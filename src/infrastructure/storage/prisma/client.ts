@@ -38,7 +38,6 @@ export interface PrismaDelegate {
 export interface PrismaTransactionOptions {
   maxWait?: number;
   timeout?: number;
-  isolationLevel?: string;
 }
 
 export interface PrismaClientLike {

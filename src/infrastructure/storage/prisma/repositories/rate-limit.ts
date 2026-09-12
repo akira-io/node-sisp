@@ -60,7 +60,7 @@ async function insertIgnoringConflicts(
   provider: PrismaSqlProvider,
   data: Record<string, unknown>,
 ): Promise<void> {
-  if (provider !== 'sqlite') {
+  if (provider === 'postgresql') {
     await model.createMany({ data: [data], skipDuplicates: true });
 
     return;
@@ -113,7 +113,9 @@ export function makeRateLimitRepository(
           }
 
           if (!existing) {
-            return false;
+            throw new Error(
+              `Rate limit row for ${params.limitType}:${params.identifier} could not be read or created.`,
+            );
           }
 
           await lockRowForUpdate(rawExec(txc), provider, tables.rateLimits, 'id', existing.id);

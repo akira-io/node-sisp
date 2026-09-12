@@ -8,7 +8,7 @@ const SQLITE_TYPES: Record<string, StoredJsonType> = {
   real: 'number',
   true: 'boolean',
   false: 'boolean',
-  null: 'null',
+  null: 'json-null',
 };
 
 export function sqliteStoredJsonType(
@@ -18,7 +18,16 @@ export function sqliteStoredJsonType(
   id: number,
 ): StoredJsonType {
   const row = read(`SELECT json_type("${column}") AS json_type FROM "${table}" WHERE "id" = ?`, id);
-  const type = String(row?.json_type ?? 'null').toLowerCase();
+
+  if (row === undefined) {
+    throw new Error(`No row ${id} in ${table}.`);
+  }
+
+  if (row.json_type === null || row.json_type === undefined) {
+    return 'sql-null';
+  }
+
+  const type = String(row.json_type).toLowerCase();
   const mapped = SQLITE_TYPES[type];
 
   if (mapped === undefined) {

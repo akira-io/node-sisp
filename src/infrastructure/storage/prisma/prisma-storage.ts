@@ -82,6 +82,14 @@ class PrismaStorage implements SispStorage {
   }
 }
 
+function withTransactionDefaults(
+  overrides: PrismaTransactionOptions | undefined,
+): PrismaTransactionOptions {
+  const defined = Object.entries(overrides ?? {}).filter(([, value]) => value !== undefined);
+
+  return { ...DEFAULT_TRANSACTION_OPTIONS, ...Object.fromEntries(defined) };
+}
+
 export function createPrismaStorage(
   prisma: PrismaClientLike,
   tables: SispTables | undefined,
@@ -96,6 +104,6 @@ export function createPrismaStorage(
     tables ?? DEFAULT_TABLES,
     new PayloadCipher(appKey),
     options.provider,
-    { ...DEFAULT_TRANSACTION_OPTIONS, ...options.transactionOptions },
+    withTransactionDefaults(options.transactionOptions),
   );
 }

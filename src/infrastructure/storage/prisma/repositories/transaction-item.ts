@@ -36,7 +36,7 @@ export function makeTransactionItemRepository(
           unitPriceCents: BigInt(toCents(item.unitPrice)),
           totalPriceCents: BigInt(toCents(item.totalPrice)),
           description: item.description ?? null,
-          metadata: item.metadata ?? null,
+          ...(item.metadata == null ? {} : { metadata: item.metadata }),
           createdAt: new Date(timestamp),
           updatedAt: new Date(timestamp),
         })),

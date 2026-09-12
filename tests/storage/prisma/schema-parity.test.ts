@@ -32,13 +32,18 @@ function fieldTypesByModel(schemaPath: string): Record<string, Record<string, st
     const fields: Record<string, string> = {};
 
     for (const line of (match[2] as string).split('\n')) {
-      const field = line.trim().match(/^(\w+)\s+(\w+\??)/);
+      const trimmed = line.trim();
+      const field = trimmed.match(/^(\w+)\s+(\w+\??)/);
 
-      if (field === null || line.trim().startsWith('@@')) {
+      if (field === null || trimmed.startsWith('@@')) {
         continue;
       }
 
-      fields[field[1] as string] = field[2] as string;
+      const name = field[1] as string;
+      const column = trimmed.match(/@map\("([^"]+)"\)/)?.[1] ?? name;
+      const unique = /(^|\s)@unique(\s|$|\()/.test(trimmed) ? ' @unique' : '';
+
+      fields[name] = `${field[2] as string} @${column}${unique}`;
     }
 
     result[match[1] as string] = fields;
@@ -51,6 +56,12 @@ const SQLITE_SUBSTITUTIONS: Record<string, string> = {
   'Decimal?': 'Float?',
   Decimal: 'Float',
 };
+
+function substituteType(declaration: string): string {
+  const [type, ...rest] = declaration.split(' ');
+
+  return [SQLITE_SUBSTITUTIONS[type as string] ?? type, ...rest].join(' ');
+}
 
 function camelCase(name: string): string {
   return name.charAt(0).toLowerCase() + name.slice(1);
@@ -66,6 +77,14 @@ describe('prisma schema parity', () => {
 
   it('shipped schema and test fixture declare the same unique and index constraints', () => {
     expect(constraintsByModel(shippedSchema)).toEqual(constraintsByModel(fixtureSchema));
+  });
+
+  it('shipped schema carries the field uniques the idempotency and invoice lookups rely on', () => {
+    const fields = fieldTypesByModel(shippedSchema);
+
+    expect(fields.SispPaymentIntent?.idempotencyKey).toContain('@unique');
+    expect(fields.SispInvoice?.invoiceNumber).toContain('@unique');
+    expect(fields.SispInvoice?.transactionId).toContain('@unique');
   });
 
   it('shipped schema carries the identifier uniques the callback pipeline relies on', () => {
@@ -88,7 +107,7 @@ describe('prisma schema parity', () => {
 
     for (const [model, fields] of Object.entries(shipped)) {
       expected[model] = Object.fromEntries(
-        Object.entries(fields).map(([field, type]) => [field, SQLITE_SUBSTITUTIONS[type] ?? type]),
+        Object.entries(fields).map(([field, type]) => [field, substituteType(type)]),
       );
     }
 
@@ -98,12 +117,10 @@ describe('prisma schema parity', () => {
   it('declares every column the adapter writes structured JSON into as Json', () => {
     const shipped = fieldTypesByModel(shippedSchema);
 
-    expect(shipped.SispTransactionItem?.metadata).toBe('Json?');
-    expect(shipped.SispInvoice?.metadata).toBe('Json?');
-    expect(shipped.SispRequestMetadata?.customMetadata).toBe('Json?');
-    expect(shipped.SispTransactionLog?.changedAttributes).toBe('Json');
-    expect(shipped.SispTransactionLog?.oldValues).toBe('Json?');
-    expect(shipped.SispTransactionLog?.newValues).toBe('Json?');
+    expect(shipped.SispTransactionItem?.metadata).toBe('Json? @metadata');
+    expect(shipped.SispTransactionLog?.changedAttributes).toBe('Json @changed_attributes');
+    expect(shipped.SispTransactionLog?.oldValues).toBe('Json? @old_values');
+    expect(shipped.SispTransactionLog?.newValues).toBe('Json? @new_values');
   });
 
   it('camelCased model names equal the adapter DELEGATE_NAMES', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_TABLES } from '../../../src/application/config';
+import { createPrismaStorage } from '../../../src/infrastructure/storage/prisma';
 import type { PrismaClientLike } from '../../../src/infrastructure/storage/prisma/client';
 import type { PrismaSqlProvider } from '../../../src/infrastructure/storage/prisma/prisma-storage';
 import { makeRateLimitRepository } from '../../../src/infrastructure/storage/prisma/repositories/rate-limit';
@@ -145,12 +146,20 @@ function repositoryFor(provider: PrismaSqlProvider, client: PrismaClientLike) {
   return makeRateLimitRepository(client, DEFAULT_TABLES, provider);
 }
 
+function transactionOptionsOf(client: PrismaClientLike): Record<string, unknown> {
+  const [, options] = (client.$transaction as unknown as { mock: { calls: unknown[][] } }).mock
+    .calls[0] as [unknown, Record<string, unknown>];
+
+  return options;
+}
+
 describe('prisma rate limit first-hit race', () => {
   it('counts the hit when a concurrent insert wins the race on postgres', async () => {
-    const { client, rateLimits } = racingClient({ abortsOnError: true });
+    const { client, rateLimits, rows } = racingClient({ abortsOnError: true });
 
     await expect(repositoryFor('postgresql', client).hit(HIT)).resolves.toBe(false);
 
+    expect(rows[0]?.hits).toBe(1);
     expect(rateLimits.create).not.toHaveBeenCalled();
     expect(rateLimits.createMany).toHaveBeenCalledWith({
       data: [expect.objectContaining({ identifier: HIT.identifier })],
@@ -158,42 +167,97 @@ describe('prisma rate limit first-hit race', () => {
     });
   });
 
-  it('counts the hit when a concurrent insert wins the race on mysql', async () => {
-    const { client, rateLimits } = racingClient({ abortsOnError: false });
+  it('locks the row before incrementing it', async () => {
+    const { client, rows } = racingClient({ abortsOnError: true });
 
-    await expect(repositoryFor('mysql', client).hit(HIT)).resolves.toBe(false);
+    await repositoryFor('postgresql', client).hit(HIT);
 
-    expect(rateLimits.createMany).toHaveBeenCalledOnce();
+    const raw = client.$queryRawUnsafe as unknown as { mock: { calls: unknown[][] } };
+    const [sql, value] = raw.mock.calls[0] as [string, unknown];
+
+    expect(sql).toContain('FOR UPDATE');
+    expect(sql).toContain('"sisp_rate_limits"');
+    expect(value).toBe(rows[0]?.id);
   });
 
-  it('falls back to a tolerated create on sqlite, which has no skipDuplicates', async () => {
+  it('blocks the identifier once the hits pass the limit', async () => {
+    const { client, rows } = racingClient({ abortsOnError: true });
+    const repository = repositoryFor('postgresql', client);
+
+    for (let i = 0; i < HIT.limit; i += 1) {
+      expect(await repository.hit(HIT)).toBe(false);
+    }
+
+    expect(await repository.hit(HIT)).toBe(true);
+    expect(rows[0]?.hits).toBe(HIT.limit + 1);
+    expect(rows[0]?.isBlocked).toBe(true);
+    expect(await repository.hit(HIT)).toBe(true);
+  });
+
+  it.each([
+    'mysql',
+    'sqlite',
+  ] as const)('keeps the typed unique-violation catch on %s, where a failed statement does not abort the transaction', async (provider) => {
     const { client, rateLimits } = racingClient({ abortsOnError: false });
 
-    await expect(repositoryFor('sqlite', client).hit(HIT)).resolves.toBe(false);
+    await expect(repositoryFor(provider, client).hit(HIT)).resolves.toBe(false);
 
     expect(rateLimits.createMany).not.toHaveBeenCalled();
     expect(rateLimits.create).toHaveBeenCalledOnce();
   });
 
-  it('rethrows an insert failure that is not a unique violation', async () => {
+  it.each([
+    'mysql',
+    'sqlite',
+  ] as const)('rethrows an insert failure on %s that is not a unique violation', async (provider) => {
     const { client, rateLimits } = racingClient({ abortsOnError: false });
 
     rateLimits.create.mockRejectedValueOnce(
-      Object.assign(new Error('disk full'), { code: '53100' }),
+      Object.assign(new Error('data too long for column identifier'), { code: 'ER_DATA_TOO_LONG' }),
     );
 
-    await expect(repositoryFor('sqlite', client).hit(HIT)).rejects.toThrow('disk full');
+    await expect(repositoryFor(provider, client).hit(HIT)).rejects.toThrow('data too long');
   });
 
-  it('opens the interactive transaction with an explicit timeout', async () => {
+  it('refuses to report a miss when the row can be neither read nor created', async () => {
+    const { client, rateLimits } = racingClient({ abortsOnError: false });
+
+    rateLimits.findFirst.mockResolvedValue(null);
+
+    await expect(repositoryFor('postgresql', client).hit(HIT)).rejects.toThrow(
+      'could not be read or created',
+    );
+  });
+
+  it('opens the interactive transaction with an explicit timeout above the prisma default', async () => {
     const { client } = racingClient({ abortsOnError: true });
 
     await repositoryFor('postgresql', client).hit(HIT);
 
-    const [, options] = (client.$transaction as unknown as { mock: { calls: unknown[][] } }).mock
-      .calls[0] as [unknown, { maxWait?: number; timeout?: number }];
+    expect(transactionOptionsOf(client)).toEqual({ maxWait: 5_000, timeout: 20_000 });
+  });
 
-    expect(options.timeout).toBeGreaterThan(5_000);
-    expect(options.maxWait).toBeGreaterThan(0);
+  it('honours the transactionOptions given to createPrismaStorage', async () => {
+    const { client } = racingClient({ abortsOnError: true });
+    const storage = createPrismaStorage(client, DEFAULT_TABLES, null, {
+      provider: 'postgresql',
+      transactionOptions: { timeout: 45_000 },
+    });
+
+    await storage.rateLimits.hit(HIT);
+
+    expect(transactionOptionsOf(client)).toEqual({ maxWait: 5_000, timeout: 45_000 });
+  });
+
+  it('keeps the defaults when an override is present but undefined', async () => {
+    const { client } = racingClient({ abortsOnError: true });
+    const storage = createPrismaStorage(client, DEFAULT_TABLES, null, {
+      provider: 'postgresql',
+      transactionOptions: { timeout: undefined },
+    });
+
+    await storage.rateLimits.hit(HIT);
+
+    expect(transactionOptionsOf(client)).toEqual({ maxWait: 5_000, timeout: 20_000 });
   });
 });

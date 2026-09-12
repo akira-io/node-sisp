@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_TABLES } from '../../src/application/config';
 import type { SispStorage } from '../../src/core/contracts/storage';
 
-export type StoredJsonType = 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
+export type StoredJsonType =
+  | 'object'
+  | 'array'
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'json-null'
+  | 'sql-null';
 
 export interface ContractSubject {
   storage: SispStorage;
@@ -174,7 +181,17 @@ export function runStorageContract(makeSubject: () => Promise<ContractSubject>):
 
       const [entry] = await storage.transactionLogs.listByTransaction(created.id);
 
-      expect(entry?.changed_attributes).toContain('payload');
+      expect(entry?.changed_attributes).toEqual(['payload']);
+      expect(
+        await subject.storedJsonType(
+          DEFAULT_TABLES.transactionLogs,
+          'changed_attributes',
+          entry?.id ?? 0,
+        ),
+      ).toBe('array');
+      expect(
+        await subject.storedJsonType(DEFAULT_TABLES.transactionLogs, 'new_values', entry?.id ?? 0),
+      ).toBe('object');
       expect(entry?.old_values).toMatchObject({ payload: { posID: '90051' } });
       expect(entry?.new_values).toMatchObject({ payload: { posID: '90051', refunds: [1] } });
     });
@@ -206,7 +223,7 @@ export function runStorageContract(makeSubject: () => Promise<ContractSubject>):
       ).toBe('object');
     });
 
-    it('stores a missing metadata as SQL NULL', async () => {
+    it('stores a missing metadata as SQL NULL, not as the JSON null document', async () => {
       const tx = await storage.transactions.create({
         merchantRef: 'REF-CONTRACT-ITEM-NULL',
         merchantSession: 'SES-CONTRACT-ITEM-NULL',
@@ -215,11 +232,32 @@ export function runStorageContract(makeSubject: () => Promise<ContractSubject>):
 
       await storage.transactionItems.createMany(tx.id, [
         { productName: 'Ticket', quantity: 1, unitPrice: 1, totalPrice: 1 },
+        {
+          productName: 'Programme',
+          quantity: 1,
+          unitPrice: 1,
+          totalPrice: 1,
+          metadata: { printed: true },
+        },
       ]);
 
       const [item] = await storage.transactionItems.listByTransaction(tx.id);
 
       expect(item?.metadata).toBeNull();
+      expect(
+        await subject.storedJsonType(DEFAULT_TABLES.transactionItems, 'metadata', item?.id ?? 0),
+      ).toBe('sql-null');
+
+      const [, withMetadata] = await storage.transactionItems.listByTransaction(tx.id);
+
+      expect(withMetadata?.metadata).toEqual({ printed: true });
+      expect(
+        await subject.storedJsonType(
+          DEFAULT_TABLES.transactionItems,
+          'metadata',
+          withMetadata?.id ?? 0,
+        ),
+      ).toBe('object');
     });
   });
 
