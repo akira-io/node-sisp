@@ -2,42 +2,42 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DEFAULT_TABLES } from '../../../src/application/config';
+import type { SispStorage } from '../../../src/core/contracts/storage';
 import { createDrizzleStorage } from '../../../src/infrastructure/storage/drizzle';
 import { runStorageContract } from '../contract';
 import { postgresStoredJsonType } from '../json-type';
 
 const connectionString = process.env.SISP_TEST_POSTGRES_URL || undefined;
 
-const DATABASE_NAME = `sisp_drizzle_${process.pid}`;
-
-function urlFor(database: string): string {
-  const url = new URL(connectionString as string);
-
-  url.pathname = `/${database}`;
-
-  return url.toString();
-}
+const SCHEMA_NAME = `sisp_drizzle_${process.pid}`;
 
 describe.skipIf(connectionString === undefined)('DrizzleStorage (postgres)', () => {
-  const admin = new Pool({ connectionString, max: 1 });
-  const pool = new Pool({ connectionString: urlFor(DATABASE_NAME), max: 4 });
-  const db = drizzle(pool);
-
-  const storage = createDrizzleStorage(db, DEFAULT_TABLES, 'app-key', {
-    dialect: 'postgresql',
-    autoMigrate: true,
-  });
+  let admin: Pool;
+  let pool: Pool;
+  let storage: SispStorage;
 
   beforeAll(async () => {
-    await admin.query(`drop database if exists "${DATABASE_NAME}"`);
-    await admin.query(`create database "${DATABASE_NAME}"`);
+    admin = new Pool({ connectionString, max: 1 });
+
+    await admin.query(`drop schema if exists "${SCHEMA_NAME}" cascade`);
+    await admin.query(`create schema "${SCHEMA_NAME}"`);
+
+    pool = new Pool({
+      connectionString,
+      max: 4,
+      options: `-c search_path=${SCHEMA_NAME}`,
+    });
+    storage = createDrizzleStorage(drizzle(pool), DEFAULT_TABLES, 'app-key', {
+      dialect: 'postgresql',
+      autoMigrate: true,
+    });
 
     await storage.migrate?.();
   }, 60_000);
 
   afterAll(async () => {
     await pool.end();
-    await admin.query(`drop database if exists "${DATABASE_NAME}"`);
+    await admin.query(`drop schema if exists "${SCHEMA_NAME}" cascade`);
     await admin.end();
   });
 

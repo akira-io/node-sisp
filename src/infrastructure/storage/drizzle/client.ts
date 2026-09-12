@@ -36,6 +36,7 @@ export interface DrizzleDatabase {
   insert: (...args: never[]) => unknown;
   update: (...args: never[]) => unknown;
   delete: (...args: never[]) => unknown;
+  transaction: (...args: never[]) => unknown;
 }
 
 export interface DrizzleQueryRunner {
@@ -85,8 +86,8 @@ export async function runInTransaction<T>(
   connection: DrizzleConnection,
   work: (scoped: DrizzleConnection) => Promise<T>,
 ): Promise<T> {
-  if (connection.inTransaction) {
-    return work(connection);
+  if (connection.inTransaction || connection.queue?.entered === true) {
+    return work({ ...connection, inTransaction: true });
   }
 
   if (connection.dialect === 'sqlite') {

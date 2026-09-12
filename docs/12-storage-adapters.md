@@ -221,6 +221,8 @@ Index names follow the knex convention, `<table>_<columns>_index`, so a database
 
 `sqlite` has no connection to scope a transaction to: `drizzle-orm/better-sqlite3` runs its native transaction synchronously and would commit before an asynchronous unit of work had finished, so the adapter issues `BEGIN`, `COMMIT` and `ROLLBACK` itself over the one handle. Because that handle is shared, every statement the adapter runs on `sqlite` is serialized behind any open unit of work. Without that, a second concurrent transaction would fail on a nested `BEGIN`, and a write issued outside the unit of work would be swallowed by its `ROLLBACK`. Serializing costs nothing that `better-sqlite3` was not already paying, since it is synchronous and single-writer; it does mean the `sqlite` dialect gives you no write concurrency, which is a reason to prefer `postgresql` under load.
 
+That serialization has no ceiling. A unit of work whose callback never settles, because it awaits a request that never returns, holds every other `sqlite` statement in the process behind it, with no timeout to break the wait. The Prisma adapter caps the equivalent at 20 seconds through `transactionOptions`; this adapter has no such cap yet. Keep work inside `storage.transaction()` to database calls, and do the network calls outside it.
+
 `destroy()` is a no-op. The Drizzle handle and its pool are yours; close them yourself when the process shuts down.
 
 ### Verified dialects

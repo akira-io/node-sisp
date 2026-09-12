@@ -88,6 +88,71 @@ describe('DrizzleStorage (sqlite) under concurrency', () => {
     expect(items.map((item) => item.product_name)).toEqual(['outside-unit']);
   });
 
+  it('keeps a write scheduled inside a unit of work but issued after it', async () => {
+    const transaction = await storage.transactions.create({
+      merchantRef: 'REF-CONCURRENT-ESCAPED',
+      merchantSession: 'SES-CONCURRENT-ESCAPED',
+      amount: 400,
+    });
+
+    let scheduled: Promise<unknown> = Promise.resolve();
+
+    await storage.transaction(async (unit) => {
+      await unit.transactionItems.createMany(transaction.id, [
+        { productName: 'in-unit', quantity: 1, unitPrice: 1, totalPrice: 1 },
+      ]);
+
+      scheduled = new Promise((resolve) => {
+        setTimeout(
+          () =>
+            resolve(
+              storage.transactionItems.createMany(transaction.id, [
+                { productName: 'after-unit', quantity: 1, unitPrice: 2, totalPrice: 2 },
+              ]),
+            ),
+          10,
+        );
+      });
+    });
+
+    await expect(
+      storage.transaction(async (unit) => {
+        await unit.transactionItems.createMany(transaction.id, [
+          { productName: 'rolled-back', quantity: 1, unitPrice: 3, totalPrice: 3 },
+        ]);
+
+        await new Promise((resolve) => setTimeout(resolve, 40));
+
+        throw new Error('roll this back');
+      }),
+    ).rejects.toThrow('roll this back');
+
+    await scheduled;
+
+    const items = await storage.transactionItems.listByTransaction(transaction.id);
+
+    expect(items.map((item) => item.product_name)).toEqual(['in-unit', 'after-unit']);
+  });
+
+  it('runs a unit of work opened through the root handle inside the open one', async () => {
+    const transaction = await storage.transactions.create({
+      merchantRef: 'REF-CONCURRENT-NESTED',
+      merchantSession: 'SES-CONCURRENT-NESTED',
+      amount: 500,
+    });
+
+    await storage.transaction(async (unit) => {
+      await unit.transactionItems.createMany(transaction.id, [
+        { productName: 'outer', quantity: 1, unitPrice: 1, totalPrice: 1 },
+      ]);
+
+      await storage.transactions.update(transaction.id, { status: 'completed' });
+    });
+
+    expect((await storage.transactions.findById(transaction.id))?.status).toBe('completed');
+    expect(await storage.transactionItems.listByTransaction(transaction.id)).toHaveLength(1);
+  });
+
   it('counts every hit when rate limit checks start in the same tick', async () => {
     const params = {
       identifier: '203.0.113.9',

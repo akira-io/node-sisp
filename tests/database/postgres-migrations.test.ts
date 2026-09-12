@@ -8,6 +8,8 @@ import {
 
 const connectionString = process.env.SISP_TEST_POSTGRES_URL;
 
+const POSTGRES_TIMEOUT = 30_000;
+
 describe.skipIf(connectionString === undefined)('postgres migrations', () => {
   let db: Knex;
 
@@ -19,33 +21,45 @@ describe.skipIf(connectionString === undefined)('postgres migrations', () => {
     for (const table of tables) {
       await db.raw(`drop table if exists ?? cascade`, [table]);
     }
-  });
+  }, POSTGRES_TIMEOUT);
 
   afterAll(async () => {
     await db?.destroy();
   });
 
-  it('runs every migration against an empty database', async () => {
-    const ran = await runMigrations(db, DEFAULT_TABLES);
+  it(
+    'runs every migration against an empty database',
+    async () => {
+      const ran = await runMigrations(db, DEFAULT_TABLES);
 
-    expect(ran.length).toBeGreaterThan(0);
-    expect(await db.schema.hasTable(DEFAULT_TABLES.transactions)).toBe(true);
-    expect(await db.schema.hasTable(DEFAULT_TABLES.rateLimits)).toBe(true);
-  });
+      expect(ran.length).toBeGreaterThan(0);
+      expect(await db.schema.hasTable(DEFAULT_TABLES.transactions)).toBe(true);
+      expect(await db.schema.hasTable(DEFAULT_TABLES.rateLimits)).toBe(true);
+    },
+    POSTGRES_TIMEOUT,
+  );
 
-  it('leaves the shared transaction usable when a migration re-adds an existing constraint', async () => {
-    const ran = await runMigrations(db, DEFAULT_TABLES);
+  it(
+    'leaves the shared transaction usable when a migration re-adds an existing constraint',
+    async () => {
+      const ran = await runMigrations(db, DEFAULT_TABLES);
 
-    expect(ran).toContain('0005_add_rate_limit_unique_index');
+      expect(ran).toContain('0005_add_rate_limit_unique_index');
 
-    const recorded = await db(MIGRATIONS_TABLE).select('name');
+      const recorded = await db(MIGRATIONS_TABLE).select('name');
 
-    expect(recorded).toHaveLength(ran.length);
-  });
+      expect(recorded).toHaveLength(ran.length);
+    },
+    POSTGRES_TIMEOUT,
+  );
 
-  it('is a no-op on a second run', async () => {
-    await runMigrations(db, DEFAULT_TABLES);
+  it(
+    'is a no-op on a second run',
+    async () => {
+      await runMigrations(db, DEFAULT_TABLES);
 
-    expect(await runMigrations(db, DEFAULT_TABLES)).toEqual([]);
-  });
+      expect(await runMigrations(db, DEFAULT_TABLES)).toEqual([]);
+    },
+    POSTGRES_TIMEOUT,
+  );
 });
