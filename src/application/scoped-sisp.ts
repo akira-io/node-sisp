@@ -12,7 +12,7 @@ import type { TransactionRecord } from '../infrastructure/storage/knex/records';
 import { PaymentBuilder } from './builders/payment-builder';
 import type { ResolvedSispConfig } from './config';
 import type { SispEventEmitter } from './events';
-import type { SandboxStatus } from './sandbox';
+import type { SandboxErrorOverrides, SandboxStatus } from './sandbox';
 import type { SispModels } from './sisp';
 import { StatefulCallbackVerifier } from './verifiers/stateful-callback-verifier';
 import { type CredentialScopedServices, wireCredentialScopedServices } from './wiring';
@@ -57,8 +57,9 @@ export class ScopedSisp {
   generateSandboxPayload(
     data: PaymentRequestData,
     status: SandboxStatus = 'success',
+    errorOverrides: SandboxErrorOverrides = {},
   ): CallbackPayload {
-    return this.services.buildSandboxPayload.handle(data, status);
+    return this.services.buildSandboxPayload.handle(data, status, errorOverrides);
   }
 
   async queryTransactionStatus(

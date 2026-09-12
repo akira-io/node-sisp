@@ -37,7 +37,7 @@ async function completedCallbackForm(
   const sandboxResponse = await request(app)
     .post(pathAndQuery(paymentForm.action))
     .type('form')
-    .send(paymentForm.fields)
+    .send({ ...paymentForm.fields, status: 'success' })
     .expect(200);
 
   return extractForm(sandboxResponse.text).fields;

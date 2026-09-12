@@ -59,7 +59,7 @@ describe('nest sandbox end-to-end payment flow', () => {
     const sandboxResponse = await request(server)
       .post(paymentForm.action)
       .type('form')
-      .send(paymentForm.fields)
+      .send({ ...paymentForm.fields, status: 'success' })
       .expect(200);
 
     const callbackForm = extractForm(sandboxResponse.text);

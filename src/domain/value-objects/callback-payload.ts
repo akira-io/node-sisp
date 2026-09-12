@@ -22,6 +22,7 @@ export interface CallbackPayload {
   readonly errorDetail: string;
   readonly errorDescription: string;
   readonly screenError: string;
+  readonly language: string;
   readonly fingerprintVersion: string;
   readonly merchantRespCp: string;
   readonly reloadCode: string;
@@ -56,6 +57,7 @@ export function callbackPayloadFrom(data: Record<string, unknown>): CallbackPayl
     errorDetail: text(data.merchantRespErrorDetail),
     errorDescription: text(data.merchantRespErrorDescription),
     screenError: text(data.merchantRespScreenError),
+    language: text(data.languageMessages),
     fingerprintVersion: text(data.resultFingerPrintVersion),
     merchantRespCp: text(data.merchantRespCP),
     reloadCode: text(data.reloadCode),
@@ -92,6 +94,7 @@ export function callbackPayloadToFormFields(
     merchantRespErrorDetail: payload.errorDetail,
     merchantRespErrorDescription: payload.errorDescription,
     merchantRespScreenError: payload.screenError,
+    languageMessages: payload.language,
     resultFingerPrintVersion: payload.fingerprintVersion,
     reloadCode: payload.reloadCode,
   };

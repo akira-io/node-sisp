@@ -55,7 +55,7 @@ async function sandboxCallbackForm(status?: string) {
   const sandboxResponse = await request(app)
     .post(paymentForm.action)
     .type('form')
-    .send(status ? { ...paymentForm.fields, status } : paymentForm.fields)
+    .send({ ...paymentForm.fields, status: status ?? 'success' })
     .expect(200);
 
   const callbackForm = extractForm(sandboxResponse.text);
@@ -121,9 +121,9 @@ describe('sandbox end-to-end payment flow', () => {
 
     expect(attempt?.failure_reason).toBeNull();
     expect(transaction?.merchant_response).not.toBe('callback_details_mismatch');
-    expect(result.body.error.code).toBe('C');
-    expect(result.body.error.description).toBe('Transaction processed with error');
-    expect(result.body.error.customerMessage).toBe('Saldo do cartão insuficiente');
+    expect(result.body.error.code).toBe('F');
+    expect(result.body.error.description).toBe('FALHA NA AUTENTICACAO CLIENTE');
+    expect(result.body.error.customerMessage).toBe('FALHA NA AUTENTICACAO CLIENTE');
     expect(result.body.allowRetry).toBe(true);
     expect(failed).toHaveBeenCalledTimes(1);
   });
