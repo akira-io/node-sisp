@@ -74,19 +74,13 @@ export {
   CallbackRejectionReasons,
   isCallbackRejectionReason,
 } from './domain/enums/callback-rejection-reason';
-export {
-  type ErrorMessageType,
-  errorActionLabel,
-  errorCategoryLabel,
-  errorMessageTypeFromValue,
-  errorMessageTypeLabel,
-} from './domain/enums/error-message-type';
 export { InvoiceStatus } from './domain/enums/invoice-status';
 export {
-  type SuccessMessageType,
-  successMessageTypeFromValue,
-  successMessageTypeLabel,
-} from './domain/enums/success-message-type';
+  isErrorMessageType,
+  isSuccessMessageType,
+  MessageType,
+  SUCCESS_MESSAGE_TYPES,
+} from './domain/enums/message-type';
 export { RefundTransactionCode, TransactionCode } from './domain/enums/transaction-code';
 export { TransactionStatus } from './domain/enums/transaction-status';
 export {
@@ -143,7 +137,7 @@ export {
 } from './infrastructure/fingerprints/refund-fingerprint';
 export { computeToken } from './infrastructure/fingerprints/token';
 export { SispHttpHandlers } from './infrastructure/http/handlers';
-export { structuredErrorFrom } from './infrastructure/http/payment-response';
+export { callbackErrorFrom, structuredErrorFrom } from './infrastructure/http/payment-response';
 export { type HttpRequestInfo, headerValue } from './infrastructure/http/request-info';
 export type { HttpResult } from './infrastructure/http/results';
 export type { StatelessHttpHandlers } from './infrastructure/http/stateless-handlers';

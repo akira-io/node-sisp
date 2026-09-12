@@ -112,8 +112,9 @@ describe('sandbox end-to-end payment flow', () => {
     const result = await runSandboxPayment('failed');
 
     expect(result.body.transaction.status).toBe('failed');
-    expect(result.body.error.code).toBe('6');
-    expect(result.body.error.category).toBe('system');
+    expect(result.body.error.code).toBe('C');
+    expect(result.body.error.description).toBe('Transaction processed with error');
+    expect(result.body.error.customerMessage).toBe('Saldo do cartão insuficiente');
     expect(result.body.allowRetry).toBe(true);
     expect(failed).toHaveBeenCalledTimes(1);
   });

@@ -72,7 +72,7 @@ export class ApplyTransactionStatus implements CallbackPipe {
       const updatedTransaction = await runWithLogSource('callback', () =>
         tx.transactions.update(lockedTransaction.id, {
           merchant_session: updatedAttempt.merchant_session,
-          transaction_id: String(payload.transactionID),
+          transaction_id: String(payload.transactionID) || null,
           message_type: payload.messageType,
           merchant_response: payload.merchantResponse,
           response_code: payload.merchantRespCp,

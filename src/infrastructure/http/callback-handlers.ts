@@ -19,11 +19,11 @@ import type { TransactionRecord } from '../../domain/records';
 import { callbackPayloadFrom } from '../../domain/value-objects/callback-payload';
 import type { UrlSigner } from '../../support/signed-url';
 import {
-  booleanFromInput,
   cancellationPayloadFrom,
   cancelUserCancelledTransaction,
   frontendResultUrl,
   isAlreadyProcessed,
+  isUserCancelled,
   signedCallbackResultUrl,
 } from './callback-processing';
 import type { LifecycleHandlers } from './lifecycle-handlers';
@@ -49,7 +49,7 @@ export class CallbackHandlers {
   constructor(private readonly deps: CallbackHandlersDeps) {}
 
   async handle(request: HttpRequestInfo): Promise<HttpResult> {
-    if (booleanFromInput(request.body.UserCancelled ?? request.query.UserCancelled)) {
+    if (isUserCancelled(request)) {
       return this.handleUserCancelled(request);
     }
 
@@ -101,8 +101,9 @@ export class CallbackHandlers {
 
     const invoice = await invoices.findByTransaction(transaction.id);
     const retry = await lifecycle.retryAvailability(transaction);
+    const attempt = await this.deps.attempts.currentByTransaction(transaction.id);
 
-    return json(paymentResponseData(transaction, invoice, retry));
+    return json(paymentResponseData(transaction, invoice, retry, attempt));
   }
 
   private async handleNotification(request: HttpRequestInfo): Promise<HttpResult> {

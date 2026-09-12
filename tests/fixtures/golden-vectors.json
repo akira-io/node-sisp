@@ -253,20 +253,6 @@
       "fingerprint": "66kXBYKYoeerFDCXaKJso0Ck1UQmt6hSce75FjScUxwFTD1TGbsqx57Zr+9QeFNJUKyHYmfPupneiCEXZVoBCg=="
     },
     {
-      "posAutCode": "TEST_POS_AUT_CODE",
-      "post": {
-        "messageType": "6",
-        "merchantRespMerchantRef": "R1",
-        "merchantRespMerchantSession": "S1",
-        "merchantRespPurchaseAmount": "8.03",
-        "merchantRespTid": "T1",
-        "merchantResp": "",
-        "merchantRespTimeStamp": "2026-06-12 10:00:05",
-        "merchantRespAdditionalErrorMessage": "Sandbox transaction failed"
-      },
-      "fingerprint": "VSZlf0a+gBYS4Jq1Fl43jVruFpRlcofORnI2cpO5xGVI/I/QHXpVBDwoO/bCGweW2m/3fNZ3sNlupSEKr3x5kw=="
-    },
-    {
       "posAutCode": "secret",
       "post": {
         "messageType": "P",

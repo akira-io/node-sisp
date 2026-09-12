@@ -1,0 +1,39 @@
+{
+  "source": "Pagamento Web - Especificação do Protocolo de Segurança v2.0, secção 2.4.2.2",
+  "callback": [
+    {
+      "posAutCode": "TEST_POS_AUT_CODE",
+      "post": {
+        "messageType": "6",
+        "merchantRespMessageID": "MSG-ABCDEFGH",
+        "merchantRespErrorCode": "C",
+        "merchantRespErrorDetail": "Insufficient funds",
+        "merchantRespErrorDescription": "Transaction processed with error",
+        "merchantRespMerchantRef": "R20260612100000",
+        "merchantRespMerchantSession": "S20260612100000",
+        "merchantRespAdditionalErrorMessage": "Saldo do cartão insuficiente",
+        "merchantRespTimeStamp": "2026-06-12 10:00:05",
+        "merchantRespScreenError": "Pagamento recusado",
+        "resultFingerPrintVersion": "1"
+      },
+      "fingerprint": "kU7sEkasAQnrCLtYi8RuNaay+T6GLsvsRpM510UVPc90EGlXe+kar+Z5/QjhBVjYwE+mgxr78DQvYQPo12V7bg=="
+    },
+    {
+      "posAutCode": "secret",
+      "post": {
+        "messageType": "6",
+        "merchantRespMessageID": "",
+        "merchantRespErrorCode": "",
+        "merchantRespErrorDetail": "",
+        "merchantRespErrorDescription": "",
+        "merchantRespMerchantRef": "R-çã",
+        "merchantRespMerchantSession": "S-éü",
+        "merchantRespAdditionalErrorMessage": "Cartão expirado. Consulte o seu banco",
+        "merchantRespTimeStamp": "2026-01-01 00:00:00",
+        "merchantRespScreenError": "",
+        "resultFingerPrintVersion": ""
+      },
+      "fingerprint": "BTaSUoT1y10iz5XAqlZvxiBk23e/dYWTuErzZVVGyucr/geuR+LVPl/NRMDU32r+nvXUzQphiAJCpb/RU6NyTA=="
+    }
+  ]
+}

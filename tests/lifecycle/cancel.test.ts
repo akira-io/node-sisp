@@ -109,16 +109,32 @@ describe('cancel transaction', () => {
 });
 
 describe('user cancellation callback', () => {
-  function cancelCallback(merchantRef: string, merchantSession: string) {
+  function cancelCallback(merchantRef: string, merchantSession: string, field = 'UserCancelled') {
     return sisp.handlers.handleCallback({
       ip: '127.0.0.1',
       method: 'POST',
       path: '/sisp/callback',
       headers: {},
       query: {},
-      body: { merchantRef, merchantSession, UserCancelled: 'true' },
+      body: { merchantRef, merchantSession, [field]: 'true' },
     });
   }
+
+  it.each([
+    'UserCancelled',
+    'userCancelled',
+  ])('cancels the transaction when the flag arrives as %s', async (field) => {
+    const transaction = await createTransaction();
+    const cancelled = vi.fn();
+    sisp.on('transaction:cancelled', cancelled);
+
+    await cancelCallback(transaction.merchant_ref, transaction.merchant_session, field);
+
+    const reloaded = await sisp.models.transactions.findById(transaction.id);
+
+    expect(reloaded?.status).toBe('cancelled');
+    expect(cancelled).toHaveBeenCalledTimes(1);
+  });
 
   it('cancels the transaction and emits transaction:cancelled and callback:rejected', async () => {
     const transaction = await createTransaction();

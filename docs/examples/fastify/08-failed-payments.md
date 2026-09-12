@@ -7,6 +7,8 @@ sisp.on('payment:failed', ({ transaction, payload }) => {
   console.log('failed', transaction.merchant_ref, {
     messageType: payload.messageType,
     responseCode: payload.responseCode,
+    errorCode: payload.errorCode,
+    errorDescription: payload.errorDescription,
     detail: payload.additionalErrorMessage,
   });
 });
@@ -14,7 +16,7 @@ sisp.on('payment:failed', ({ transaction, payload }) => {
 
 ## 3D Secure / OTP failure
 
-When the customer enters a wrong OTP, the gateway posts an error callback whose fingerprint is signed over a different field set than a success callback. The package fails the transaction and emits `payment:failed`; the gateway detail is on the payload.
+When the customer enters a wrong OTP, the gateway posts an error callback. Its fingerprint is computed with the error function of section 2.4.2.2 of the security protocol, over a different field set and a different order than a success callback, so the package verifies it with that function and fails the transaction only when the signature does not match. `payment:failed` carries the gateway detail on the payload.
 
 Observed callback payload from the live gateway:
 
@@ -33,7 +35,12 @@ The customer-facing result carries the mapped error and whether a retry is allow
 ```jsonc
 {
   "status": "failed",
-  "error": { "code": "6", "label": "Erro do emissor ou sistema bancário", "action": "retry" },
+  "error": {
+    "code": "F",
+    "description": "FALHA NA AUTENTICACAO CLIENTE",
+    "detail": "",
+    "customerMessage": "Código de autenticação errado. Favor tentar novamente"
+  },
   "allowRetry": true
 }
 ```

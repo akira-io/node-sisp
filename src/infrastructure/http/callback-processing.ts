@@ -88,6 +88,13 @@ export function booleanFromInput(value: unknown): boolean {
   return false;
 }
 
+export function isUserCancelled(request: HttpRequestInfo): boolean {
+  return (
+    booleanFromInput(request.body.userCancelled ?? request.query.userCancelled) ||
+    booleanFromInput(request.body.UserCancelled ?? request.query.UserCancelled)
+  );
+}
+
 export async function cancelUserCancelledTransaction(
   transactions: TransactionRepository,
   cancelTransaction: CancelTransactionAction,

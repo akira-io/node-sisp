@@ -223,7 +223,7 @@ export function attemptChangesFromCallback(
 ): TransactionAttemptChanges {
   return {
     status,
-    gateway_transaction_id: String(payload.transactionID),
+    gateway_transaction_id: String(payload.transactionID) || null,
     message_type: payload.messageType,
     response_code: payload.merchantRespCp,
     merchant_response: failureReason ?? payload.merchantResponse,

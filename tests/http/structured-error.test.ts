@@ -1,23 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { structuredErrorFrom } from '../../src/infrastructure/http/payment-response';
+import { callbackPayloadFrom } from '../../src/domain/value-objects/callback-payload';
+import {
+  callbackErrorFrom,
+  structuredErrorFrom,
+} from '../../src/infrastructure/http/payment-response';
+import type { TransactionAttemptRecord } from '../../src/infrastructure/storage/knex/records';
+
+const declinePost = {
+  messageType: '6',
+  merchantRespErrorCode: 'C',
+  merchantRespErrorDetail: 'Insufficient funds',
+  merchantRespErrorDescription: 'Transaction processed with error',
+  merchantRespAdditionalErrorMessage: 'Saldo do cartão insuficiente',
+};
 
 describe('structuredErrorFrom', () => {
-  it('returns null without a message type', () => {
-    expect(structuredErrorFrom(null, 'pt')).toBeNull();
-    expect(structuredErrorFrom('', 'pt')).toBeNull();
+  it('returns null for a successful callback', () => {
+    expect(
+      structuredErrorFrom(callbackPayloadFrom({ messageType: '8', merchantRespTid: 'TID-1' })),
+    ).toBeNull();
   });
 
-  it('returns null for a message type it does not recognise', () => {
-    expect(structuredErrorFrom('not-a-type', 'pt')).toBeNull();
+  it('carries the fields SISP sends on a decline', () => {
+    const error = structuredErrorFrom(callbackPayloadFrom(declinePost));
+
+    expect(error).toEqual({
+      code: 'C',
+      description: 'Transaction processed with error',
+      detail: 'Insufficient funds',
+      customerMessage: 'Saldo do cartão insuficiente',
+    });
+  });
+});
+
+describe('callbackErrorFrom', () => {
+  it('reads the error off the stored callback payload', () => {
+    const attempt = {
+      callback_payload: callbackPayloadFrom(declinePost),
+    } as unknown as TransactionAttemptRecord;
+
+    expect(callbackErrorFrom(attempt)?.customerMessage).toBe('Saldo do cartão insuficiente');
   });
 
-  it('builds the structured error for a known type', () => {
-    const error = structuredErrorFrom('6', 'en');
-
-    expect(error).not.toBeNull();
-    expect(error?.code).toBe('6');
-    expect(typeof error?.label).toBe('string');
-    expect(typeof error?.category).toBe('string');
-    expect(typeof error?.action).toBe('string');
+  it('returns null without a stored callback', () => {
+    expect(callbackErrorFrom(null)).toBeNull();
+    expect(
+      callbackErrorFrom({ callback_payload: null } as unknown as TransactionAttemptRecord),
+    ).toBeNull();
   });
 });
