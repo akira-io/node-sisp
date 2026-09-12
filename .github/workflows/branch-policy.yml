@@ -1,0 +1,37 @@
+name: Branch Policy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  enforce-targets:
+    name: Enforce branch targets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR base branch rules
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          echo "PR: $HEAD -> $BASE"
+
+          if [[ "$HEAD" =~ ^(feat|fix|chore|docs|refactor|test|ci|perf)/ ]]; then
+            if [[ "$BASE" == "main" || "$BASE" == "master" ]]; then
+              echo "::error::Feature branches must target a milestone/* branch, not '$BASE'."
+              exit 1
+            fi
+            if [[ ! "$BASE" =~ ^milestone/ ]]; then
+              echo "::error::Branch '$HEAD' must target a milestone/* branch. Got: '$BASE'"
+              exit 1
+            fi
+          fi
+
+          if [[ "$HEAD" =~ ^milestone/ ]]; then
+            if [[ "$BASE" != "main" && "$BASE" != "master" ]]; then
+              echo "::error::Milestone branches must merge into main. Got base: '$BASE'"
+              exit 1
+            fi
+          fi
+
+          echo "Branch policy OK: $HEAD -> $BASE"
