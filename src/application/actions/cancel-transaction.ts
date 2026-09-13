@@ -9,6 +9,7 @@ import type { SispEventEmitter } from '../events';
 const NOT_CANCELLABLE: readonly TransactionStatus[] = [
   TransactionStatus.Completed,
   TransactionStatus.Cancelled,
+  TransactionStatus.Refunded,
 ];
 
 export class CancelTransactionAction {
