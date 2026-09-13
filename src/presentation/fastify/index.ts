@@ -83,18 +83,14 @@ export async function sispFastifyPlugin(
   });
 
   fastify.post('/refund/:transaction', async (request, reply) => {
-    if (!(await authorizeRefund(request))) {
-      reply.status(403).send({
-        success: false,
-        message: 'Unauthorized to refund this transaction.',
-      });
-
-      return;
-    }
-
     const { transaction } = request.params as { transaction: string };
 
-    send(reply, await sisp.handlers.handleRefund(toRequestInfo(request), Number(transaction)));
+    send(
+      reply,
+      await sisp.handlers.handleRefund(toRequestInfo(request), Number(transaction), () =>
+        authorizeRefund(request),
+      ),
+    );
   });
 }
 

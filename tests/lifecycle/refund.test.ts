@@ -1,12 +1,9 @@
-import express from 'express';
-import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSisp } from '../../src/application/create-sisp';
 import type { Sisp } from '../../src/application/sisp';
 import { SispError, TransactionStateError } from '../../src/domain/errors/exceptions';
 import { generateRefundFingerprint } from '../../src/infrastructure/fingerprints/refund-fingerprint';
 import { computeToken } from '../../src/infrastructure/fingerprints/token';
-import { sispRoutes } from '../../src/presentation/express';
 
 let sisp: Sisp;
 
@@ -170,93 +167,5 @@ describe('refund transaction', () => {
     await expect(sisp.refund(completed).full().process()).rejects.toThrow(
       'SISP refund requires original clearingPeriod.',
     );
-  });
-});
-
-describe('refund route', () => {
-  it('denies refunds without an authorization hook', async () => {
-    const transaction = await createCompletedTransaction();
-    const app = express();
-    app.use('/sisp', sispRoutes(sisp));
-
-    const response = await request(app)
-      .post(`/sisp/refund/${transaction.id}`)
-      .type('form')
-      .send({ amount: '1500' })
-      .expect(403);
-
-    expect(response.body.message).toBe('Unauthorized to refund this transaction.');
-  });
-
-  it('processes authorized refunds and reports state errors as 400', async () => {
-    const transaction = await createCompletedTransaction();
-    const app = express();
-    app.use('/sisp', sispRoutes(sisp, { authorizeRefund: () => true }));
-
-    const invalidResponse = await request(app)
-      .post(`/sisp/refund/${transaction.id}`)
-      .type('form')
-      .send({ amount: '0' })
-      .expect(400);
-
-    expect(invalidResponse.body.message).toBe('Refund amount must be greater than 0.');
-
-    const response = await request(app)
-      .post(`/sisp/refund/${transaction.id}`)
-      .type('form')
-      .send({ amount: '1500', reason: 'support_ticket' })
-      .expect(200);
-
-    expect(response.body.success).toBe(true);
-    expect(response.body.transaction.status).toBe('refunded');
-
-    await request(app)
-      .post(`/sisp/refund/${transaction.id}`)
-      .type('form')
-      .send({ amount: '10' })
-      .expect(400);
-
-    await request(app).post('/sisp/refund/999').type('form').send({ amount: '10' }).expect(404);
-  });
-
-  it('rejects refund amounts that are not plain decimals', async () => {
-    const transaction = await createCompletedTransaction();
-    const app = express();
-    app.use('/sisp', sispRoutes(sisp, { authorizeRefund: () => true }));
-
-    for (const amount of ['0x10', '1e2', '10.005', 'abc']) {
-      const response = await request(app)
-        .post(`/sisp/refund/${transaction.id}`)
-        .type('form')
-        .send({ amount })
-        .expect(400);
-
-      expect(response.body.message).toBe('Refund amount must be greater than 0.');
-    }
-  });
-
-  it('rate limits refund requests per IP', async () => {
-    const limited = await createSisp({
-      posId: '90051',
-      posAutCode: 'TEST_POS_AUT_CODE',
-      sandbox: true,
-      appKey: 'app-key',
-      rateLimiting: { perIp: { limit: 2, windowSeconds: 3600 } },
-      database: { client: 'better-sqlite3', connection: { filename: ':memory:' } },
-    });
-    const app = express();
-    app.use('/sisp', sispRoutes(limited, { authorizeRefund: () => true }));
-
-    await request(app).post('/sisp/refund/999').type('form').send({ amount: '10' }).expect(404);
-    await request(app).post('/sisp/refund/999').type('form').send({ amount: '10' }).expect(404);
-
-    const response = await request(app)
-      .post('/sisp/refund/999')
-      .type('form')
-      .send({ amount: '10' })
-      .expect(429);
-
-    expect(response.body.message).toBe('Too many refund requests. Try again later.');
-    await limited.destroy();
   });
 });

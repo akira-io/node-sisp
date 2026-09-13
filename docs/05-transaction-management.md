@@ -74,7 +74,7 @@ await sisp.refund(transaction).amount(500).process();
 
 Only `completed` transactions can be refunded, and never beyond the locally tracked balance. Each refund builds a version 2 signed reversal request (total reversal `4`, partial `8`) that requires the `clearingPeriod` and `transactionID` captured from the original callback, and appends it to the refund history inside the encrypted payload. A full refund moves the status to `refunded`; partials keep it `completed` until the balance hits zero. Emits `transaction:refunded`.
 
-Over HTTP, `POST /refund/:transaction` is denied unless the adapter receives an `authorizeRefund` hook. The `amount` must be a plain decimal with at most two places; `reason` is capped at 255 characters.
+Over HTTP, `POST /refund/:transaction` is denied unless the adapter receives an `authorizeRefund` hook, which runs after the per-IP rate limit so an unauthorized caller still spends from the bucket. `sisp.handlers.handleRefund` denies too when called without an `authorize` argument. The `amount` must be a plain decimal with at most two places; `reason` is capped at 255 characters.
 
 ## Reconciliation
 

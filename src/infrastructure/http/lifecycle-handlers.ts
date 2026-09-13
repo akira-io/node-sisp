@@ -136,11 +136,19 @@ export class LifecycleHandlers {
     }
   }
 
-  async handleRefund(request: HttpRequestInfo, transactionId: number): Promise<HttpResult> {
+  async handleRefund(
+    request: HttpRequestInfo,
+    transactionId: number,
+    authorize: () => boolean | Promise<boolean> = () => false,
+  ): Promise<HttpResult> {
     const { transactions, refundTransaction } = this.deps;
 
     if (await this.refundRateLimitExceeded(request)) {
       return json({ success: false, message: 'Too many refund requests. Try again later.' }, 429);
+    }
+
+    if (!(await authorize())) {
+      return json({ success: false, message: 'Unauthorized to refund this transaction.' }, 403);
     }
 
     const transaction = Number.isInteger(transactionId)

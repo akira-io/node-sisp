@@ -33,7 +33,7 @@
 | `manager` | `SispManager` with `extend(name, factory)` |
 | `models` | `transactions`, `transactionItems`, `transactionAttempts`, `paymentIntents`, `invoices`, `transactionLogs`, `blacklist` |
 | `storage` | The `SispStorage` the instance was built with. For a raw knex handle pass `sisp` to `knexOf(sisp)` from `@akira-io/sisp/knex` |
-| `handlers` | `SispHttpHandlers` - framework-agnostic HTTP handlers used by the adapters. Key methods: `handlePayment`, `handlePaymentIntent`, `handleCallback`, `handleRetryPayment`, `handleCancel`, `handleRefund`, `handleTransactionStatus(request, ref, authorize?)`, `handleSandbox`, `handleCountries` |
+| `handlers` | `SispHttpHandlers` - framework-agnostic HTTP handlers used by the adapters. Key methods: `handlePayment`, `handlePaymentIntent`, `handleCallback`, `handleRetryPayment`, `handleCancel`, `handleRefund(request, transactionId, authorize?)` (denies by default), `handleTransactionStatus(request, ref, authorize?)`, `handleSandbox`, `handleCountries` |
 | `handleCallback(payload)` | Runs the callback pipeline, returns `{ verified, status, reason, payload, transaction }`. Same caveat as the stateless entry: `verified` is authenticity, not a payment verdict |
 | `queryTransactionStatus(transactionOrRef)` | POS transaction-status API call |
 | `reconcileTransactionStatus(transaction)` | Applies the gateway verdict to one pending transaction |
