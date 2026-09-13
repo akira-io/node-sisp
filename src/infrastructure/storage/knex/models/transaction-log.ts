@@ -1,5 +1,7 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../../../application/config';
+import type { ColumnCodec } from '../../column-codec';
+import { knexColumnCodec } from '../column-codecs';
 import type { PayloadCipher } from '../encryption';
 import {
   type ListByTransactionOptions,
@@ -33,10 +35,29 @@ export class TransactionLog {
     return rows.map((row: Record<string, unknown>) => ({
       ...(row as unknown as TransactionLogRecord),
       changed_attributes: parseJsonColumn(row.changed_attributes, []),
-      old_values: readLogValues(parseJsonColumn(row.old_values, null), this.cipher),
-      new_values: readLogValues(parseJsonColumn(row.new_values, null), this.cipher),
+      old_values: readLogValues(
+        decodeLogValues(knexColumnCodec('transactionLogs', 'old_values'), row.old_values),
+        this.cipher,
+      ),
+      new_values: readLogValues(
+        decodeLogValues(knexColumnCodec('transactionLogs', 'new_values'), row.new_values),
+        this.cipher,
+      ),
     }));
   }
+}
+
+export function decodeLogValues(
+  codec: ColumnCodec,
+  stored: unknown,
+): Record<string, unknown> | null {
+  const decoded = codec.decode(stored);
+
+  if (decoded === null || typeof decoded !== 'object' || Array.isArray(decoded)) {
+    return null;
+  }
+
+  return decoded as Record<string, unknown>;
 }
 
 export function readLogValues(

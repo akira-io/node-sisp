@@ -1,4 +1,9 @@
 export { mapTransactionStatus } from './application/actions/map-transaction-status';
+export type {
+  RotateEncryptionKeyFailure,
+  RotateEncryptionKeyOptions,
+  RotateEncryptionKeyResult,
+} from './application/actions/rotate-encryption-key';
 export { PaymentBuilder } from './application/builders/payment-builder';
 export type {
   IdempotencyConfig,
@@ -59,6 +64,15 @@ export type {
 } from './core/contracts/callback-verifier';
 export type { CredentialsResolver } from './core/contracts/credentials-resolver';
 export { StaticCredentialsResolver } from './core/contracts/credentials-resolver';
+export type {
+  EncryptedColumn,
+  EncryptedTableKey,
+  MaintenanceRepository,
+  ReencryptFailure,
+  ReencryptResult,
+  ReencryptSpec,
+} from './core/contracts/maintenance';
+export { ENCRYPTED_COLUMNS } from './core/contracts/maintenance';
 export type {
   CorrelationClaim,
   ExpectedPayment,

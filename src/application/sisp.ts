@@ -23,6 +23,11 @@ import type { BuildRequestPayloadAction } from './actions/build-request-payload'
 import type { CancelTransactionAction } from './actions/cancel-transaction';
 import type { ReconcileTransactionStatusAction } from './actions/reconcile-transaction-status';
 import type { RefundTransactionAction } from './actions/refund-transaction';
+import {
+  RotateEncryptionKeyAction,
+  type RotateEncryptionKeyOptions,
+  type RotateEncryptionKeyResult,
+} from './actions/rotate-encryption-key';
 import { RefundBuilder } from './builders/refund-builder';
 import type { ResolvedSispConfig } from './config';
 import type { SispEventEmitter } from './events';
@@ -189,6 +194,12 @@ export class Sisp extends StatelessSisp {
     const cutoff = this.resolveRetentionCutoff(options.olderThanDays);
 
     return this._storage.requestMetadata.countOlderThan(cutoff);
+  }
+
+  async rotateEncryptionKey(
+    options: RotateEncryptionKeyOptions = {},
+  ): Promise<RotateEncryptionKeyResult> {
+    return new RotateEncryptionKeyAction(this._storage).handle(options);
   }
 
   private resolveRetentionCutoff(olderThanDays?: number): string {

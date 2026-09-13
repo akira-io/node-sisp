@@ -39,6 +39,7 @@
 | `reconcileTransactionStatus(transaction)` | Applies the gateway verdict to one pending transaction |
 | `reconcilePending(options?)` | Batch reconciliation, `{ skipped, checked, reconciled }` |
 | `pruneRequestMetadata(options?)` | Deletes `sisp_request_metadata` rows older than `options.olderThanDays` (falls back to `security.metadataRetentionDays`) in batches of `options.batch` (default 500), returns `{ deleted }` |
+| `rotateEncryptionKey(options?)` | Re-encrypts every stored payload onto the current `appKey` in pages of `options.batch` (default 200, must be a positive integer), returns `{ processed, rewritten, current, plaintext, unreadable, vanished, unreadableValues }`. `processed` counts rows and equals the sum of the five row counters; `unreadableValues` lists values, each `{ table, id, column, reason }`. See [Security](07-security.md#rotating-appkey) |
 | `forCredentials(credentials)` | `ScopedSisp` for multi-merchant setups |
 | `signedRetryUrl(id)` / `signedCancelUrl(ref)` | HMAC-signed lifecycle URLs |
 | `destroy()` | Closes the database pool |
@@ -96,6 +97,17 @@ npx sisp migrate
 npx sisp reconcile-pending [--older-than <minutes>] [--limit <n>] [--force]
 npx sisp prisma [--out <path>] [--print] [--models-only] [--force]
 npx sisp prune-metadata [--older-than-days <n>] [--batch <n>] [--dry-run]
+npx sisp rotate-key [--batch <n>]
 ```
+
+`sisp help`, `sisp --help` and `sisp` with no command print the usage above and exit `0`.
+
+Exit codes:
+
+| Code | Meaning |
+|---|---|
+| `0` | The command completed. Every command except `rotate-key` returns `0` on completion |
+| `1` | Usage or configuration error: an unknown command, an invalid flag value, a missing config file, or an existing Prisma schema without `--force` |
+| `2` | `rotate-key` only: the rotation finished but left at least one value it could not read, so the old key must stay in `previousAppKeys` |
 
 **Next:** [Architecture](10-architecture.md)

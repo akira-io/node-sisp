@@ -2,6 +2,7 @@ import { migrate } from './commands/migrate';
 import { prismaSchema } from './commands/prisma-schema';
 import { pruneMetadata } from './commands/prune-metadata';
 import { reconcilePending } from './commands/reconcile-pending';
+import { rotateKey } from './commands/rotate-key';
 import { type CliOptions, CliUsageError } from './support';
 
 export type { CliOptions } from './support';
@@ -42,6 +43,13 @@ const COMMANDS: Record<string, CommandDefinition> = {
     usage: [
       '  prune-metadata         Delete request metadata older than a retention window',
       '                         [--older-than-days <n>] [--batch <n>] [--dry-run]',
+    ],
+  },
+  'rotate-key': {
+    handler: rotateKey,
+    usage: [
+      '  rotate-key             Re-encrypt stored payloads onto the current appKey',
+      '                         [--batch <n>]',
     ],
   },
 };

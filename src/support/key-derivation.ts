@@ -1,6 +1,6 @@
 import { hkdfSync } from 'node:crypto';
 
-export type SispKeyPurpose = 'payload-encryption' | 'url-signing';
+export type SispKeyPurpose = 'payload-encryption' | 'url-signing' | 'payload-key-id';
 
 const SISP_KEY_SALT = Buffer.from('akira-io/node-sisp', 'utf8');
 

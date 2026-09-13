@@ -84,6 +84,7 @@ export function resolveStatelessConfig(config: StatelessSispConfig): ResolvedSta
     redirectUrl: config.redirectUrl ?? '/',
     frontendResultUrl: config.frontendResultUrl ?? null,
     appKey,
+    previousAppKeys: [],
     baseUrl: config.baseUrl ?? '',
     basePath: normalizeBasePath(config.basePath ?? '/sisp'),
     generators: {

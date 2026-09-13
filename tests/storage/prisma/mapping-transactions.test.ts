@@ -120,7 +120,7 @@ describe('newTransactionToData', () => {
     const result = newTransactionToData(data, cipher, baseTimestamp);
 
     expect(typeof result.payload).toBe('string');
-    expect(result.payload as string).toMatch(/^sisp\.v1:/);
+    expect(result.payload as string).toMatch(/^sisp\.v2:/);
   });
 });
 

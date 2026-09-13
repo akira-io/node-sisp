@@ -11,9 +11,12 @@ import {
   normalizeListOrder,
 } from '../../knex/list-options';
 import { nowIso } from '../../knex/records';
+import { drizzleColumnCodec } from '../column-codecs';
 import { normalizeRow } from '../mapping';
 import type { RepositoryContext } from './context';
 import { gateway } from './context';
+
+const CODEC = drizzleColumnCodec('requestMetadata', 'custom_metadata');
 
 export function makeRequestMetadataRepository(
   context: RepositoryContext,
@@ -26,7 +29,7 @@ export function makeRequestMetadataRepository(
 
       await rows().insert({
         ...data,
-        custom_metadata: context.cipher.store(data.custom_metadata ?? null),
+        custom_metadata: CODEC.encode(context.cipher.store(data.custom_metadata ?? null)),
         created_at: timestamp,
         updated_at: timestamp,
       });
@@ -48,7 +51,7 @@ export function makeRequestMetadataRepository(
 
         return {
           ...(normalized as unknown as RequestMetadataRecord),
-          custom_metadata: context.cipher.read(normalized.custom_metadata),
+          custom_metadata: context.cipher.read(CODEC.decode(normalized.custom_metadata)),
         };
       });
     },

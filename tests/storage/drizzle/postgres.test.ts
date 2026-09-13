@@ -5,6 +5,7 @@ import { DEFAULT_TABLES } from '../../../src/application/config';
 import type { SispStorage } from '../../../src/core/contracts/storage';
 import { createDrizzleStorage } from '../../../src/infrastructure/storage/drizzle';
 import { runStorageContract } from '../contract';
+import { CONTRACT_APP_KEY } from '../contract/types';
 import { postgresStoredJsonType } from '../json-type';
 
 const connectionString = process.env.SISP_TEST_POSTGRES_URL || undefined;
@@ -27,7 +28,7 @@ describe.skipIf(connectionString === undefined)('DrizzleStorage (postgres)', () 
       max: 4,
       options: `-c search_path=${SCHEMA_NAME}`,
     });
-    storage = createDrizzleStorage(drizzle(pool), DEFAULT_TABLES, 'app-key', {
+    storage = createDrizzleStorage(drizzle(pool), DEFAULT_TABLES, CONTRACT_APP_KEY, {
       dialect: 'postgresql',
       autoMigrate: true,
     });
@@ -96,6 +97,14 @@ describe.skipIf(connectionString === undefined)('DrizzleStorage (postgres)', () 
 
     return {
       storage,
+      async withKeys(keys) {
+        return createDrizzleStorage(drizzle(pool), DEFAULT_TABLES, keys, {
+          dialect: 'postgresql',
+        });
+      },
+      async overwrite(table, column, id, value) {
+        await pool.query(`update "${table}" set "${column}" = $1 where id = $2`, [value, id]);
+      },
       async storedJsonType(table, column, id) {
         return postgresStoredJsonType(
           async (sql, values) => (await pool.query(sql, values)).rows[0],

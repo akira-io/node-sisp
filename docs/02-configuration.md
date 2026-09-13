@@ -31,6 +31,7 @@ value.
 |-----|---------|-------------|
 | `database` | required | `{ client, connection, autoMigrate }` passed to knex. `connection` is typed loosely (`string \| object \| (() => object \| Promise<object>)`) on the main entry so consumers do not need `knex` installed to typecheck; import `SispKnexDatabaseConfig` from `@akira-io/sisp/knex` for the fully-typed knex connection shapes, including knex's connection-provider function form for rotating credentials |
 | `appKey` | `null` | Key for payload encryption (AES-256-GCM) and signed URLs. Required by `createSisp` to persist payloads; at least 32 characters outside sandbox mode |
+| `previousAppKeys` | `[]` | Keys that used to be `appKey`, kept only so rows they encrypted stay readable during a rotation. Cannot be combined with a caller-provided `storage`; see below |
 | `baseUrl` | `''` | Absolute origin used when building route URLs |
 | `basePath` | `'/sisp'` | Mount path of the HTTP routes. Normalized to a leading slash and no trailing slash, so `pay`, `/pay` and `/pay/` all resolve to `/pay` |
 | `urlMerchantResponse` | callback route | Where SISP posts the payment result |
@@ -43,6 +44,27 @@ value.
 | `idempotency.excludeFromHash` | `_token`, `_csrf`, `_method`, `csrf_token`, `authenticity_token` | Body fields left out of the idempotency request hash, on top of `idempotency.requestKeys` |
 | `allowRetry` | `true` | Enables the retry flow for failed payments |
 | `tables` | `sisp_*` | Override any of the package table names |
+
+### `previousAppKeys` with your own storage
+
+`createSisp` throws when `previousAppKeys` is set together with a caller-provided `storage`, because the adapter you built already owns its cipher and the package cannot reach into it:
+
+```
+`previousAppKeys` cannot be honoured with a caller-provided `storage`: pass { current, previous } as the app key to createDrizzleStorage, createPrismaStorage or KnexStorage.create instead.
+```
+
+On Prisma, Drizzle or an injected knex storage, leave `previousAppKeys` out of the `createSisp` config and pass the keys to the adapter factory:
+
+```ts
+const storage = createPrismaStorage(
+  prisma,
+  DEFAULT_TABLES,
+  { current: process.env.APP_KEY, previous: [process.env.APP_KEY_PREVIOUS] },
+  { provider: 'postgresql' },
+);
+```
+
+The rotation procedure in [Security](07-security.md#rotating-appkey) is otherwise the same.
 
 ## Guards
 

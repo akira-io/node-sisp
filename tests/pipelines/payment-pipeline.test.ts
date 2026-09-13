@@ -161,7 +161,7 @@ describe('ProcessPaymentPipeline', () => {
 
     const raw = await db(config.tables.requestMetadata).first();
 
-    expect(JSON.parse(String(raw?.custom_metadata))).toMatch(/^sisp\.v1:/);
+    expect(JSON.parse(String(raw?.custom_metadata))).toMatch(/^sisp\.v2:/);
     expect(String(raw?.custom_metadata)).not.toContain('akira.cv');
   });
 

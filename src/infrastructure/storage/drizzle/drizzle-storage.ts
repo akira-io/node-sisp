@@ -1,6 +1,6 @@
 import { DEFAULT_TABLES, type SispTables } from '../../../application/config';
 import type { SispStorage, SispStorageTx } from '../../../core/contracts/storage';
-import { PayloadCipher } from '../knex/encryption';
+import { PayloadCipher, type PayloadCipherKeys } from '../knex/encryption';
 import type { DrizzleConnection, DrizzleDatabase } from './client';
 import { queryRunner, runInTransaction, runRaw, serialize } from './client';
 import type { DrizzleDialect } from './migrations';
@@ -9,6 +9,7 @@ import { TableGateway } from './queries';
 import { makeBlacklistRepository } from './repositories/blacklist';
 import type { RepositoryContext } from './repositories/context';
 import { makeInvoiceRepository } from './repositories/invoice';
+import { makeMaintenanceRepository } from './repositories/maintenance';
 import { makePaymentIntentRepository } from './repositories/payment-intent';
 import { makeRateLimitRepository } from './repositories/rate-limit';
 import { makeRequestMetadataRepository } from './repositories/request-metadata';
@@ -38,6 +39,7 @@ function repositories(context: RepositoryContext): SispStorageTx {
     blacklist: makeBlacklistRepository(context),
     rateLimits: makeRateLimitRepository(context),
     requestMetadata: makeRequestMetadataRepository(context),
+    maintenance: makeMaintenanceRepository(context),
   };
 }
 
@@ -51,6 +53,7 @@ class DrizzleStorage implements SispStorage {
   readonly blacklist: SispStorageTx['blacklist'];
   readonly rateLimits: SispStorageTx['rateLimits'];
   readonly requestMetadata: SispStorageTx['requestMetadata'];
+  readonly maintenance: SispStorageTx['maintenance'];
 
   constructor(
     private readonly context: RepositoryContext,
@@ -67,6 +70,7 @@ class DrizzleStorage implements SispStorage {
     this.blacklist = built.blacklist;
     this.rateLimits = built.rateLimits;
     this.requestMetadata = built.requestMetadata;
+    this.maintenance = built.maintenance;
   }
 
   async transaction<T>(work: (tx: SispStorageTx) => Promise<T>): Promise<T> {
@@ -124,7 +128,7 @@ class DrizzleStorage implements SispStorage {
 export function createDrizzleStorage(
   db: DrizzleDatabase,
   tables: SispTables | undefined,
-  appKey: string | null,
+  appKey: string | null | PayloadCipherKeys,
   options: DrizzleStorageOptions,
 ): SispStorage {
   const resolvedTables = tables ?? DEFAULT_TABLES;

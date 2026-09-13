@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import { DEFAULT_TABLES } from '../../src/application/config';
 import { createPrismaStorage } from '../../src/infrastructure/storage/prisma';
 import { runStorageContract } from './contract';
+import { CONTRACT_APP_KEY } from './contract/types';
 import { sqliteStoredJsonType } from './json-type';
 import { resolvePrismaCli } from './prisma/cli';
 
@@ -65,7 +66,28 @@ if (prismaCli === null) {
       await prisma.$connect();
 
       return {
-        storage: createPrismaStorage(prisma, DEFAULT_TABLES, 'app-key', { provider: 'sqlite' }),
+        storage: createPrismaStorage(prisma, DEFAULT_TABLES, CONTRACT_APP_KEY, {
+          provider: 'sqlite',
+        }),
+        async withKeys(keys) {
+          const { PrismaClient: Client } = await import(
+            pathToFileURL(join(clientDir, 'index.js')).href
+          );
+          const client = new Client();
+
+          await client.$connect();
+
+          return createPrismaStorage(client, DEFAULT_TABLES, keys, { provider: 'sqlite' });
+        },
+        async overwrite(table, column, id, value) {
+          const writer = new Database(dbPath);
+
+          try {
+            writer.prepare(`update ${table} set ${column} = ? where id = ?`).run(value, id);
+          } finally {
+            writer.close();
+          }
+        },
         async storedJsonType(table, column, id) {
           const probe = new Database(dbPath, { readonly: true });
 

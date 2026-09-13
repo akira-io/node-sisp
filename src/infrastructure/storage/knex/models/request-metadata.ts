@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../../../application/config';
 import type { NewRequestMetadata } from '../../../../domain/storage-types';
+import { knexColumnCodec } from '../column-codecs';
 import type { PayloadCipher } from '../encryption';
 import {
   type ListByTransactionOptions,
@@ -11,6 +12,8 @@ import {
 import { nowIso, type RequestMetadataRecord } from '../records';
 
 export type { NewRequestMetadata } from '../../../../domain/storage-types';
+
+const CODEC = knexColumnCodec('requestMetadata', 'custom_metadata');
 
 export class RequestMetadata {
   constructor(
@@ -28,7 +31,7 @@ export class RequestMetadata {
 
     await this.db(this.tables.requestMetadata).insert({
       ...data,
-      custom_metadata: encodeJsonColumn(this.cipher.store(data.custom_metadata ?? null)),
+      custom_metadata: CODEC.encode(this.cipher.store(data.custom_metadata ?? null)),
       created_at: timestamp,
       updated_at: timestamp,
     });
@@ -49,7 +52,7 @@ export class RequestMetadata {
       is_vpn: Boolean(row.is_vpn),
       is_proxy: Boolean(row.is_proxy),
       is_mobile: Boolean(row.is_mobile),
-      custom_metadata: this.cipher.read(decodeJsonColumn(row.custom_metadata)),
+      custom_metadata: this.cipher.read(CODEC.decode(row.custom_metadata)),
     }));
   }
 
@@ -74,21 +77,5 @@ export class RequestMetadata {
       .count<{ count: string | number }[]>({ count: '*' });
 
     return Number(row?.count ?? 0);
-  }
-}
-
-function encodeJsonColumn(value: string | null): string | null {
-  return value === null ? null : JSON.stringify(value);
-}
-
-function decodeJsonColumn(value: unknown): unknown {
-  if (typeof value !== 'string') {
-    return value;
-  }
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
   }
 }

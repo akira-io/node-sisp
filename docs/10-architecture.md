@@ -60,7 +60,7 @@ src/
 
 ## Storage adapters
 
-The persistence layer sits behind an ORM-neutral port, `SispStorage`, defined in `src/core/contracts/storage.ts`: nine entity repositories plus a `transaction()` unit-of-work, an optional `migrate?()`, and `destroy()`. The port leaks no engine types.
+The persistence layer sits behind an ORM-neutral port, `SispStorage`, defined in `src/core/contracts/storage.ts`: ten repositories plus a `transaction()` unit-of-work, an optional `migrate?()`, and `destroy()`. The port leaks no engine types.
 
 Two adapters ship with the package:
 

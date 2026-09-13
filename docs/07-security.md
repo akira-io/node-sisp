@@ -12,7 +12,52 @@ All three algorithms are verified byte for byte against golden vectors generated
 
 ## Payload encryption
 
-With an `appKey` configured, the transaction `payload` column is encrypted at rest with AES-256-GCM (random IV, authenticated), and so is the `payload` entry inside `sisp_transaction_logs.old_values`/`new_values` whenever a change to it is logged. Reads are transparent: models and the log repository return the decrypted object, and plaintext rows written before the key existed keep working. A tampered or foreign ciphertext throws `Unable to decrypt SISP payload`, so rotating `appKey` requires re-encrypting existing rows.
+With an `appKey` configured, the transaction `payload` column is encrypted at rest with AES-256-GCM (random IV, authenticated), and so is the `payload` entry inside `sisp_transaction_logs.old_values`/`new_values` whenever a change to it is logged. Reads are transparent: models and the log repository return the decrypted object, and plaintext rows written before the key existed keep working. A tampered or foreign ciphertext throws `Unable to decrypt SISP payload`.
+
+The stored format is `sisp.v2:<kid>:<iv>:<tag>:<ciphertext>`, where `kid` identifies which `appKey` encrypted the row. Values stored as `sisp.v1:<iv>:<tag>:<ciphertext>` by an earlier release are still read; there is no forced migration off `v1`.
+
+### Rotating `appKey`
+
+Rotating the key does not happen by editing configuration and redeploying. Follow this order:
+
+1. Put the new key in `appKey` and the key it replaces in `previousAppKeys`. On Prisma, Drizzle or an injected knex storage, `previousAppKeys` is refused next to a caller-provided `storage`: pass `{ current, previous }` to the adapter factory instead, as [Configuration](02-configuration.md#previousappkeys-with-your-own-storage) shows.
+2. Deploy.
+3. Run `sisp rotate-key`.
+4. Only after the command finishes, remove the old key from `previousAppKeys`.
+
+**Running `sisp rotate-key` makes the deploy irreversible.** Rows rewritten under the new key carry the `sisp.v2:<kid>:` prefix. A release older than this one reads that prefix as plaintext, hands the caller the literal envelope string instead of the payload, and re-encrypts it on the next write, producing a row that neither release can decrypt. Once step 3 has started, rolling back to a release older than this one corrupts data. Roll forward instead: keep both keys configured and re-run the command.
+
+Removing the old key before the rotation completes makes every row still encrypted under it unreadable. The error names the missing `kid`: `Unable to decrypt SISP payload: no configured key matches the key id <kid>. Add the key that wrote it to previousAppKeys.`
+
+```bash
+sisp rotate-key --batch 200
+```
+
+`--batch` is optional and defaults to 200 rows per page. The command reports one outcome per row visited, and every outcome line says whether it counts rows or stored values:
+
+- `Rewrote <n> of <total> rows onto the current appKey.` Rows where at least one value was rewritten.
+- `<n> rows were already encrypted under the current appKey.` Rows whose every encrypted value already carried the current key id. Only these rows are safe evidence that the old key is no longer needed.
+- `<n> rows were never encrypted and left unchanged.` Rows that hold no ciphertext at all, written before the installation had an `appKey`.
+- `<n> rows were unreadable with the configured keys and left unchanged.` Rows where every value failed to decrypt. These rows are still on some other key.
+- `<n> rows were deleted while the rotation ran.` Rows that disappeared between the id scan and the row lock.
+- `<n> encrypted values could not be read:` followed by one `<table>#<id> (<column>): <reason>` line per value. This counts values, not rows, because one row can carry more than one encrypted column.
+
+A value written before the installation had an `appKey` is plaintext, not a failure. The rotation leaves it as it is, counts its row under the plaintext line, and still exits `0`: encrypting rows that were never encrypted is a separate decision, not part of a key rotation. Such a row is never reported as already on the current key, so a run that prints only plaintext rows is not evidence that the old key can be removed.
+
+Exit codes: `0` when no value was left unreadable, `2` when at least one value could not be re-encrypted, and `1` for a usage or configuration error such as a bad flag or a missing config file. Only `2` means the rotation is incomplete, so a scheduled wrapper can tell "keep the old key" apart from "the command was called wrong".
+
+To wire the rotation into your own scheduler instead of the CLI, call the method directly:
+
+```ts
+const { processed, rewritten, current, plaintext, unreadable, vanished, unreadableValues } =
+  await sisp.rotateEncryptionKey({ batch: 200 });
+```
+
+`processed` counts the rows visited and equals `rewritten` plus `current` plus `plaintext` plus `unreadable` plus `vanished`. Every row falls in exactly one of those five buckets, and a row is counted in `rewritten` as soon as one of its values was rewritten, in `unreadable` when nothing was rewritten and at least one value failed, in `plaintext` when nothing was rewritten, nothing failed and at least one value carried no ciphertext, and in `current` only when every encrypted value was already on the current key. `unreadable` counts rows and `unreadableValues` counts stored values, because one row can carry more than one encrypted column, so the list can be longer than the row counter. `batch` must be a positive integer; a fractional or zero value throws instead of rotating part of the table.
+
+`sisp rotate-key` is idempotent and safe to interrupt and re-run. The command keeps no progress file: re-running it after an interruption re-scans the tables from the start and rewrites nothing that is already on the current key.
+
+A consumer reading the column directly with SQL, without going through `PayloadCipher`, sees the `sisp.v2` prefix once a row has been rewritten or newly written under this version.
 
 ## Signed URLs
 
