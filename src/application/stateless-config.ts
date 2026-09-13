@@ -17,7 +17,6 @@ import { DEFAULT_TRANSACTION_STATUS, normalizeBasePath } from './config';
 import { assertSafeEnvironment } from './environment-guards';
 import type { EventErrorHandler } from './events';
 import type { StatelessCallbackPipe } from './pipelines/callback/stateless/stateless-callback-pipeline';
-import type { SideEffectErrorHandler } from './side-effects';
 
 export interface StatelessPipelineCustomizers {
   callback?: (defaults: StatelessCallbackPipe[]) => StatelessCallbackPipe[];
@@ -48,7 +47,6 @@ export interface StatelessSispConfig {
   paymentValidation?: Partial<PaymentValidationConfig>;
   pipelines?: StatelessPipelineCustomizers;
   onEventListenerError?: EventErrorHandler;
-  onSideEffectError?: SideEffectErrorHandler;
   transactionStatus?: Partial<TransactionStatusConfig>;
 }
 
@@ -97,7 +95,7 @@ export function resolveStatelessConfig(config: StatelessSispConfig): ResolvedSta
     paymentValidation: resolvePaymentValidation(config.paymentValidation, config.currency ?? '132'),
     pipelines: config.pipelines ?? {},
     onEventListenerError: config.onEventListenerError ?? null,
-    onSideEffectError: config.onSideEffectError ?? null,
+    onSideEffectError: null,
     transactionStatus: { ...DEFAULT_TRANSACTION_STATUS, ...config.transactionStatus },
   };
 }

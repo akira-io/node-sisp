@@ -34,7 +34,7 @@ import {
   signedCallbackResultUrl,
 } from './callback-processing';
 import type { LifecycleHandlers } from './lifecycle-handlers';
-import { paymentResponseData } from './payment-response';
+import { paymentResponseData, type RetryAvailability } from './payment-response';
 import type { HttpRequestInfo } from './request-info';
 import { type HttpResult, json, redirect } from './results';
 
@@ -108,7 +108,11 @@ export class CallbackHandlers {
     }
 
     const invoice = await invoices.findByTransaction(transaction.id);
-    const retry = await lifecycle.retryAvailability(transaction);
+    const retry = await this.runQuietly<RetryAvailability>(
+      () => lifecycle.retryAvailability(transaction),
+      { allowed: false, url: null },
+      SispSideEffects.ResolveRetryAvailability,
+    );
     const attempt = await this.runQuietly<TransactionAttemptRecord | null>(
       () => this.deps.attempts.currentByTransaction(transaction.id),
       null,

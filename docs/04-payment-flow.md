@@ -34,6 +34,6 @@ After the pipeline the handler stores request metadata and updates the invoice s
 
 ## Result page (GET /callback?transaction=&expires=&signature=)
 
-The callback redirects the browser to a signed result URL that expires 30 minutes after it is issued; URLs without an expiry are refused. Returns render-ready JSON: transaction summary with `formatted_amount`, structured error data (code, category, suggested action, labels translated to the transaction locale), invoice summary, and a signed `retryUrl` when retry is available. Adapters or frontends decide how to render it.
+The callback redirects the browser to a signed result URL that expires 30 minutes after it is issued; URLs without an expiry are refused. Returns render-ready JSON: transaction summary with `formatted_amount`, structured error data (code, category, suggested action, labels translated to the transaction locale), invoice summary, and a signed `retryUrl` when retry is available. Adapters or frontends decide how to render it. Resolving retry availability and reading the current attempt are best effort: when either query fails, the route still answers with the transaction summary, reports the failure through `onSideEffectError` and omits the retry link rather than answering an error.
 
 **Next:** [Transaction Management](05-transaction-management.md)
