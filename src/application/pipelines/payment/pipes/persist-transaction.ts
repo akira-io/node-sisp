@@ -15,6 +15,7 @@ import type { TransactionRecord } from '../../../../infrastructure/storage/knex/
 import { isUniqueConstraintError, sleep } from '../../../../support/database-errors';
 import type { BuildRequestPayloadAction } from '../../../actions/build-request-payload';
 import type { ResolvedSispConfig } from '../../../config';
+import { SispSideEffects } from '../../../side-effects';
 import type { PaymentContext } from '../payment-context';
 
 export class PersistTransaction implements PaymentPipe {
@@ -56,7 +57,7 @@ export class PersistTransaction implements PaymentPipe {
       await this.storage.invoices.createForTransaction(transaction);
     } catch (error) {
       try {
-        this.config.onEventListenerError?.('payment:pending', error);
+        this.config.onSideEffectError?.(SispSideEffects.CreateInvoiceStub, error);
       } catch {}
     }
 

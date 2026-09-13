@@ -14,13 +14,13 @@ afterEach(async () => {
   sisp = null;
 });
 
-function baseConfig(onError: (eventName: string, error: unknown) => void) {
+function baseConfig(onError: (sideEffect: string, error: unknown) => void) {
   return {
     posId: '90051',
     posAutCode: 'TEST_POS_AUT_CODE',
     sandbox: true,
     appKey: 'app-key',
-    onEventListenerError: onError,
+    onSideEffectError: onError,
     database: { client: 'better-sqlite3' as const, connection: { filename: ':memory:' } },
   };
 }
@@ -73,6 +73,27 @@ function signedCallbackBody(merchantRef: string, merchantSession: string): Recor
 }
 
 describe('HTTP side effect errors', () => {
+  it('keeps onEventListenerError for listener failures only', async () => {
+    const onListenerError = vi.fn();
+    const onSideEffectError = vi.fn();
+    sisp = await createSisp({
+      ...baseConfig(onSideEffectError),
+      onEventListenerError: onListenerError,
+    });
+
+    sisp.on('payment:pending', () => {
+      throw new Error('listener exploded');
+    });
+
+    await requireKnex(sisp).schema.dropTable(sisp.config.tables.invoices);
+
+    const response = await sisp.handlers.handlePayment(paymentRequest());
+
+    expect(response.type).toBe('html');
+    expect(onSideEffectError).toHaveBeenCalledWith('create_invoice_stub', expect.any(Error));
+    expect(onListenerError).not.toHaveBeenCalledWith('create_invoice_stub', expect.any(Error));
+  });
+
   it('reports invoice stub failures without breaking payment creation', async () => {
     const onError = vi.fn();
     sisp = await createSisp(baseConfig(onError));
@@ -82,7 +103,7 @@ describe('HTTP side effect errors', () => {
     const response = await sisp.handlers.handlePayment(paymentRequest());
 
     expect(response.type).toBe('html');
-    expect(onError).toHaveBeenCalledWith('payment:pending', expect.any(Error));
+    expect(onError).toHaveBeenCalledWith('create_invoice_stub', expect.any(Error));
   });
 
   it('reports callback metadata failures without breaking the redirect', async () => {
@@ -106,7 +127,7 @@ describe('HTTP side effect errors', () => {
 
     expect(response.type).toBe('redirect');
     expect(stored?.status).toBe('completed');
-    expect(onError).toHaveBeenCalledWith('payment:completed', expect.any(Error));
+    expect(onError).toHaveBeenCalledWith('store_request_metadata', expect.any(Error));
   });
 
   it('does not let a throwing error handler halt the payment pipeline', async () => {
@@ -120,7 +141,7 @@ describe('HTTP side effect errors', () => {
     const response = await sisp.handlers.handlePayment(paymentRequest());
 
     expect(response.type).toBe('html');
-    expect(onError).toHaveBeenCalledWith('payment:pending', expect.any(Error));
+    expect(onError).toHaveBeenCalledWith('create_invoice_stub', expect.any(Error));
   });
 
   it('does not let a throwing error handler break the callback redirect', async () => {
@@ -146,6 +167,6 @@ describe('HTTP side effect errors', () => {
 
     expect(response.type).toBe('redirect');
     expect(stored?.status).toBe('completed');
-    expect(onError).toHaveBeenCalledWith('payment:completed', expect.any(Error));
+    expect(onError).toHaveBeenCalledWith('store_request_metadata', expect.any(Error));
   });
 });

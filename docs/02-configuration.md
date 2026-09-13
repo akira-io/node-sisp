@@ -117,7 +117,8 @@ identifierGeneration: {
 | `generators` | Replace `merchantReference`, `merchantSession`, or `timeStamp` factories |
 | `pipelines.payment` | `(defaults) => pipes` to reorder, remove, or add payment pipes |
 | `pipelines.callback` | Same for the callback pipeline |
-| `onEventListenerError` | Receives errors thrown by event listeners |
+| `onEventListenerError` | Receives errors thrown by event listeners, and nothing else |
+| `onSideEffectError` | Receives errors from the audit side effects the package swallows: `create_invoice_stub`, `store_request_metadata`, `update_invoice_status`, `load_current_attempt`, `cancel_user_cancelled_transaction` |
 
 ```ts
 const sisp = await createSisp({
