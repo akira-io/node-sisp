@@ -1,6 +1,6 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { resolveConfig, type SispConfig } from '../../application/config';
 import { createSisp } from '../../application/create-sisp';
@@ -19,16 +19,26 @@ export async function runCli(argv: string[], options: CliOptions = {}): Promise<
   const output = options.output ?? writeStdout;
   const [command, ...rest] = argv;
 
-  if (command === 'migrate') {
-    return migrate(rest, options, output);
-  }
+  try {
+    if (command === 'migrate') {
+      return await migrate(rest, options, output);
+    }
 
-  if (command === 'reconcile-pending') {
-    return reconcilePending(rest, options, output);
-  }
+    if (command === 'reconcile-pending') {
+      return await reconcilePending(rest, options, output);
+    }
 
-  if (command === 'prisma') {
-    return prismaSchema(rest, options, output);
+    if (command === 'prisma') {
+      return await prismaSchema(rest, options, output);
+    }
+  } catch (error) {
+    if (error instanceof CliUsageError) {
+      output(error.message);
+
+      return 1;
+    }
+
+    throw error;
   }
 
   output('Usage: sisp <command>');
@@ -121,13 +131,16 @@ async function reconcilePending(
     },
   });
 
+  const olderThanMinutes = positiveInteger(values['older-than'], 'older-than');
+  const limit = positiveInteger(values.limit, 'limit');
+
   const config = await (options.loadConfig ?? loadConfigFile)();
   const sisp = await createSisp(config);
 
   try {
     const result = await sisp.reconcilePending({
-      olderThanMinutes: values['older-than'] ? Number(values['older-than']) : undefined,
-      limit: values.limit ? Number(values.limit) : undefined,
+      olderThanMinutes,
+      limit,
       force: values.force ?? false,
     });
 
@@ -167,7 +180,7 @@ async function prismaSchema(
   });
 
   const sourcePath =
-    options.schemaPath ?? new URL('../prisma/sisp.prisma', import.meta.url).pathname;
+    options.schemaPath ?? fileURLToPath(new URL('../prisma/sisp.prisma', import.meta.url));
 
   let schema = await readFile(sourcePath, 'utf8');
 
@@ -197,6 +210,22 @@ async function prismaSchema(
   output(`Wrote ${dest}`);
 
   return 0;
+}
+
+class CliUsageError extends Error {}
+
+function positiveInteger(value: string | undefined, flag: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new CliUsageError(`--${flag} expects a positive integer, received "${value}".`);
+  }
+
+  return parsed;
 }
 
 async function exists(filePath: string): Promise<boolean> {
