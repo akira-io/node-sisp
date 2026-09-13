@@ -39,6 +39,11 @@ export {
   type SandboxErrorOverrides,
   type SandboxStatus,
 } from './application/sandbox';
+export {
+  type SideEffectErrorHandler,
+  type SispSideEffect,
+  SispSideEffects,
+} from './application/side-effects';
 export { Sisp, type SispModels } from './application/sisp';
 export type {
   ResolvedStatelessConfig,

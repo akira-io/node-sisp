@@ -20,6 +20,7 @@ import {
   type RateLimitRule,
   resolveRateLimiting,
 } from './rate-limiting';
+import type { SideEffectErrorHandler } from './side-effects';
 
 export interface SispPipelineCustomizers {
   payment?: (defaults: PaymentPipe[]) => PaymentPipe[];
@@ -115,6 +116,7 @@ export interface SispConfig {
   paymentValidation?: Partial<PaymentValidationConfig>;
   pipelines?: SispPipelineCustomizers;
   onEventListenerError?: EventErrorHandler;
+  onSideEffectError?: SideEffectErrorHandler;
   transactionStatus?: Partial<TransactionStatusConfig>;
 }
 
@@ -138,6 +140,7 @@ export interface ResolvedSharedConfig {
   generators: SispGenerators;
   paymentValidation: PaymentValidationConfig;
   onEventListenerError: EventErrorHandler | null;
+  onSideEffectError: SideEffectErrorHandler | null;
   transactionStatus: TransactionStatusConfig;
 }
 
@@ -262,6 +265,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     paymentValidation: resolvePaymentValidation(config.paymentValidation, config.currency ?? '132'),
     pipelines: config.pipelines ?? {},
     onEventListenerError: config.onEventListenerError ?? null,
+    onSideEffectError: config.onSideEffectError ?? null,
     transactionStatus: { ...DEFAULT_TRANSACTION_STATUS, ...config.transactionStatus },
   };
 }

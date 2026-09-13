@@ -98,12 +98,9 @@ export function isUserCancelled(request: HttpRequestInfo): boolean {
 export async function cancelUserCancelledTransaction(
   transactions: TransactionRepository,
   cancelTransaction: CancelTransactionAction,
-  request: HttpRequestInfo,
+  payload: CallbackPayload,
 ): Promise<boolean> {
-  const merchantRef = textFromInput(request.body.merchantRef ?? request.query.merchantRef);
-  const merchantSession = textFromInput(
-    request.body.merchantSession ?? request.query.merchantSession,
-  );
+  const { merchantRef, merchantSession } = payload;
 
   if (!merchantRef || !merchantSession) {
     return false;
@@ -118,18 +115,6 @@ export async function cancelUserCancelledTransaction(
   await cancelTransaction.handle(transaction, CallbackRejectionReasons.UserCancelled);
 
   return true;
-}
-
-export function textFromInput(value: unknown): string {
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (typeof value === 'number') {
-    return String(value);
-  }
-
-  return '';
 }
 
 export function cancellationPayloadFrom(request: HttpRequestInfo): CallbackPayload {

@@ -44,12 +44,12 @@
 
 ### Events
 
-| Event | Payload |
-|-------|---------|
-| `payment:completed` / `payment:failed` / `payment:pending` | `{ transaction, payload }` |
-| `callback:verified` / `callback:rejected` | `{ payload, status, reason }`, emitted in both stateless and stateful mode. `status` is `null` on `callback:rejected`, except on a `UserCancelled` request, where `cancelled` comes from the package rather than the payload. `callback:verified` fires for every authentic, matching callback, including declines - check `status`, not the event name, before fulfilling anything. For a `UserCancelled` request, `callback:rejected` fires only when the reference matches a payment the consumer recorded (see [Stateless mode](13-stateless-mode.md) for exact conditions in each mode) |
-| `transaction:cancelled` | `{ transaction, reason }` |
-| `transaction:refunded` | `{ transaction, amount, reason }` |
+| Event | Mode | Payload |
+|-------|------|---------|
+| `payment:completed` / `payment:failed` / `payment:pending` | stateful only | `{ transaction, payload }` |
+| `callback:verified` / `callback:rejected` | both | `{ payload, status, reason }`, emitted in both stateless and stateful mode. `status` is `null` on `callback:rejected`, except on a `UserCancelled` request, where `cancelled` comes from the package rather than the payload. `callback:verified` fires for every authentic, matching callback, including declines - check `status`, not the event name, before fulfilling anything. For a `UserCancelled` request, `callback:rejected` fires only when the reference matches a payment the consumer recorded (see [Stateless mode](13-stateless-mode.md) for exact conditions in each mode). Both routes also reject with `callback_replayed` for a duplicate delivery and `unknown_transaction` for a reference nobody created |
+| `transaction:cancelled` | stateful only | `{ transaction, reason }` |
+| `transaction:refunded` | stateful only | `{ transaction, amount, reason }` |
 
 ### Utilities
 

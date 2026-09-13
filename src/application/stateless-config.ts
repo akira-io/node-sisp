@@ -95,6 +95,7 @@ export function resolveStatelessConfig(config: StatelessSispConfig): ResolvedSta
     paymentValidation: resolvePaymentValidation(config.paymentValidation, config.currency ?? '132'),
     pipelines: config.pipelines ?? {},
     onEventListenerError: config.onEventListenerError ?? null,
+    onSideEffectError: null,
     transactionStatus: { ...DEFAULT_TRANSACTION_STATUS, ...config.transactionStatus },
   };
 }

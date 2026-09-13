@@ -117,7 +117,8 @@ identifierGeneration: {
 | `generators` | Replace `merchantReference`, `merchantSession`, or `timeStamp` factories |
 | `pipelines.payment` | `(defaults) => pipes` to reorder, remove, or add payment pipes |
 | `pipelines.callback` | Same for the callback pipeline |
-| `onEventListenerError` | Receives errors thrown by event listeners |
+| `onEventListenerError` | Receives errors thrown by event listeners, and nothing else |
+| `onSideEffectError` | Stateful mode only. Receives errors from the audit side effects the package swallows: `create_invoice_stub`, `store_request_metadata`, `update_invoice_status`, `resolve_retry_availability`, `load_current_attempt`, `cancel_user_cancelled_transaction`. Stateless mode performs none of them, so it never fires |
 
 ```ts
 const sisp = await createSisp({
