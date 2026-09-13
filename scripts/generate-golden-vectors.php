@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-$src = getenv('SISP_SRC') ?: '/tmp/laravel-sisp-2x/src';
+$root = getenv('SISP_ROOT') ?: '/tmp/laravel-sisp-2x';
+$src = $root.'/src';
 
 spl_autoload_register(function (string $class) use ($src): void {
     $prefix = 'Akira\\Sisp\\';

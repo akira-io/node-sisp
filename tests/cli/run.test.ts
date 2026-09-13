@@ -1,11 +1,12 @@
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SispConfig } from '../../src/application/config';
 import { loadConfigFile, runCli } from '../../src/presentation/cli/run';
 
-const SCHEMA_PATH = new URL('../../prisma/sisp.prisma', import.meta.url).pathname;
+const SCHEMA_PATH = fileURLToPath(new URL('../../prisma/sisp.prisma', import.meta.url));
 
 function memoryConfig(overrides: Partial<SispConfig> = {}): SispConfig {
   return {
@@ -90,6 +91,26 @@ describe('sisp reconcile-pending', () => {
 
     expect(code).toBe(0);
     expect(lines).toEqual(['No pending SISP transactions require reconciliation.']);
+  });
+
+  it.each([
+    ['--limit', 'abc'],
+    ['--limit', '0'],
+    ['--limit', '1.5'],
+    ['--older-than', 'abc'],
+    ['--older-than', '-3'],
+  ])('rejects %s %s before loading the configuration', async (flag, value) => {
+    const { lines, output } = capture();
+
+    const code = await runCli(['reconcile-pending', `${flag}=${value}`], {
+      loadConfig: async () => {
+        throw new Error('the configuration must not be loaded for an invalid flag');
+      },
+      output,
+    });
+
+    expect(code).toBe(1);
+    expect(lines).toEqual([`${flag} expects a positive integer, received "${value}".`]);
   });
 });
 

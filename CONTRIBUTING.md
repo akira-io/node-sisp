@@ -35,7 +35,6 @@ Some files are generated, not hand-edited. Regenerate them after the relevant up
 ```bash
 git clone --branch 2.x https://github.com/akira-io/laravel-sisp /tmp/laravel-sisp-2x
 php scripts/generate-golden-vectors.php > tests/fixtures/golden-vectors.json
-php scripts/generate-enums-data.php
 php scripts/generate-countries.php
 ```
 
