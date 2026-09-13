@@ -20,7 +20,7 @@ async function loadKnex(): Promise<typeof import('knex')> {
     throw new Error(
       'Stateful SISP mode requires the `knex` package plus a database driver ' +
         '(`pg`, `mysql2`, or `better-sqlite3`) to be installed. ' +
-        'Run `bun add knex <driver>`, or switch to `createStatelessSisp` if you do not need built-in persistence.',
+        'Run `npm install knex <driver>`, or switch to `createStatelessSisp` if you do not need built-in persistence.',
       { cause },
     );
   }
