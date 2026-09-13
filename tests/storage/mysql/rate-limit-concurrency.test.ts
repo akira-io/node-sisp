@@ -30,7 +30,7 @@ describe.skipIf(url === undefined)('rate limits under REPEATABLE READ', () => {
     await migrator.destroy();
   });
 
-  // TODO(@kidiatoliny): knex insert-ignore deadlocks without retry and writes ISO `Z` timestamps MySQL strict mode rejects; tracked separately.
+  // TODO(@kidiatoliny): knex insert-ignore deadlocks without retry and writes ISO `Z` timestamps MySQL strict mode rejects; tracked in #147.
   it.skip('counts both hits when two transactions create the same row at once', async () => {
     const knexStorage = await KnexStorage.create(
       { client: 'mysql2', connection: url as string, autoMigrate: false },

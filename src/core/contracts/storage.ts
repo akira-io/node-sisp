@@ -110,6 +110,8 @@ export interface RequestMetadataRepository {
     transactionId: number,
     options?: ListByTransactionOptions,
   ): Promise<RequestMetadataRecord[]>;
+  purgeOlderThan(cutoffIso: string, limit: number): Promise<number>;
+  countOlderThan(cutoffIso: string): Promise<number>;
 }
 
 export interface SispStorageRepositories {

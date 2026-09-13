@@ -52,6 +52,29 @@ export class RequestMetadata {
       custom_metadata: this.cipher.read(decodeJsonColumn(row.custom_metadata)),
     }));
   }
+
+  async purgeOlderThan(cutoffIso: string, limit: number): Promise<number> {
+    const stale = await this.db(this.tables.requestMetadata)
+      .select('id')
+      .where('created_at', '<', cutoffIso)
+      .orderBy('id', 'asc')
+      .limit(limit);
+    const ids = stale.map((row: Record<string, unknown>) => Number(row.id));
+
+    if (ids.length === 0) {
+      return 0;
+    }
+
+    return this.db(this.tables.requestMetadata).whereIn('id', ids).delete();
+  }
+
+  async countOlderThan(cutoffIso: string): Promise<number> {
+    const [row] = await this.db(this.tables.requestMetadata)
+      .where('created_at', '<', cutoffIso)
+      .count<{ count: string | number }[]>({ count: '*' });
+
+    return Number(row?.count ?? 0);
+  }
 }
 
 function encodeJsonColumn(value: string | null): string | null {

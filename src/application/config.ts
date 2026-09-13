@@ -63,6 +63,7 @@ export interface IdempotencyConfig {
 export interface SecuritySettings {
   collectMetadata: boolean;
   clientIp: ((request: HttpRequestInfo) => string | null) | null;
+  metadataRetentionDays: number | null;
 }
 
 export interface TransactionStatusConfig {
@@ -246,6 +247,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     security: {
       collectMetadata: booleanSetting(config.security?.collectMetadata, true),
       clientIp: config.security?.clientIp ?? null,
+      metadataRetentionDays: config.security?.metadataRetentionDays ?? null,
     },
     generators: {
       merchantReference:

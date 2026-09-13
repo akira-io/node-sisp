@@ -240,6 +240,10 @@ Release 1.0.0-beta.6 adds `sisp_payment_intents.request_hash` (knex migration `0
 
 `appKey` cannot be rotated in place: rows encrypted with the previous key stop decrypting. Keep the key stable, or set `allowWeakAppKey: true` while a short key is still in use.
 
+## Request metadata retention
+
+`RequestMetadataRepository.purgeOlderThan(cutoffIso, limit)` deletes one batch of `sisp_request_metadata` rows whose `created_at` is strictly before `cutoffIso`, ordered by `id`, and returns how many it deleted. A row whose `created_at` equals the cutoff is kept. All three adapters (knex, Prisma, Drizzle) implement it the same way: select up to `limit` stale ids ordered by `id` ascending, then delete that batch. Nothing calls it on its own; see [Security](07-security.md#request-metadata-retention) for the `security.metadataRetentionDays` setting, the `sisp prune-metadata` command, and why the deletion runs outside the payment and callback transactions.
+
 ## Contract suite
 
 The shared suite `tests/storage/contract.ts` runs against `KnexStorage`, `PrismaStorage` and `DrizzleStorage`, guaranteeing behavioral parity. If a future adapter passes the contract suite, it is safe to use in production. The suite runs on sqlite only ([#107](https://github.com/akira-io/node-sisp/issues/107)), so a green run is not by itself proof of parity on Postgres or MySQL.

@@ -2,6 +2,7 @@ import { afterEach, beforeEach } from 'vitest';
 import type { SispStorage } from '../../src/core/contracts/storage';
 import { runPaymentIntentsContract } from './contract/payment-intents';
 import { runRateLimitsContract } from './contract/rate-limits';
+import { runRequestMetadataContract } from './contract/request-metadata';
 import { runTransactionAttemptsContract } from './contract/transaction-attempts';
 import { runTransactionItemsContract } from './contract/transaction-items';
 import { runTransactionsContract } from './contract/transactions';
@@ -29,4 +30,5 @@ export function runStorageContract(makeSubject: () => Promise<ContractSubject>):
   runTransactionItemsContract(getSubject);
   runTransactionAttemptsContract(getSubject);
   runRateLimitsContract(getSubject);
+  runRequestMetadataContract(getSubject);
 }

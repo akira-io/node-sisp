@@ -57,6 +57,7 @@ rateLimiting: {
 security: {
   collectMetadata: true,
   clientIp: (request) => headerValue(request, 'x-real-ip'),
+  metadataRetentionDays: null,
 },
 ```
 
@@ -67,6 +68,8 @@ security: {
 `perIpStatus` covers `GET /transactions/:ref`, which a checkout page polls while it waits for the gateway. It keys on the same resolved client IP as `perIp` but counts into its own bucket, so polling never exhausts the payment budget: at the default of 3600 per hour, one request per second stays inside it, and behind a NAT address every client on it no longer spends from the payment allowance. Lower the limit when the checkout polls slowly, raise `windowSeconds` to spread the same budget over longer sessions, or set `perIpStatus.enabled` to `false` to leave status lookups unlimited.
 
 `security.collectMetadata` set to `false` drops `CaptureRequestMetadata` from the payment pipeline and stops the callback handler from writing to `sisp_request_metadata`, so no IP, user agent, header, or device-fingerprint row is created. Leave it `true` unless a data-protection requirement says otherwise; the reconciliation and audit trails do not depend on it.
+
+`security.metadataRetentionDays` defaults to `null`, meaning nothing purges `sisp_request_metadata` automatically. Set it to the number of days to keep, then run it with the `sisp prune-metadata` command or `sisp.pruneRequestMetadata()`. See [Security](07-security.md#request-metadata-retention).
 
 `security.clientIp` resolves the address used for per-IP rate limits, the IP blacklist, and request metadata. Without it the package uses the adapter's `req.ip`, which behind a reverse proxy is the proxy's address unless the framework is told to trust it (`app.set('trust proxy', ...)` in Express, `trustProxy` in Fastify). When the resolver returns `null` or an empty string the package falls back to the adapter's `req.ip`; per-IP limits and blacklist checks are skipped only when that is empty too, instead of sharing one bucket.
 

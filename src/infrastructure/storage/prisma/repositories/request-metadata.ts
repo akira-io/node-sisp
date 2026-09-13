@@ -70,5 +70,28 @@ export function makeRequestMetadataRepository(
 
       return rows.map((row) => mapRequestMetadata(row, cipher));
     },
+
+    async purgeOlderThan(cutoffIso: string, limit: number): Promise<number> {
+      const stale = await model().findMany({
+        where: { createdAt: { lt: new Date(cutoffIso) } },
+        orderBy: { id: 'asc' },
+        take: limit,
+        select: { id: true },
+      });
+
+      if (stale.length === 0) {
+        return 0;
+      }
+
+      const { count } = await model().deleteMany({
+        where: { id: { in: stale.map((row) => row.id as bigint) } },
+      });
+
+      return count;
+    },
+
+    async countOlderThan(cutoffIso: string): Promise<number> {
+      return model().count({ where: { createdAt: { lt: new Date(cutoffIso) } } });
+    },
   };
 }

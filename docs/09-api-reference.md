@@ -38,6 +38,7 @@
 | `queryTransactionStatus(transactionOrRef)` | POS transaction-status API call |
 | `reconcileTransactionStatus(transaction)` | Applies the gateway verdict to one pending transaction |
 | `reconcilePending(options?)` | Batch reconciliation, `{ skipped, checked, reconciled }` |
+| `pruneRequestMetadata(options?)` | Deletes `sisp_request_metadata` rows older than `options.olderThanDays` (falls back to `security.metadataRetentionDays`) in batches of `options.batch` (default 500), returns `{ deleted }` |
 | `forCredentials(credentials)` | `ScopedSisp` for multi-merchant setups |
 | `signedRetryUrl(id)` / `signedCancelUrl(ref)` | HMAC-signed lifecycle URLs |
 | `destroy()` | Closes the database pool |
@@ -93,6 +94,8 @@ Knex-typed surfaces kept off the main entry so a stateless consumer never needs 
 ```bash
 npx sisp migrate
 npx sisp reconcile-pending [--older-than <minutes>] [--limit <n>] [--force]
+npx sisp prisma [--out <path>] [--print] [--models-only] [--force]
+npx sisp prune-metadata [--older-than-days <n>] [--batch <n>] [--dry-run]
 ```
 
 **Next:** [Architecture](10-architecture.md)

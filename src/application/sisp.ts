@@ -11,6 +11,7 @@ import type {
   TransactionRepository,
 } from '../core/contracts/storage';
 import { CallbackRejectionReasons } from '../domain/enums/callback-rejection-reason';
+import { RetentionWindowRequiredError } from '../domain/errors/exceptions';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
 import { type SispCredentials, sispCredentials } from '../domain/value-objects/sisp-credentials';
 import type { TransactionStatusResponse } from '../domain/value-objects/transaction-status-response';
@@ -52,6 +53,17 @@ export interface ReconcilePendingResult {
   checked: number;
   reconciled: number;
 }
+
+export interface PruneRequestMetadataOptions {
+  olderThanDays?: number;
+  batch?: number;
+}
+
+export interface PruneRequestMetadataResult {
+  deleted: number;
+}
+
+const DEFAULT_PRUNE_BATCH = 500;
 
 export class Sisp extends StatelessSisp {
   private readonly statefulVerifier: CallbackVerifier<StoredCallbackOutcome>;
@@ -146,6 +158,47 @@ export class Sisp extends StatelessSisp {
     }
 
     return { skipped: false, checked: pending.length, reconciled };
+  }
+
+  async pruneRequestMetadata(
+    options: PruneRequestMetadataOptions = {},
+  ): Promise<PruneRequestMetadataResult> {
+    const cutoff = this.resolveRetentionCutoff(options.olderThanDays);
+    const batch = options.batch ?? DEFAULT_PRUNE_BATCH;
+
+    if (batch < 1) {
+      throw new Error('Request metadata pruning needs a batch of at least 1. Pass a larger batch.');
+    }
+
+    let deleted = 0;
+
+    for (;;) {
+      const removed = await this._storage.requestMetadata.purgeOlderThan(cutoff, batch);
+
+      deleted += removed;
+
+      if (removed < batch) {
+        return { deleted };
+      }
+    }
+  }
+
+  async countPrunableRequestMetadata(
+    options: Pick<PruneRequestMetadataOptions, 'olderThanDays'> = {},
+  ): Promise<number> {
+    const cutoff = this.resolveRetentionCutoff(options.olderThanDays);
+
+    return this._storage.requestMetadata.countOlderThan(cutoff);
+  }
+
+  private resolveRetentionCutoff(olderThanDays?: number): string {
+    const days = olderThanDays ?? this.config.security.metadataRetentionDays;
+
+    if (days === null || days === undefined) {
+      throw new RetentionWindowRequiredError();
+    }
+
+    return new Date(Date.now() - days * 86_400_000).toISOString();
   }
 
   refund(transaction: TransactionRecord): RefundBuilder {

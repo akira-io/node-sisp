@@ -84,6 +84,7 @@ describe('resolveConfig', () => {
     });
     expect(resolved.security.collectMetadata).toBe(true);
     expect(resolved.security.clientIp).toBeNull();
+    expect(resolved.security.metadataRetentionDays).toBeNull();
     expect(resolved.identifierGeneration).toEqual({
       maxAttempts: 5,
       collisionRetrySleepMs: 1000,
@@ -156,6 +157,15 @@ describe('resolveConfig', () => {
     expect(resolved.rateLimiting.enabled).toBe(false);
     expect(resolved.rateLimiting.perIp.enabled).toBe(false);
     expect(resolved.security.collectMetadata).toBe(false);
+  });
+
+  it('carries a configured metadataRetentionDays through', () => {
+    const resolved = resolveConfig({
+      ...minimalConfig,
+      security: { metadataRetentionDays: 90 },
+    });
+
+    expect(resolved.security.metadataRetentionDays).toBe(90);
   });
 
   it('accepts a connection provider function, matching knex rotating-credential support', () => {

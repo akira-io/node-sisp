@@ -52,3 +52,11 @@ export class TransactionStatusTransportError extends SispError {
 }
 
 export class CorrelationRequiredError extends SispError {}
+
+export class RetentionWindowRequiredError extends SispError {
+  constructor() {
+    super(
+      'Request metadata pruning needs a retention window. Pass olderThanDays or set security.metadataRetentionDays.',
+    );
+  }
+}

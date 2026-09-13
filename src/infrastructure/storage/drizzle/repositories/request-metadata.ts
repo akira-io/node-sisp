@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray, lt } from 'drizzle-orm';
 import type { RequestMetadataRepository } from '../../../../core/contracts/storage';
 import type { RequestMetadataRecord } from '../../../../domain/records';
 import type {
@@ -51,6 +51,29 @@ export function makeRequestMetadataRepository(
           custom_metadata: context.cipher.read(normalized.custom_metadata),
         };
       });
+    },
+
+    async purgeOlderThan(cutoffIso: string, limit: number): Promise<number> {
+      const table = rows();
+      const stale = await table.ids(
+        lt(table.column('created_at'), table.timestampValue(cutoffIso)),
+        { orderBy: [table.ascending('id')], limit },
+      );
+
+      if (stale.length === 0) {
+        return 0;
+      }
+
+      return table.delete(inArray(table.column('id'), stale));
+    },
+
+    async countOlderThan(cutoffIso: string): Promise<number> {
+      const table = rows();
+      const stale = await table.ids(
+        lt(table.column('created_at'), table.timestampValue(cutoffIso)),
+      );
+
+      return stale.length;
     },
   };
 }

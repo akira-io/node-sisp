@@ -45,7 +45,41 @@ The blacklist and the per-IP scope key on the client IP. Behind a load balancer,
 
 ## Metadata redaction
 
-Captured request metadata stores a copy of the query, body, and headers with sensitive keys redacted (authorization, cookie, password, token, card, cvv, pin, email, phone, address, postal code, customer name, pan, and friends), plus a SHA-256 device fingerprint. The `custom_metadata` column is encrypted at rest with the same `appKey` cipher as the payload. There is no built-in retention for `sisp_request_metadata`; prune it on your own schedule. Setting `security.collectMetadata` to `false` stops the capture entirely, for both the payment pipeline and the callback handler.
+Captured request metadata stores the client IP, user agent, referer, a SHA-256 device fingerprint, and a copy of the query, body, and headers with sensitive keys redacted (authorization, cookie, password, token, card, cvv, pin, email, phone, address, postal code, customer name, pan, and friends). One row is written per payment, into `sisp_request_metadata`. The `custom_metadata` column is encrypted at rest with the same `appKey` cipher as the payload, but encryption is not retention: nothing deletes a row on its own, encrypted or not, and the table grows one row per payment forever unless something prunes it. Setting `security.collectMetadata` to `false` stops the capture entirely, for both the payment pipeline and the callback handler.
+
+## Request metadata retention
+
+Nothing purges `sisp_request_metadata` automatically. The purge runs outside the payment and callback paths, to avoid the locks a range delete can take on MySQL. Without a scheduled job of your own, the table grows without bound.
+
+`security.metadataRetentionDays` sets the default retention window in days. It defaults to `null`, meaning no window: calling the prune command or method without an explicit window then throws instead of guessing one for you.
+
+```ts
+security: {
+  metadataRetentionDays: 90,
+},
+```
+
+Run the bundled CLI command on a schedule:
+
+```bash
+sisp prune-metadata --older-than-days 90 --batch 500
+```
+
+A crontab entry to run it nightly:
+
+```cron
+0 3 * * * cd /path/to/app && npx sisp prune-metadata --older-than-days 90 >> /var/log/sisp-prune.log 2>&1
+```
+
+`--dry-run` resolves the retention window exactly as a real run does, and fails the same way with the same message when no window is configured, but only counts the rows past the cutoff instead of deleting them. `--batch` defaults to 500 when omitted.
+
+To wire the purge into your own scheduler instead of cron, call the method directly:
+
+```ts
+const { deleted } = await sisp.pruneRequestMetadata({ olderThanDays: 90 });
+```
+
+`olderThanDays` and `batch` are both optional; when omitted, `olderThanDays` falls back to `security.metadataRetentionDays` and `batch` falls back to 500, the same default the CLI command uses. Both the command and `pruneRequestMetadata` delete in batches rather than in one statement, and each batch is its own delete: an interrupted run has already committed every batch before it, and running it again picks up wherever the cutoff leaves rows behind. A row whose `created_at` equals the cutoff exactly is kept, not deleted.
 
 ## Multi-merchant isolation
 
