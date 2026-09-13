@@ -26,7 +26,7 @@ afterEach(async () => {
   await sisp.destroy();
 });
 
-async function createTransaction(status: 'pending' | 'completed' = 'pending') {
+async function createTransaction(status: 'pending' | 'completed' | 'refunded' = 'pending') {
   const transaction = await sisp.models.transactions.create({
     merchantRef: 'R20260612100000',
     merchantSession: 'S20260612100000',
@@ -66,6 +66,35 @@ describe('cancel transaction', () => {
     await expect(sisp.cancel(transaction)).rejects.toThrow(
       "Transaction with status 'completed' cannot be cancelled.",
     );
+  });
+
+  it('refuses to cancel refunded transactions and keeps the refunded state', async () => {
+    const transaction = await createTransaction('refunded');
+    const cancelled = vi.fn();
+    sisp.on('transaction:cancelled', cancelled);
+
+    await expect(sisp.cancel(transaction)).rejects.toThrow(
+      "Transaction with status 'refunded' cannot be cancelled.",
+    );
+
+    const stored = await sisp.models.transactions.findById(transaction.id);
+
+    expect(stored?.status).toBe('refunded');
+    expect(stored?.cancelled_at).toBeNull();
+    expect(cancelled).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 on the signed route for a refunded transaction', async () => {
+    const transaction = await createTransaction('refunded');
+    const url = sisp.signedCancelUrl(transaction.merchant_ref);
+
+    const response = await request(app).get(url).expect(400);
+
+    expect(response.body.message).toContain('cannot be cancelled');
+
+    const stored = await sisp.models.transactions.findById(transaction.id);
+
+    expect(stored?.status).toBe('refunded');
   });
 
   it('cancels through the signed route and redirects to the result page', async () => {
