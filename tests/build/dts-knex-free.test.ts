@@ -20,4 +20,8 @@ describe('public entry declarations stay knex-free', () => {
   it('dist/knex/index.d.ts still exposes the knex-typed surface', () => {
     expect(distFile('knex/index.d.ts')).toMatch(/from 'knex'/);
   });
+
+  it.each(['index.js', 'index.cjs'])('dist/%s never loads knex eagerly', (path) => {
+    expect(distFile(path)).not.toMatch(/(?:require|from\s*)\(?["']knex["']/);
+  });
 });
