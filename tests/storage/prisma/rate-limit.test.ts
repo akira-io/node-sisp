@@ -130,10 +130,35 @@ function racingClient(options: { abortsOnError: boolean }) {
   };
 
   const client = {
-    $queryRawUnsafe: vi.fn(async () => {
+    $queryRawUnsafe: vi.fn(async (_sql: string, ...values: unknown[]) => {
       guard();
 
-      return [];
+      const [identifier, limitType, context] = values;
+      const row = rows.find(
+        (candidate) =>
+          candidate.identifier === identifier &&
+          candidate.limitType === limitType &&
+          candidate.context === context,
+      );
+
+      if (row === undefined) {
+        return [];
+      }
+
+      return [
+        {
+          id: row.id,
+          identifier: row.identifier,
+          limit_type: row.limitType,
+          context: row.context,
+          hits: row.hits,
+          limit: row.limit,
+          window_seconds: row.windowSeconds,
+          reset_at: row.resetAt,
+          is_blocked: row.isBlocked,
+          blocked_until: row.blockedUntil,
+        },
+      ];
     }),
     $transaction: vi.fn(async (work: (txc: PrismaClientLike) => Promise<unknown>) => work(client)),
     sispRateLimit: rateLimits,
@@ -168,16 +193,16 @@ describe('prisma rate limit first-hit race', () => {
   });
 
   it('locks the row before incrementing it', async () => {
-    const { client, rows } = racingClient({ abortsOnError: true });
+    const { client } = racingClient({ abortsOnError: true });
 
     await repositoryFor('postgresql', client).hit(HIT);
 
     const raw = client.$queryRawUnsafe as unknown as { mock: { calls: unknown[][] } };
-    const [sql, value] = raw.mock.calls[0] as [string, unknown];
+    const [sql, identifier] = raw.mock.calls[0] as [string, unknown];
 
     expect(sql).toContain('FOR UPDATE');
     expect(sql).toContain('"sisp_rate_limits"');
-    expect(value).toBe(rows[0]?.id);
+    expect(identifier).toBe(HIT.identifier);
   });
 
   it('blocks the identifier once the hits pass the limit', async () => {
@@ -223,6 +248,9 @@ describe('prisma rate limit first-hit race', () => {
     const { client, rateLimits } = racingClient({ abortsOnError: false });
 
     rateLimits.findFirst.mockResolvedValue(null);
+    (
+      client.$queryRawUnsafe as unknown as { mockResolvedValue: (value: unknown[]) => void }
+    ).mockResolvedValue([]);
 
     await expect(repositoryFor('postgresql', client).hit(HIT)).rejects.toThrow(
       'could not be read or created',

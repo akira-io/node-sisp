@@ -43,6 +43,35 @@ export async function lockRowForUpdate(
 
   const quotedTable = quoteIdentifier(table, provider);
   const firstColumn = quoteIdentifier(first.column, provider);
+  const { where, values } = buildWhere(columns, provider);
+
+  await exec(`SELECT ${firstColumn} FROM ${quotedTable} WHERE ${where} FOR UPDATE`, ...values);
+}
+
+export async function selectForUpdate(
+  exec: RawExec,
+  provider: PrismaSqlProvider,
+  table: string,
+  columns: LockColumn[],
+): Promise<Record<string, unknown>[]> {
+  if (columns.length === 0) {
+    return [];
+  }
+
+  const { where, values } = buildWhere(columns, provider);
+  const locking = provider === 'sqlite' ? '' : ' FOR UPDATE';
+  const result = await exec(
+    `SELECT * FROM ${quoteIdentifier(table, provider)} WHERE ${where}${locking}`,
+    ...values,
+  );
+
+  return Array.isArray(result) ? (result as Record<string, unknown>[]) : [];
+}
+
+function buildWhere(
+  columns: LockColumn[],
+  provider: PrismaSqlProvider,
+): { where: string; values: unknown[] } {
   const where = columns
     .map(
       ({ column }, index) =>
@@ -50,10 +79,7 @@ export async function lockRowForUpdate(
     )
     .join(' AND ');
 
-  await exec(
-    `SELECT ${firstColumn} FROM ${quotedTable} WHERE ${where} FOR UPDATE`,
-    ...columns.map(({ value }) => value),
-  );
+  return { where, values: columns.map(({ value }) => value) };
 }
 
 function placeholder(provider: PrismaSqlProvider, index: number): string {
