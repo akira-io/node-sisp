@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import type { RotateEncryptionKeyResult } from '../../../application/actions/rotate-encryption-key';
 import { createSisp } from '../../../application/create-sisp';
+import type { ReencryptCounts } from '../../../infrastructure/storage/reencrypt-batch';
 import { batchInteger, type CliOptions, loadConfigFile } from '../support';
 
 export const ROTATE_KEY_INCOMPLETE = 2;
@@ -29,23 +30,23 @@ export async function rotateKey(
   }
 }
 
-type RowOutcome = 'current' | 'plaintext' | 'unreadable' | 'vanished';
+type RowOutcome = Exclude<keyof ReencryptCounts, 'processed' | 'rewritten'>;
 
-const OUTCOME_LABELS: readonly [RowOutcome, string][] = [
-  ['current', 'already encrypted under the current appKey'],
-  ['plaintext', 'never encrypted and left unchanged'],
-  ['unreadable', 'unreadable with the configured keys and left unchanged'],
-  ['vanished', 'deleted while the rotation ran'],
-];
+const OUTCOME_LABELS: Readonly<Record<RowOutcome, string>> = {
+  current: 'already encrypted under the current appKey',
+  plaintext: 'never encrypted and left unchanged',
+  unreadable: 'unreadable with the configured keys and left unchanged',
+  vanished: 'deleted while the rotation ran',
+};
 
 function report(result: RotateEncryptionKeyResult, output: (line: string) => void): number {
   output(`Rewrote ${result.rewritten} of ${result.processed} rows onto the current appKey.`);
 
-  for (const [key, label] of OUTCOME_LABELS) {
+  for (const key of Object.keys(OUTCOME_LABELS) as RowOutcome[]) {
     const count = result[key];
 
     if (count > 0) {
-      output(`${count} ${rows(count)} ${label}.`);
+      output(`${count} ${rows(count)} ${OUTCOME_LABELS[key]}.`);
     }
   }
 
@@ -67,7 +68,7 @@ function report(result: RotateEncryptionKeyResult, output: (line: string) => voi
 
   if (result.stoppedEarly) {
     output(
-      'Stopped early: no value was readable, so the configured keys cannot be the right ones.',
+      `Stopped early: no value was readable in ${result.stoppedAtTable}, so the configured keys cannot be the right ones for that table.`,
     );
   }
 

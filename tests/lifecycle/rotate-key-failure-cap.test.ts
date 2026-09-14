@@ -48,11 +48,32 @@ async function seed(filename: string, transactions: number, metadataRows: number
   }
 }
 
-async function rotateWithTheWrongKey(filename: string) {
+async function seedMetadataUnder(filename: string, appKey: string, rows: number): Promise<void> {
   const sisp = await createSisp({
     posId: '90051',
     posAutCode: 'code',
-    appKey: 'wrong-key',
+    appKey,
+    allowWeakAppKey: true,
+    database: databaseFor(filename),
+  });
+
+  try {
+    for (let index = 0; index < rows; index += 1) {
+      await sisp.storage.requestMetadata.create({
+        ip_address: '203.0.113.8',
+        custom_metadata: { index },
+      });
+    }
+  } finally {
+    await sisp.destroy();
+  }
+}
+
+async function rotateWith(filename: string, appKey: string) {
+  const sisp = await createSisp({
+    posId: '90051',
+    posAutCode: 'code',
+    appKey,
     allowWeakAppKey: true,
     database: databaseFor(filename),
   });
@@ -62,6 +83,10 @@ async function rotateWithTheWrongKey(filename: string) {
   } finally {
     await sisp.destroy();
   }
+}
+
+async function rotateWithTheWrongKey(filename: string) {
+  return rotateWith(filename, 'wrong-key');
 }
 
 describe('rotateEncryptionKey against a misconfigured key', () => {
@@ -75,6 +100,7 @@ describe('rotateEncryptionKey against a misconfigured key', () => {
     expect(result.unreadableValueCount).toBe(60);
     expect(result.unreadableValues).toHaveLength(50);
     expect(result.stoppedEarly).toBe(false);
+    expect(result.stoppedAtTable).toBeNull();
   }, 60_000);
 
   it('stops before walking every table once nothing has been readable', async () => {
@@ -85,8 +111,23 @@ describe('rotateEncryptionKey against a misconfigured key', () => {
     const result = await rotateWithTheWrongKey(filename);
 
     expect(result.stoppedEarly).toBe(true);
+    expect(result.stoppedAtTable).toBe('transactions');
     expect(result.processed).toBe(600);
     expect(result.unreadableValues).toHaveLength(50);
+    expect(result.unreadableValueCount).toBe(600);
+  }, 120_000);
+
+  it('stops on a hopeless table even when an earlier table was readable', async () => {
+    const filename = join(dir, 'per-table-stop.db');
+
+    await seed(filename, 1, 0);
+    await seedMetadataUnder(filename, 'other-key', 600);
+
+    const result = await rotateWith(filename, 'old-key');
+
+    expect(result.current).toBeGreaterThan(0);
+    expect(result.stoppedEarly).toBe(true);
+    expect(result.stoppedAtTable).toBe('requestMetadata');
     expect(result.unreadableValueCount).toBe(600);
   }, 120_000);
 });

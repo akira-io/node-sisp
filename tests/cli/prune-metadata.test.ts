@@ -48,6 +48,26 @@ describe('sisp prune-metadata', () => {
     expect(lines.join('\n')).toContain('--batch expects an integer between 1 and 999');
   });
 
+  it('accepts the documented maximum batch and rejects the first value past it', async () => {
+    const accepted = capture();
+    const rejected = capture();
+
+    const acceptedCode = await runCli(
+      ['prune-metadata', '--older-than-days', '0', '--batch', '999'],
+      { loadConfig: async () => config, output: accepted.output },
+    );
+
+    const rejectedCode = await runCli(
+      ['prune-metadata', '--older-than-days', '0', '--batch', '1000'],
+      { loadConfig: async () => config, output: rejected.output },
+    );
+
+    expect(acceptedCode).toBe(0);
+    expect(accepted.lines.join('\n')).toContain('Deleted 0 request metadata rows.');
+    expect(rejectedCode).toBe(1);
+    expect(rejected.lines.join('\n')).toContain('--batch expects an integer between 1 and 999');
+  });
+
   it('rejects a batch beyond what every dialect can bind', async () => {
     const { lines, output } = capture();
 

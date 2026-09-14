@@ -10,7 +10,7 @@ const V1_AAD = Buffer.from(V1_PREFIX, 'utf8');
 const MISSING_KEY_MESSAGE = 'SISP payload encryption requires an appKey in the configuration.';
 const UNREADABLE_MESSAGE = 'Unable to decrypt SISP payload.';
 const KEY_ID_MAX_LENGTH = 32;
-const KEY_ID_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
+const KEY_ID_PATTERN = new RegExp(`^[A-Za-z0-9_-]{1,${KEY_ID_MAX_LENGTH}}$`);
 
 export interface PayloadCipherKeys {
   current: string | null;
@@ -70,7 +70,7 @@ export class PayloadCipher {
 
     const serialized = typeof value === 'string' ? value : JSON.stringify(value);
 
-    if (isEncryptedEnvelope(serialized)) {
+    if (this.isOwnEnvelope(serialized)) {
       return serialized;
     }
 
@@ -94,9 +94,7 @@ export class PayloadCipher {
       throw new Error(MISSING_KEY_MESSAGE);
     }
 
-    return parseJson(
-      stored.startsWith(`${V2_PREFIX}:`) ? this.decryptV2(stored) : this.decryptV1(stored),
-    );
+    return parseJson(this.decryptAny(stored));
   }
 
   isCurrentKey(stored: unknown): boolean {
@@ -112,11 +110,25 @@ export class PayloadCipher {
       throw new Error(MISSING_KEY_MESSAGE);
     }
 
-    const plain = stored.startsWith(`${V2_PREFIX}:`)
-      ? this.decryptV2(stored)
-      : this.decryptV1(stored);
+    return this.encrypt(this.decryptAny(stored), this.current);
+  }
 
-    return this.encrypt(plain, this.current);
+  private isOwnEnvelope(serialized: string): boolean {
+    if (!hasEnvelopeShape(serialized)) {
+      return false;
+    }
+
+    try {
+      this.decryptAny(serialized);
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private decryptAny(stored: string): string {
+    return stored.startsWith(`${V2_PREFIX}:`) ? this.decryptV2(stored) : this.decryptV1(stored);
   }
 
   private encrypt(plain: string, { id, key }: DerivedKey): string {
@@ -198,7 +210,7 @@ export function looksLikeEnvelope(value: string): boolean {
   return value.startsWith(`${V1_PREFIX}:`) || value.startsWith(`${V2_PREFIX}:`);
 }
 
-export function isEncryptedEnvelope(value: string): boolean {
+function hasEnvelopeShape(value: string): boolean {
   const parts = value.split(':');
 
   if (parts[0] === V2_PREFIX) {

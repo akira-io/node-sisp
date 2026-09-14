@@ -20,6 +20,7 @@ export interface RotateEncryptionKeyResult extends ReencryptCounts {
   unreadableValues: readonly RotateEncryptionKeyFailure[];
   unreadableValueCount: number;
   stoppedEarly: boolean;
+  stoppedAtTable: EncryptedTableKey | null;
 }
 
 const DEFAULT_ROTATE_BATCH = 200;
@@ -37,6 +38,7 @@ export class RotateEncryptionKeyAction {
 
     for (const { table, columns } of ENCRYPTED_COLUMNS) {
       let afterId = 0;
+      let tableCounts = emptyCounts();
 
       for (;;) {
         const batch = await this.storage.maintenance.reencryptBatch({
@@ -47,6 +49,7 @@ export class RotateEncryptionKeyAction {
         });
 
         counts = mergeCounts(counts, batch);
+        tableCounts = mergeCounts(tableCounts, batch);
         unreadableValueCount += batch.unreadableValues.length;
 
         for (const failure of batch.unreadableValues) {
@@ -55,8 +58,14 @@ export class RotateEncryptionKeyAction {
           }
         }
 
-        if (hopeless(counts)) {
-          return { ...counts, unreadableValues, unreadableValueCount, stoppedEarly: true };
+        if (hopeless(tableCounts)) {
+          return {
+            ...counts,
+            unreadableValues,
+            unreadableValueCount,
+            stoppedEarly: true,
+            stoppedAtTable: table,
+          };
         }
 
         if (batch.lastId === null || batch.processed < limit) {
@@ -67,7 +76,13 @@ export class RotateEncryptionKeyAction {
       }
     }
 
-    return { ...counts, unreadableValues, unreadableValueCount, stoppedEarly: false };
+    return {
+      ...counts,
+      unreadableValues,
+      unreadableValueCount,
+      stoppedEarly: false,
+      stoppedAtTable: null,
+    };
   }
 }
 

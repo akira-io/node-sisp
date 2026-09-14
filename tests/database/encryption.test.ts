@@ -24,12 +24,34 @@ function poisonedKeyId(id: string): string {
   ].join(':');
 }
 
+const currentKeyId = deriveSispKey('base64:test-app-key', 'payload-key-id')
+  .toString('base64url')
+  .slice(0, 8);
+
+function forgedV2Envelope(id: string): string {
+  return [
+    'sisp.v2',
+    id,
+    randomBytes(12).toString('base64'),
+    randomBytes(16).toString('base64'),
+    Buffer.from('ATTACKER CLEARTEXT', 'utf8').toString('base64'),
+  ].join(':');
+}
+
 describe('PayloadCipher', () => {
   it.each([
     'sisp.v2:oops',
     'sisp.v1:oops',
     'sisp.v2:aaaaaaaa:not-base64!:nor-this!:x',
     'sisp.v2:aaaaaaaa:AAAAAAAAAAAAAAAA:AAAA:AAAA',
+    forgedV2Envelope('aaaaaaaa'),
+    forgedV2Envelope(currentKeyId),
+    [
+      'sisp.v1',
+      randomBytes(12).toString('base64'),
+      randomBytes(16).toString('base64'),
+      Buffer.from('ATTACKER CLEARTEXT', 'utf8').toString('base64'),
+    ].join(':'),
   ])('encrypts %s even though it starts like an envelope', (caller) => {
     const stored = cipher.store(caller) as string;
 

@@ -240,6 +240,14 @@ Release 1.0.0-beta.6 adds `sisp_payment_intents.request_hash` (knex migration `0
 - knex: `npx @akira-io/sisp migrate` (or `autoMigrate: true`).
 - Prisma: `npx @akira-io/sisp prisma --force`, `prisma migrate dev`, `prisma generate`. The unique constraints fail the migration if existing rows duplicate a `merchant_ref` or `merchant_session`; resolve those first.
 
+A later migration adds a `created_at` index to `sisp_request_metadata`, the table the retention purge scans. On PostgreSQL the knex migration runner wraps the whole run in one transaction, so that `CREATE INDEX` takes a SHARE lock and blocks every insert into that table until the run commits. `CREATE INDEX CONCURRENTLY` cannot run inside a transaction, so the migration cannot do this itself. On an installation where `sisp_request_metadata` is already large, and especially with `autoMigrate: true` where the run happens on application start, create the index by hand first:
+
+```sql
+CREATE INDEX CONCURRENTLY sisp_request_metadata_created_at_index ON sisp_request_metadata (created_at);
+```
+
+The migration detects an index that already exists and moves on, so a database prepared this way upgrades without taking the lock. The name has to be exactly `sisp_request_metadata_created_at_index`, the name knex generates: under any other name the migration does not recognise it and builds a second, duplicate index. MySQL 8 adds the index in place and sqlite databases are small, so neither needs this step.
+
 `appKey` can be rotated without losing rows: set the new key in `appKey`, keep the old one in `previousAppKeys`, and run `sisp rotate-key`. See [Security](07-security.md#rotating-appkey) for the procedure, the order the steps have to run in, and why the deploy cannot be rolled back afterwards. A key shorter than 32 characters is refused outside sandbox mode, so an installation still holding a short key needs `allowWeakAppKey: true` until the rotation onto a full-length key has finished.
 
 ## Request metadata retention
@@ -256,7 +264,7 @@ Each row visited lands in exactly one of five counters, and `processed` is their
 
 `current` therefore means one thing only: every encrypted value of that row already carries the current key id. A row that produced no rewrite because it could not be read, or because it was never encrypted, is not counted there. A value that was never encrypted, written before the installation had an `appKey`, is left as it is: re-encrypting it is not the rotation's business, and it is not a failure.
 
-The `unreadableValues` list holds every value the rotation could not rewrite: ciphertext that no configured key decrypts, a JSON container that does not parse, and anything else that threw while the value was being rekeyed. Each entry carries the id, the column and the reason. `unreadable` counts rows and `unreadableValues` counts values, so its length can exceed `unreadable`: a row whose other column was rewritten is counted in `rewritten` while its failed value still appears in the list. The batch keeps going rather than raising. This is what lets `sisp rotate-key` walk past a bad row instead of stopping the whole rotation on it; see [Security](07-security.md#rotating-appkey) for the operator-facing command and its exit codes.
+The `unreadableValues` list of one `reencryptBatch` call holds every value that batch could not rewrite: ciphertext that no configured key decrypts, a JSON container that does not parse, and anything else that threw while the value was being rekeyed. Each entry carries the id, the column and the reason. The `unreadableValues` of `rotateEncryptionKey` is not that list: it is a sample of at most the first 50 values across every batch and every table, and `unreadableValueCount` carries the true total. `unreadable` counts rows and `unreadableValues` counts values, so its length can exceed `unreadable`: a row whose other column was rewritten is counted in `rewritten` while its failed value still appears in the list. The batch keeps going rather than raising. This is what lets `sisp rotate-key` walk past a bad row instead of stopping the whole rotation on it; see [Security](07-security.md#rotating-appkey) for the operator-facing command and its exit codes.
 
 ## Contract suite
 

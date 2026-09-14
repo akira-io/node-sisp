@@ -126,6 +126,22 @@ describe('Sisp.pruneRequestMetadata', () => {
     }
   });
 
+  it('accepts the documented maximum batch and refuses the first value past it', async () => {
+    const sisp = await createSisp(config);
+
+    try {
+      await expect(
+        sisp.pruneRequestMetadata({ olderThanDays: 1, batch: 999 }),
+      ).resolves.toMatchObject({ deleted: 0 });
+
+      await expect(sisp.pruneRequestMetadata({ olderThanDays: 1, batch: 1000 })).rejects.toThrow(
+        'between 1 and 999',
+      );
+    } finally {
+      await sisp.destroy();
+    }
+  });
+
   it('refuses a batch beyond the bound every dialect can bind', async () => {
     const sisp = await createSisp(config);
 
