@@ -4,9 +4,9 @@ import {
   type ReencryptFailure,
 } from '../../core/contracts/maintenance';
 import type { SispStorage } from '../../core/contracts/storage';
-import { SispError } from '../../domain/errors/exceptions';
 import type { ReencryptCounts } from '../../infrastructure/storage/reencrypt-batch';
 import { emptyCounts, mergeCounts } from '../../infrastructure/storage/reencrypt-batch';
+import { resolveBatch } from '../options';
 
 export interface RotateEncryptionKeyOptions {
   batch?: number;
@@ -18,16 +18,21 @@ export interface RotateEncryptionKeyFailure extends ReencryptFailure {
 
 export interface RotateEncryptionKeyResult extends ReencryptCounts {
   unreadableValues: readonly RotateEncryptionKeyFailure[];
+  unreadableValueCount: number;
+  stoppedEarly: boolean;
 }
 
 const DEFAULT_ROTATE_BATCH = 200;
+const REPORTED_FAILURES = 50;
+const ABORT_AFTER_UNREADABLE = 500;
 
 export class RotateEncryptionKeyAction {
   constructor(private readonly storage: SispStorage) {}
 
   async handle(options: RotateEncryptionKeyOptions = {}): Promise<RotateEncryptionKeyResult> {
-    const limit = batchSize(options.batch);
+    const limit = resolveBatch(options.batch, DEFAULT_ROTATE_BATCH, 'rotateEncryptionKey');
     const unreadableValues: RotateEncryptionKeyFailure[] = [];
+    let unreadableValueCount = 0;
     let counts = emptyCounts();
 
     for (const { table, columns } of ENCRYPTED_COLUMNS) {
@@ -42,9 +47,16 @@ export class RotateEncryptionKeyAction {
         });
 
         counts = mergeCounts(counts, batch);
+        unreadableValueCount += batch.unreadableValues.length;
 
         for (const failure of batch.unreadableValues) {
-          unreadableValues.push({ ...failure, table });
+          if (unreadableValues.length < REPORTED_FAILURES) {
+            unreadableValues.push({ ...failure, table });
+          }
+        }
+
+        if (hopeless(counts)) {
+          return { ...counts, unreadableValues, unreadableValueCount, stoppedEarly: true };
         }
 
         if (batch.lastId === null || batch.processed < limit) {
@@ -55,20 +67,12 @@ export class RotateEncryptionKeyAction {
       }
     }
 
-    return { ...counts, unreadableValues };
+    return { ...counts, unreadableValues, unreadableValueCount, stoppedEarly: false };
   }
 }
 
-function batchSize(batch: number | undefined): number {
-  if (batch === undefined) {
-    return DEFAULT_ROTATE_BATCH;
-  }
-
-  if (!Number.isInteger(batch) || batch < 1) {
-    throw new SispError(
-      `rotateEncryptionKey expects batch to be a positive integer, received ${batch}.`,
-    );
-  }
-
-  return batch;
+function hopeless(counts: ReencryptCounts): boolean {
+  return (
+    counts.unreadable >= ABORT_AFTER_UNREADABLE && counts.rewritten === 0 && counts.current === 0
+  );
 }

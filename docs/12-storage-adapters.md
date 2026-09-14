@@ -229,7 +229,9 @@ That serialization has no ceiling. A unit of work whose callback never settles, 
 
 The shared contract suite runs the Drizzle adapter on **sqlite and Postgres**. The Postgres run needs `SISP_TEST_POSTGRES_URL`; it executes the generated DDL, asserts the foreign keys the canonical schema declares, and then runs the same suite the sqlite and Prisma adapters run. CI sets that variable, so a green build means both dialects were executed.
 
-**MySQL is not executed anywhere.** Its schema, its DDL and its three divergent code paths (insert without `RETURNING`, `ON DUPLICATE KEY UPDATE`, `longtext` payload columns) are covered by parity tests and by a fake driver, not by a real server. Treat MySQL as unverified until [#107](https://github.com/akira-io/node-sisp/issues/107) closes for it. On MySQL the adapter also inherits [#137](https://github.com/akira-io/node-sisp/issues/137): the first rate limit hit can still be lost under `REPEATABLE READ`.
+MySQL runs three targeted suites against a real `mysql:8` service rather than the whole contract suite. They need `SISP_TEST_MYSQL_URL`, which CI sets: the rekey pass over every encrypted column on the Drizzle adapter, the rate limit hit under `REPEATABLE READ`, and the request metadata retention cutoff on the knex adapter. Everything else on that dialect, including the three divergent code paths (insert without `RETURNING`, `ON DUPLICATE KEY UPDATE`, `longtext` payload columns), is covered by parity tests and by a fake driver. Treat the rest as unverified until [#107](https://github.com/akira-io/node-sisp/issues/107) closes for it.
+
+The knex adapter cannot insert on MySQL at all: it binds ISO-8601 timestamps with a `Z` suffix that strict mode rejects, and its insert-ignore deadlocks without a retry ([#147](https://github.com/akira-io/node-sisp/issues/147)). Use the Drizzle adapter on that dialect.
 
 ## Upgrading the schema
 
@@ -258,13 +260,15 @@ The `unreadableValues` list holds every value the rotation could not rewrite: ci
 
 ## Contract suite
 
-The shared suite `tests/storage/contract.ts` runs against `KnexStorage`, `PrismaStorage` and `DrizzleStorage`, guaranteeing behavioral parity. If a future adapter passes the contract suite, it is safe to use in production. The suite runs on sqlite only ([#107](https://github.com/akira-io/node-sisp/issues/107)), so a green run is not by itself proof of parity on Postgres or MySQL.
+The shared suite `tests/storage/contract.ts` runs against `KnexStorage`, `PrismaStorage` and `DrizzleStorage`, guaranteeing behavioral parity. If a future adapter passes the contract suite, it is safe to use in production. It runs on sqlite for all three adapters and on Postgres for `DrizzleStorage`; `KnexStorage` and `PrismaStorage` run on sqlite only ([#107](https://github.com/akira-io/node-sisp/issues/107)), so a green run is not by itself proof of parity for those two on Postgres or MySQL.
+
+The rekey pass takes a real row lock only on a server that has one. `tests/storage/postgres/reencrypt-lock.test.ts` holds `SELECT ... FOR UPDATE` on a row from another connection and asserts that the knex and Drizzle rotations wait for it. The Prisma adapter has no equivalent run against a real server: its suite is generated against a sqlite datasource, where `FOR UPDATE` is a no-op.
 
 ## Custom adapters
 
-Any ORM or persistence library can satisfy the `SispStorage` port. Implement the ten repository interfaces and the `transaction()`, `destroy()`, and optional `migrate?()` methods, then inject the result:
+Any ORM or persistence library can satisfy the `SispStorage` port. Implement the ten repository interfaces and the `transaction()`, `destroy()`, and optional `migrate?()` methods, then inject the result.
 
-Every interface a custom adapter has to satisfy is exported from the package entry, including `MaintenanceRepository` and the `ReencryptSpec`, `ReencryptResult` and `EncryptedColumn` types its one method takes and returns:
+Every interface a custom adapter has to satisfy is exported from the package entry, along with the argument and return types its methods take: `MaintenanceRepository` with `ReencryptSpec`, `ReencryptResult` and `EncryptedColumn`, and `NewTransaction`, `TransactionChanges`, `TransactionAttemptChanges`, `NewRequestMetadata`, `RateLimitHit`, `BlacklistEntry`, `TransactionItemData`, `ListTransactionsOptions` and `ListByTransactionOptions`. `tests/storage/custom-adapter.test-d.ts` implements the whole port from those exports alone, so the claim is checked rather than asserted:
 
 ```ts
 import type { MaintenanceRepository, SispStorage } from '@akira-io/sisp';

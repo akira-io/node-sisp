@@ -1,6 +1,7 @@
 import { afterEach, beforeEach } from 'vitest';
 import type { SispStorage } from '../../src/core/contracts/storage';
 import type { PayloadCipherKeys } from '../../src/infrastructure/storage/knex/encryption';
+import { runLegacyEnvelopeContract } from './contract/legacy-envelope';
 import { runMaintenanceContract } from './contract/maintenance';
 import { runPaymentIntentsContract } from './contract/payment-intents';
 import { runRateLimitsContract } from './contract/rate-limits';
@@ -50,4 +51,5 @@ export function runStorageContract(makeSubject: () => Promise<ContractSubject>):
   runRateLimitsContract(getSubject);
   runRequestMetadataContract(getSubject);
   runMaintenanceContract(getSubject);
+  runLegacyEnvelopeContract(getSubject);
 }

@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 import type { RotateEncryptionKeyResult } from '../../../application/actions/rotate-encryption-key';
 import { createSisp } from '../../../application/create-sisp';
-import { type CliOptions, loadConfigFile, positiveInteger } from '../support';
+import { batchInteger, type CliOptions, loadConfigFile } from '../support';
 
 export const ROTATE_KEY_INCOMPLETE = 2;
 
@@ -17,7 +17,7 @@ export async function rotateKey(
     },
   });
 
-  const batch = positiveInteger(values.batch, 'batch');
+  const batch = batchInteger(values.batch, 'batch');
 
   const config = await (options.loadConfig ?? loadConfigFile)();
   const sisp = await createSisp(config);
@@ -29,10 +29,7 @@ export async function rotateKey(
   }
 }
 
-type RowOutcome = Exclude<
-  keyof RotateEncryptionKeyResult,
-  'processed' | 'rewritten' | 'unreadableValues'
->;
+type RowOutcome = 'current' | 'plaintext' | 'unreadable' | 'vanished';
 
 const OUTCOME_LABELS: readonly [RowOutcome, string][] = [
   ['current', 'already encrypted under the current appKey'],
@@ -52,18 +49,26 @@ function report(result: RotateEncryptionKeyResult, output: (line: string) => voi
     }
   }
 
-  const { unreadableValues } = result;
+  const { unreadableValues, unreadableValueCount } = result;
 
-  if (unreadableValues.length === 0) {
+  if (unreadableValueCount === 0) {
     return 0;
   }
 
-  output(
-    `${unreadableValues.length} encrypted ${values(unreadableValues.length)} could not be read:`,
-  );
+  output(`${unreadableValueCount} encrypted ${values(unreadableValueCount)} could not be read:`);
 
   for (const failure of unreadableValues) {
     output(`  ${failure.table}#${failure.id} (${failure.column}): ${failure.reason}`);
+  }
+
+  if (unreadableValues.length < unreadableValueCount) {
+    output(`  ... and ${unreadableValueCount - unreadableValues.length} more not listed.`);
+  }
+
+  if (result.stoppedEarly) {
+    output(
+      'Stopped early: no value was readable, so the configured keys cannot be the right ones.',
+    );
   }
 
   output('Keep the old key in previousAppKeys until no values are reported here.');

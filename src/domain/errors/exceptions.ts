@@ -53,10 +53,20 @@ export class TransactionStatusTransportError extends SispError {
 
 export class CorrelationRequiredError extends SispError {}
 
-export class RetentionWindowRequiredError extends SispError {
+export class RetentionWindowError extends SispError {}
+
+export class RetentionWindowRequiredError extends RetentionWindowError {
   constructor() {
     super(
       'Request metadata pruning needs a retention window. Pass olderThanDays or set security.metadataRetentionDays.',
+    );
+  }
+}
+
+export class RetentionWindowInvalidError extends RetentionWindowError {
+  constructor(readonly days: unknown) {
+    super(
+      `Request metadata pruning needs olderThanDays to be a non-negative integer, received ${String(days)}. Use 0 to purge everything up to now.`,
     );
   }
 }

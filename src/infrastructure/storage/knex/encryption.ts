@@ -9,6 +9,8 @@ const TAG_LENGTH = 16;
 const V1_AAD = Buffer.from(V1_PREFIX, 'utf8');
 const MISSING_KEY_MESSAGE = 'SISP payload encryption requires an appKey in the configuration.';
 const UNREADABLE_MESSAGE = 'Unable to decrypt SISP payload.';
+const KEY_ID_MAX_LENGTH = 32;
+const KEY_ID_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 
 export interface PayloadCipherKeys {
   current: string | null;
@@ -68,7 +70,7 @@ export class PayloadCipher {
 
     const serialized = typeof value === 'string' ? value : JSON.stringify(value);
 
-    if (isEncrypted(serialized)) {
+    if (isEncryptedEnvelope(serialized)) {
       return serialized;
     }
 
@@ -84,7 +86,7 @@ export class PayloadCipher {
       return stored;
     }
 
-    if (!isEncrypted(stored)) {
+    if (!looksLikeEnvelope(stored)) {
       return parseJson(stored);
     }
 
@@ -145,7 +147,7 @@ export class PayloadCipher {
 
     if (key === undefined) {
       throw new Error(
-        `Unable to decrypt SISP payload: no configured key matches the key id ${id}. Add the key that wrote it to previousAppKeys.`,
+        `Unable to decrypt SISP payload: no configured key matches the key id ${safeKeyId(id)}. Add the key that wrote it to previousAppKeys.`,
       );
     }
 
@@ -192,8 +194,49 @@ function decrypt(key: Buffer, aad: Buffer, iv: string, tag: string, encrypted: s
   }
 }
 
-export function isEncrypted(value: string): boolean {
+export function looksLikeEnvelope(value: string): boolean {
   return value.startsWith(`${V1_PREFIX}:`) || value.startsWith(`${V2_PREFIX}:`);
+}
+
+export function isEncryptedEnvelope(value: string): boolean {
+  const parts = value.split(':');
+
+  if (parts[0] === V2_PREFIX) {
+    return (
+      parts.length === 5 &&
+      KEY_ID_PATTERN.test(parts[1] as string) &&
+      isBase64(parts[2] as string, IV_LENGTH) &&
+      isBase64(parts[3] as string, TAG_LENGTH) &&
+      isBase64(parts[4] as string)
+    );
+  }
+
+  if (parts[0] === V1_PREFIX) {
+    return (
+      parts.length === 4 &&
+      isBase64(parts[1] as string, IV_LENGTH) &&
+      isBase64(parts[2] as string, TAG_LENGTH) &&
+      isBase64(parts[3] as string)
+    );
+  }
+
+  return false;
+}
+
+function isBase64(value: string, length?: number): boolean {
+  const decoded = Buffer.from(value, 'base64');
+
+  if (decoded.toString('base64') !== value) {
+    return false;
+  }
+
+  return length === undefined || decoded.length === length;
+}
+
+function safeKeyId(id: string): string {
+  const cleaned = id.replace(/[^A-Za-z0-9_-]/g, '');
+
+  return cleaned.length > KEY_ID_MAX_LENGTH ? `${cleaned.slice(0, KEY_ID_MAX_LENGTH)}...` : cleaned;
 }
 
 function parseJson(value: string): unknown {

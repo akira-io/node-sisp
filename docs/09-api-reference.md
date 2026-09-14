@@ -38,8 +38,9 @@
 | `queryTransactionStatus(transactionOrRef)` | POS transaction-status API call |
 | `reconcileTransactionStatus(transaction)` | Applies the gateway verdict to one pending transaction |
 | `reconcilePending(options?)` | Batch reconciliation, `{ skipped, checked, reconciled }` |
-| `pruneRequestMetadata(options?)` | Deletes `sisp_request_metadata` rows older than `options.olderThanDays` (falls back to `security.metadataRetentionDays`) in batches of `options.batch` (default 500), returns `{ deleted }` |
-| `rotateEncryptionKey(options?)` | Re-encrypts every stored payload onto the current `appKey` in pages of `options.batch` (default 200, must be a positive integer), returns `{ processed, rewritten, current, plaintext, unreadable, vanished, unreadableValues }`. `processed` counts rows and equals the sum of the five row counters; `unreadableValues` lists values, each `{ table, id, column, reason }`. See [Security](07-security.md#rotating-appkey) |
+| `pruneRequestMetadata(options?)` | Deletes `sisp_request_metadata` rows older than `options.olderThanDays` (falls back to `security.metadataRetentionDays`) and returns `{ deleted }` for the whole run, not for the first batch. The window is required and must be a non-negative integer; `RetentionWindowRequiredError` and `RetentionWindowInvalidError` say which rule was broken. `options.batch` (default 500) must be an integer between 1 and 999 |
+| `countPrunableRequestMetadata(options?)` | Counts what `pruneRequestMetadata` would delete for the same window, without deleting it. Backs `prune-metadata --dry-run` |
+| `rotateEncryptionKey(options?)` | Re-encrypts every stored payload onto the current `appKey` in pages of `options.batch` (default 200, must be an integer between 1 and 999), returns `{ processed, rewritten, current, plaintext, unreadable, vanished, unreadableValues, unreadableValueCount, stoppedEarly }`. `processed` counts rows and equals the sum of the five row counters; `unreadableValues` lists at most the first 50 failed values, each `{ table, id, column, reason }`, while `unreadableValueCount` counts them all. `stoppedEarly` is true when the rotation gave up because nothing at all was readable. See [Security](07-security.md#rotating-appkey) |
 | `forCredentials(credentials)` | `ScopedSisp` for multi-merchant setups |
 | `signedRetryUrl(id)` / `signedCancelUrl(ref)` | HMAC-signed lifecycle URLs |
 | `destroy()` | Closes the database pool |
@@ -61,7 +62,9 @@
 
 ### Errors
 
-`SispError` is the base class for `BlacklistedIdentifierError`, `RateLimitExceededError`, `TransactionNotFoundError`, `TransactionStateError`, `DuplicatePaymentIdentifierError`, `PaymentIntentAlreadyProcessingError`, `IdempotencyKeyReusedError`, `PaymentRetryLimitExceededError`, `UnableToGenerateUniquePaymentIdentifiersError`, `MissingThreeDSecureDataError`, `TransactionStatusTransportError`, and `CorrelationRequiredError`.
+`SispError` is the base class for `BlacklistedIdentifierError`, `RateLimitExceededError`, `TransactionNotFoundError`, `TransactionStateError`, `DuplicatePaymentIdentifierError`, `PaymentIntentAlreadyProcessingError`, `IdempotencyKeyReusedError`, `PaymentRetryLimitExceededError`, `UnableToGenerateUniquePaymentIdentifiersError`, `MissingThreeDSecureDataError`, `TransactionStatusTransportError`, `CorrelationRequiredError`, and `RetentionWindowError`.
+
+`RetentionWindowError` is itself the base for `RetentionWindowRequiredError`, thrown when neither `olderThanDays` nor `security.metadataRetentionDays` is set, and `RetentionWindowInvalidError`, thrown when the window is negative, fractional or `NaN`. The `prune-metadata` command catches the base class and reports either as a usage error.
 
 `PaymentIntentAlreadyProcessingError` maps to HTTP 409 in the payment handler when an idempotency key is currently reserved but not yet linked to a transaction. `IdempotencyKeyReusedError` maps to HTTP 409 when a key is replayed with a different request body.
 

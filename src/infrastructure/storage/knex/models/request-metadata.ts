@@ -9,7 +9,7 @@ import {
   normalizeListOffset,
   normalizeListOrder,
 } from '../list-options';
-import { nowIso, type RequestMetadataRecord } from '../records';
+import { nowIso, type RequestMetadataRecord, timestampValue } from '../records';
 
 export type { NewRequestMetadata } from '../../../../domain/storage-types';
 
@@ -59,7 +59,7 @@ export class RequestMetadata {
   async purgeOlderThan(cutoffIso: string, limit: number): Promise<number> {
     const stale = await this.db(this.tables.requestMetadata)
       .select('id')
-      .where('created_at', '<', cutoffIso)
+      .where('created_at', '<', timestampValue(this.db, cutoffIso))
       .orderBy('id', 'asc')
       .limit(limit);
     const ids = stale.map((row: Record<string, unknown>) => Number(row.id));
@@ -73,7 +73,7 @@ export class RequestMetadata {
 
   async countOlderThan(cutoffIso: string): Promise<number> {
     const [row] = await this.db(this.tables.requestMetadata)
-      .where('created_at', '<', cutoffIso)
+      .where('created_at', '<', timestampValue(this.db, cutoffIso))
       .count<{ count: string | number }[]>({ count: '*' });
 
     return Number(row?.count ?? 0);

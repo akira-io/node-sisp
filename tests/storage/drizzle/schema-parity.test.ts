@@ -1,16 +1,39 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import type { Knex } from 'knex';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DEFAULT_TABLES } from '../../../src/application/config';
 import { MYSQL_IDENTIFIER_LIMIT } from '../../../src/infrastructure/storage/drizzle/schema/naming';
 import { SISP_TABLE_SPECS } from '../../../src/infrastructure/storage/drizzle/schema/spec';
+import { runMigrations } from '../../../src/infrastructure/storage/knex/auto-migrate';
+import { createKnexInstance } from '../../../src/infrastructure/storage/knex/create-knex';
 import {
   DIALECTS,
   EXPECTED_SQL_TYPES,
   foreignKeyColumns,
+  type IntrospectedIndex,
   introspect,
   TABLE_KEYS,
 } from './schema-introspection';
+
+async function knexIndexesFor(db: Knex, table: string): Promise<IntrospectedIndex[]> {
+  const list = (await db.raw(`pragma index_list(${table})`)) as {
+    name: string;
+    unique: number;
+  }[];
+
+  return Promise.all(
+    list.map(async (index) => {
+      const info = (await db.raw(`pragma index_info(${index.name})`)) as { name: string }[];
+
+      return {
+        name: index.name,
+        unique: index.unique === 1,
+        columns: info.map((column) => column.name),
+      };
+    }),
+  );
+}
 
 interface PrismaModel {
   table: string;
@@ -73,6 +96,37 @@ const prismaByTable = Object.fromEntries(
 );
 
 describe('drizzle schema parity', () => {
+  let knexDb: Knex;
+
+  beforeAll(async () => {
+    knexDb = await createKnexInstance({
+      client: 'better-sqlite3',
+      connection: { filename: ':memory:' },
+    });
+    await runMigrations(knexDb, DEFAULT_TABLES);
+  });
+
+  afterAll(async () => {
+    await knexDb.destroy();
+  });
+
+  it.each(
+    SISP_TABLE_SPECS,
+  )('covers the same index columns in the knex migrations for $key', async (spec) => {
+    const indexes = await knexIndexesFor(knexDb, DEFAULT_TABLES[spec.key]);
+    const specUniques = [
+      ...spec.uniques,
+      ...spec.columns.filter((column) => column.unique === true).map((column) => [column.name]),
+    ];
+
+    expect(
+      sortedKeys(indexes.filter((entry) => entry.unique).map((entry) => entry.columns)),
+    ).toEqual(sortedKeys(specUniques));
+    expect(
+      sortedKeys(indexes.filter((entry) => !entry.unique).map((entry) => entry.columns)),
+    ).toEqual(sortedKeys(spec.indexes));
+  });
+
   it('declares a table for every SISP table name', () => {
     expect(TABLE_KEYS.map((key) => DEFAULT_TABLES[key]).sort()).toEqual(
       Object.keys(prismaByTable).sort(),

@@ -1,12 +1,12 @@
 import { parseArgs } from 'node:util';
 import { createSisp } from '../../../application/create-sisp';
-import { RetentionWindowRequiredError } from '../../../domain/errors/exceptions';
+import { RetentionWindowError } from '../../../domain/errors/exceptions';
 import {
+  batchInteger,
   type CliOptions,
   CliUsageError,
   loadConfigFile,
   nonNegativeInteger,
-  positiveInteger,
 } from '../support';
 
 export async function pruneMetadata(
@@ -24,7 +24,7 @@ export async function pruneMetadata(
   });
 
   const olderThanDays = nonNegativeInteger(values['older-than-days'], 'older-than-days');
-  const batch = positiveInteger(values.batch, 'batch');
+  const batch = batchInteger(values.batch, 'batch');
 
   const config = await (options.loadConfig ?? loadConfigFile)();
   const sisp = await createSisp(config);
@@ -44,7 +44,7 @@ export async function pruneMetadata(
 
     return 0;
   } catch (error) {
-    if (error instanceof RetentionWindowRequiredError) {
+    if (error instanceof RetentionWindowError) {
       throw new CliUsageError(error.message);
     }
 

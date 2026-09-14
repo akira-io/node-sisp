@@ -56,7 +56,7 @@ describe('sisp rotate-key', () => {
     });
 
     expect(code).toBe(1);
-    expect(lines.join('\n')).toContain('--batch expects a positive integer');
+    expect(lines.join('\n')).toContain('--batch expects an integer between 1 and 999');
   });
 
   it('exits with 2 and names every row it could not re-encrypt', async () => {

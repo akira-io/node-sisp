@@ -248,6 +248,7 @@ const requestMetadata: TableSpec = {
   uniques: [],
   indexes: [
     ['ip_address', 'created_at'],
+    ['created_at'],
     ['country_code'],
     ['device_fingerprint'],
     ['risk_score'],

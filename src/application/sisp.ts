@@ -11,7 +11,6 @@ import type {
   TransactionRepository,
 } from '../core/contracts/storage';
 import { CallbackRejectionReasons } from '../domain/enums/callback-rejection-reason';
-import { RetentionWindowRequiredError } from '../domain/errors/exceptions';
 import type { CallbackPayload } from '../domain/value-objects/callback-payload';
 import { type SispCredentials, sispCredentials } from '../domain/value-objects/sisp-credentials';
 import type { TransactionStatusResponse } from '../domain/value-objects/transaction-status-response';
@@ -31,6 +30,7 @@ import {
 import { RefundBuilder } from './builders/refund-builder';
 import type { ResolvedSispConfig } from './config';
 import type { SispEventEmitter } from './events';
+import { resolveBatch, resolveRetentionDays } from './options';
 import type { BuildSandboxPayloadAction } from './sandbox';
 import { ScopedSisp } from './scoped-sisp';
 import { StatelessSisp } from './stateless-sisp';
@@ -169,11 +169,7 @@ export class Sisp extends StatelessSisp {
     options: PruneRequestMetadataOptions = {},
   ): Promise<PruneRequestMetadataResult> {
     const cutoff = this.resolveRetentionCutoff(options.olderThanDays);
-    const batch = options.batch ?? DEFAULT_PRUNE_BATCH;
-
-    if (batch < 1) {
-      throw new Error('Request metadata pruning needs a batch of at least 1. Pass a larger batch.');
-    }
+    const batch = resolveBatch(options.batch, DEFAULT_PRUNE_BATCH, 'pruneRequestMetadata');
 
     let deleted = 0;
 
@@ -203,11 +199,7 @@ export class Sisp extends StatelessSisp {
   }
 
   private resolveRetentionCutoff(olderThanDays?: number): string {
-    const days = olderThanDays ?? this.config.security.metadataRetentionDays;
-
-    if (days === null || days === undefined) {
-      throw new RetentionWindowRequiredError();
-    }
+    const days = resolveRetentionDays(olderThanDays ?? this.config.security.metadataRetentionDays);
 
     return new Date(Date.now() - days * 86_400_000).toISOString();
   }

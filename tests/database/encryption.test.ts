@@ -1,38 +1,66 @@
 import { createCipheriv, randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { isEncrypted, PayloadCipher } from '../../src/infrastructure/storage/knex/encryption';
+import { looksLikeEnvelope, PayloadCipher } from '../../src/infrastructure/storage/knex/encryption';
 import { deriveSispKey } from '../../src/support/key-derivation';
+import { legacyV1Envelope } from '../helpers/legacy-envelope';
 
-function legacyV1Envelope(value: unknown): string {
-  const key = deriveSispKey('rotation-key', 'payload-encryption');
+const cipher = new PayloadCipher('base64:test-app-key');
+
+function poisonedKeyId(id: string): string {
+  const key = deriveSispKey('base64:test-app-key', 'payload-encryption');
   const iv = randomBytes(12);
   const encipher = createCipheriv('aes-256-gcm', key, iv);
 
-  encipher.setAAD(Buffer.from('sisp.v1', 'utf8'));
+  encipher.setAAD(Buffer.from(`sisp.v2:${id}`, 'utf8'));
 
-  const encrypted = Buffer.concat([
-    encipher.update(JSON.stringify(value), 'utf8'),
-    encipher.final(),
-  ]);
+  const encrypted = Buffer.concat([encipher.update('"x"', 'utf8'), encipher.final()]);
 
   return [
-    'sisp.v1',
+    'sisp.v2',
+    id,
     iv.toString('base64'),
     encipher.getAuthTag().toString('base64'),
     encrypted.toString('base64'),
   ].join(':');
 }
 
-const cipher = new PayloadCipher('base64:test-app-key');
-
 describe('PayloadCipher', () => {
+  it.each([
+    'sisp.v2:oops',
+    'sisp.v1:oops',
+    'sisp.v2:aaaaaaaa:not-base64!:nor-this!:x',
+    'sisp.v2:aaaaaaaa:AAAAAAAAAAAAAAAA:AAAA:AAAA',
+  ])('encrypts %s even though it starts like an envelope', (caller) => {
+    const stored = cipher.store(caller) as string;
+
+    expect(stored.includes(caller)).toBe(false);
+    expect(cipher.read(stored)).toBe(caller);
+  });
+
+  it('keeps a poisoned key id out of the message it puts on a terminal', () => {
+    const stored = poisonedKeyId('\u001b[31mBOOM\r\nrm -rf /');
+
+    let message = '';
+
+    try {
+      cipher.read(stored);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    expect(message).toContain('no configured key matches the key id');
+    expect(message.includes('\u001b')).toBe(false);
+    expect(message.includes('\r')).toBe(false);
+    expect(message.includes('\n')).toBe(false);
+  });
+
   it('encrypts objects at rest and reads them back', () => {
     const payload = { posID: '90051', amount: 1500, nested: { locale: 'pt' } };
 
     const stored = cipher.store(payload);
 
     expect(stored).not.toBeNull();
-    expect(isEncrypted(stored as string)).toBe(true);
+    expect(looksLikeEnvelope(stored as string)).toBe(true);
     expect((stored as string).includes('90051')).toBe(false);
     expect(cipher.read(stored)).toEqual(payload);
   });
@@ -64,14 +92,21 @@ describe('PayloadCipher', () => {
 
   it('rejects truncated authentication tags and short IVs', () => {
     const stored = cipher.store({ secret: true }) as string;
-    const [prefix, iv, tag, encrypted] = stored.split(':') as [string, string, string, string];
+    const [prefix, id, iv, tag, encrypted] = stored.split(':') as [
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
     const shortTag = Buffer.from(tag, 'base64').subarray(0, 8).toString('base64');
     const shortIv = Buffer.from(iv, 'base64').subarray(0, 8).toString('base64');
 
-    expect(() => cipher.read([prefix, iv, shortTag, encrypted].join(':'))).toThrow(
+    expect([prefix, id, iv, tag, encrypted].join(':')).toBe(stored);
+    expect(() => cipher.read([prefix, id, iv, shortTag, encrypted].join(':'))).toThrow(
       'Unable to decrypt SISP payload.',
     );
-    expect(() => cipher.read([prefix, shortIv, tag, encrypted].join(':'))).toThrow(
+    expect(() => cipher.read([prefix, id, shortIv, tag, encrypted].join(':'))).toThrow(
       'Unable to decrypt SISP payload.',
     );
   });
@@ -117,7 +152,7 @@ describe('PayloadCipher key rotation', () => {
   });
 
   it('still reads a v1 value written by the current key', () => {
-    const v1 = legacyV1Envelope({ a: 1 });
+    const v1 = legacyV1Envelope('rotation-key', { a: 1 });
 
     expect(new PayloadCipher('rotation-key').read(v1)).toEqual({ a: 1 });
   });

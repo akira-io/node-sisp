@@ -2,6 +2,7 @@ import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { SispConfig } from '../../application/config';
+import { MAX_BATCH } from '../../application/options';
 
 export interface CliOptions {
   loadConfig?: () => Promise<SispConfig>;
@@ -44,10 +45,11 @@ export async function loadConfigFile(cwd: string = process.cwd()): Promise<SispC
 
 export class CliUsageError extends Error {}
 
-function integerAtLeast(
+function integerWithin(
   value: string | undefined,
   flag: string,
   min: number,
+  max: number,
   description: string,
 ): number | undefined {
   if (value === undefined) {
@@ -56,19 +58,23 @@ function integerAtLeast(
 
   const parsed = Number(value);
 
-  if (!Number.isInteger(parsed) || parsed < min) {
-    throw new CliUsageError(`--${flag} expects a ${description}, received "${value}".`);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    throw new CliUsageError(`--${flag} expects ${description}, received "${value}".`);
   }
 
   return parsed;
 }
 
 export function positiveInteger(value: string | undefined, flag: string): number | undefined {
-  return integerAtLeast(value, flag, 1, 'positive integer');
+  return integerWithin(value, flag, 1, Number.MAX_SAFE_INTEGER, 'a positive integer');
+}
+
+export function batchInteger(value: string | undefined, flag: string): number | undefined {
+  return integerWithin(value, flag, 1, MAX_BATCH, `an integer between 1 and ${MAX_BATCH}`);
 }
 
 export function nonNegativeInteger(value: string | undefined, flag: string): number | undefined {
-  return integerAtLeast(value, flag, 0, 'non-negative integer');
+  return integerWithin(value, flag, 0, Number.MAX_SAFE_INTEGER, 'a non-negative integer');
 }
 
 export async function exists(filePath: string): Promise<boolean> {

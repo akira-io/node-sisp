@@ -1,5 +1,5 @@
 import type { EncryptedColumn } from '../../core/contracts/maintenance';
-import { isEncrypted, type PayloadCipher } from './knex/encryption';
+import { looksLikeEnvelope, type PayloadCipher } from './knex/encryption';
 
 export type RekeyOutcome =
   | { status: 'current' }
@@ -95,7 +95,7 @@ function rekeyValue(cipher: PayloadCipher, value: unknown): RekeyOutcome {
     return CURRENT;
   }
 
-  if (typeof value !== 'string' || !isEncrypted(value)) {
+  if (typeof value !== 'string' || !looksLikeEnvelope(value)) {
     return PLAINTEXT;
   }
 

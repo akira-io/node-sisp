@@ -72,11 +72,8 @@ export function makeRequestMetadataRepository(
 
     async countOlderThan(cutoffIso: string): Promise<number> {
       const table = rows();
-      const stale = await table.ids(
-        lt(table.column('created_at'), table.timestampValue(cutoffIso)),
-      );
 
-      return stale.length;
+      return table.count(lt(table.column('created_at'), table.timestampValue(cutoffIso)));
     },
   };
 }

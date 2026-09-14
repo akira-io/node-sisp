@@ -45,7 +45,19 @@ describe('sisp prune-metadata', () => {
     });
 
     expect(code).toBe(1);
-    expect(lines.join('\n')).toContain('--batch expects a positive integer');
+    expect(lines.join('\n')).toContain('--batch expects an integer between 1 and 999');
+  });
+
+  it('rejects a batch beyond what every dialect can bind', async () => {
+    const { lines, output } = capture();
+
+    const code = await runCli(['prune-metadata', '--older-than-days', '1', '--batch', '100000'], {
+      loadConfig: async () => config,
+      output,
+    });
+
+    expect(code).toBe(1);
+    expect(lines.join('\n')).toContain('--batch expects an integer between 1 and 999');
   });
 
   it('refuses to run without a retention window', async () => {

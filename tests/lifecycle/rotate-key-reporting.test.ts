@@ -67,7 +67,7 @@ describe('rotateEncryptionKey batch validation', () => {
 
     try {
       await expect(sisp.rotateEncryptionKey({ batch })).rejects.toThrow(
-        /batch to be a positive integer/,
+        /batch to be an integer between 1 and 999/,
       );
 
       const complete = await sisp.rotateEncryptionKey();

@@ -49,7 +49,14 @@ export {
   type SispSideEffect,
   SispSideEffects,
 } from './application/side-effects';
-export { Sisp, type SispModels } from './application/sisp';
+export {
+  type PruneRequestMetadataOptions,
+  type PruneRequestMetadataResult,
+  type ReconcilePendingOptions,
+  type ReconcilePendingResult,
+  Sisp,
+  type SispModels,
+} from './application/sisp';
 export type {
   ResolvedStatelessConfig,
   StatelessPipelineCustomizers,
@@ -116,6 +123,9 @@ export {
   PaymentIntentAlreadyProcessingError,
   PaymentRetryLimitExceededError,
   RateLimitExceededError,
+  RetentionWindowError,
+  RetentionWindowInvalidError,
+  RetentionWindowRequiredError,
   SispError,
   TransactionNotFoundError,
   TransactionStateError,
@@ -132,6 +142,16 @@ export type {
   TransactionLogRecord,
   TransactionRecord,
 } from './domain/records';
+export type {
+  BlacklistEntry,
+  ListByTransactionOptions,
+  ListTransactionsOptions,
+  NewRequestMetadata,
+  NewTransaction,
+  RateLimitHit,
+  TransactionAttemptChanges,
+  TransactionChanges,
+} from './domain/storage-types';
 export {
   type CallbackPayload,
   callbackPayloadFrom,
@@ -146,6 +166,7 @@ export {
   paymentRequestDataFrom,
 } from './domain/value-objects/payment-request-data';
 export { type SispCredentials, sispCredentials } from './domain/value-objects/sisp-credentials';
+export type { TransactionItemData } from './domain/value-objects/transaction-item-data';
 export { SispManager } from './infrastructure/drivers/sisp-manager';
 export {
   generateCallbackFingerprint,

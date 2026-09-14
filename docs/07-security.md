@@ -33,14 +33,15 @@ Removing the old key before the rotation completes makes every row still encrypt
 sisp rotate-key --batch 200
 ```
 
-`--batch` is optional and defaults to 200 rows per page. The command reports one outcome per row visited, and every outcome line says whether it counts rows or stored values:
+`--batch` is optional, defaults to 200 rows per page, and cannot exceed 999: every adapter deletes and re-reads by `id IN (...)`, and 999 is the tightest bound-parameter limit across the supported dialects. The command reports one outcome per row visited, and every outcome line says whether it counts rows or stored values:
 
 - `Rewrote <n> of <total> rows onto the current appKey.` Rows where at least one value was rewritten.
 - `<n> rows were already encrypted under the current appKey.` Rows whose every encrypted value already carried the current key id. Only these rows are safe evidence that the old key is no longer needed.
 - `<n> rows were never encrypted and left unchanged.` Rows that hold no ciphertext at all, written before the installation had an `appKey`.
 - `<n> rows were unreadable with the configured keys and left unchanged.` Rows where every value failed to decrypt. These rows are still on some other key.
 - `<n> rows were deleted while the rotation ran.` Rows that disappeared between the id scan and the row lock.
-- `<n> encrypted values could not be read:` followed by one `<table>#<id> (<column>): <reason>` line per value. This counts values, not rows, because one row can carry more than one encrypted column.
+- `<n> encrypted values could not be read:` followed by one `<table>#<id> (<column>): <reason>` line per value, at most 50 of them, then `... and <n> more not listed.` when there were more. The `<n>` in the heading counts values, not rows, because one row can carry more than one encrypted column.
+- `Stopped early: no value was readable, so the configured keys cannot be the right ones.` The rotation gave up after 500 unreadable values without reading a single one, rather than walking the remaining tables to say the same thing. The usual cause is a missing `previousAppKeys` entry.
 
 A value written before the installation had an `appKey` is plaintext, not a failure. The rotation leaves it as it is, counts its row under the plaintext line, and still exits `0`: encrypting rows that were never encrypted is a separate decision, not part of a key rotation. Such a row is never reported as already on the current key, so a run that prints only plaintext rows is not evidence that the old key can be removed.
 
@@ -49,11 +50,20 @@ Exit codes: `0` when no value was left unreadable, `2` when at least one value c
 To wire the rotation into your own scheduler instead of the CLI, call the method directly:
 
 ```ts
-const { processed, rewritten, current, plaintext, unreadable, vanished, unreadableValues } =
-  await sisp.rotateEncryptionKey({ batch: 200 });
+const {
+  processed,
+  rewritten,
+  current,
+  plaintext,
+  unreadable,
+  vanished,
+  unreadableValues,
+  unreadableValueCount,
+  stoppedEarly,
+} = await sisp.rotateEncryptionKey({ batch: 200 });
 ```
 
-`processed` counts the rows visited and equals `rewritten` plus `current` plus `plaintext` plus `unreadable` plus `vanished`. Every row falls in exactly one of those five buckets, and a row is counted in `rewritten` as soon as one of its values was rewritten, in `unreadable` when nothing was rewritten and at least one value failed, in `plaintext` when nothing was rewritten, nothing failed and at least one value carried no ciphertext, and in `current` only when every encrypted value was already on the current key. `unreadable` counts rows and `unreadableValues` counts stored values, because one row can carry more than one encrypted column, so the list can be longer than the row counter. `batch` must be a positive integer; a fractional or zero value throws instead of rotating part of the table.
+`processed` counts the rows visited and equals `rewritten` plus `current` plus `plaintext` plus `unreadable` plus `vanished`. Every row falls in exactly one of those five buckets, and a row is counted in `rewritten` as soon as one of its values was rewritten, in `unreadable` when nothing was rewritten and at least one value failed, in `plaintext` when nothing was rewritten, nothing failed and at least one value carried no ciphertext, and in `current` only when every encrypted value was already on the current key. `unreadable` counts rows and `unreadableValueCount` counts stored values, because one row can carry more than one encrypted column, so the value counter can be higher than the row counter. `unreadableValues` is a sample of at most 50 of those values, so that a wholly misconfigured installation cannot exhaust memory listing every row it owns; `stoppedEarly` is `true` when the rotation gave up after 500 unreadable values without reading one. `batch` must be an integer between 1 and 999; a fractional, zero or larger value throws instead of rotating part of the table.
 
 `sisp rotate-key` is idempotent and safe to interrupt and re-run. The command keeps no progress file: re-running it after an interruption re-scans the tables from the start and rewrites nothing that is already on the current key.
 
@@ -116,7 +126,7 @@ A crontab entry to run it nightly:
 0 3 * * * cd /path/to/app && npx sisp prune-metadata --older-than-days 90 >> /var/log/sisp-prune.log 2>&1
 ```
 
-`--dry-run` resolves the retention window exactly as a real run does, and fails the same way with the same message when no window is configured, but only counts the rows past the cutoff instead of deleting them. `--batch` defaults to 500 when omitted.
+`--dry-run` resolves the retention window exactly as a real run does, and fails the same way with the same message when no window is configured, but only counts the rows past the cutoff instead of deleting them. `--batch` defaults to 500 when omitted and cannot exceed 999, the tightest bound-parameter limit across the supported dialects.
 
 To wire the purge into your own scheduler instead of cron, call the method directly:
 
@@ -124,7 +134,7 @@ To wire the purge into your own scheduler instead of cron, call the method direc
 const { deleted } = await sisp.pruneRequestMetadata({ olderThanDays: 90 });
 ```
 
-`olderThanDays` and `batch` are both optional; when omitted, `olderThanDays` falls back to `security.metadataRetentionDays` and `batch` falls back to 500, the same default the CLI command uses. Both the command and `pruneRequestMetadata` delete in batches rather than in one statement, and each batch is its own delete: an interrupted run has already committed every batch before it, and running it again picks up wherever the cutoff leaves rows behind. A row whose `created_at` equals the cutoff exactly is kept, not deleted.
+`olderThanDays` and `batch` are both optional; when omitted, `olderThanDays` falls back to `security.metadataRetentionDays` and `batch` falls back to 500, the same default the CLI command uses. `olderThanDays` must be a non-negative integer, wherever it comes from: a negative or fractional window throws rather than moving the cutoff into the future and deleting rows written seconds ago, and `0` means purge everything up to now. `batch` must be an integer between 1 and 999. Both the command and `pruneRequestMetadata` delete in batches rather than in one statement, and each batch is its own delete: an interrupted run has already committed every batch before it, and running it again picks up wherever the cutoff leaves rows behind. A row whose `created_at` equals the cutoff exactly is kept, not deleted.
 
 ## Multi-merchant isolation
 
