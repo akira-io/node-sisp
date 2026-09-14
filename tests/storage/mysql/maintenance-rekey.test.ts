@@ -1,15 +1,19 @@
 import { drizzle } from 'drizzle-orm/mysql2';
-import knexFactory from 'knex';
 import mysql from 'mysql2/promise';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_TABLES } from '../../../src/application/config';
+import { DEFAULT_TABLES, type SispTables } from '../../../src/application/config';
 import { ENCRYPTED_COLUMNS } from '../../../src/core/contracts/maintenance';
 import type { SispStorage } from '../../../src/core/contracts/storage';
 import { createDrizzleStorage } from '../../../src/infrastructure/storage/drizzle';
-import { runMigrations } from '../../../src/infrastructure/storage/knex/auto-migrate';
 import { CONTRACT_APP_KEY } from '../contract/types';
 
 const url = process.env.SISP_TEST_MYSQL_URL;
+const TABLES: SispTables = { ...DEFAULT_TABLES };
+
+for (const key of Object.keys(TABLES) as (keyof SispTables)[]) {
+  TABLES[key] = `rekey_${TABLES[key]}`;
+}
+
 const ROTATED_KEY = 'mysql-rotation-key';
 const UNREADABLE = /no configured key/;
 
@@ -24,30 +28,27 @@ function columnsOf(table: (typeof ENCRYPTED_COLUMNS)[number]['table']) {
 }
 
 describe.skipIf(url === undefined)('maintenance.reencryptBatch on mysql', () => {
-  let migrator: ReturnType<typeof knexFactory>;
   let pool: mysql.Pool;
   let storage: SispStorage;
 
   beforeAll(async () => {
-    migrator = knexFactory({ client: 'mysql2', connection: url });
-
-    await runMigrations(migrator, DEFAULT_TABLES);
-
     pool = mysql.createPool({ uri: url as string, connectionLimit: 4 });
-    storage = createDrizzleStorage(drizzle(pool), DEFAULT_TABLES, CONTRACT_APP_KEY, {
+    storage = createDrizzleStorage(drizzle(pool), TABLES, CONTRACT_APP_KEY, {
       dialect: 'mysql',
+      autoMigrate: true,
     });
+
+    await storage.migrate?.();
   }, 60_000);
 
   afterAll(async () => {
     await pool.end();
-    await migrator.destroy();
   });
 
   beforeEach(async () => {
     await pool.query('SET FOREIGN_KEY_CHECKS = 0');
 
-    for (const table of Object.values(DEFAULT_TABLES)) {
+    for (const table of Object.values(TABLES)) {
       await pool.query(`TRUNCATE TABLE \`${table}\``);
     }
 
@@ -57,7 +58,7 @@ describe.skipIf(url === undefined)('maintenance.reencryptBatch on mysql', () => 
   function rotated(): SispStorage {
     return createDrizzleStorage(
       drizzle(pool),
-      DEFAULT_TABLES,
+      TABLES,
       { current: ROTATED_KEY, previous: [CONTRACT_APP_KEY] },
       { dialect: 'mysql' },
     );
@@ -166,7 +167,7 @@ describe.skipIf(url === undefined)('maintenance.reencryptBatch on mysql', () => 
       payload: { posID: '90051' },
     });
 
-    await pool.query(`update \`${DEFAULT_TABLES.transactions}\` set payload = ? where id = ?`, [
+    await pool.query(`update \`${TABLES.transactions}\` set payload = ? where id = ?`, [
       '{"posID":"90051"}',
       created.id,
     ]);

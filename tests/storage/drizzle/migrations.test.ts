@@ -3,9 +3,14 @@ import type { SispTables } from '../../../src/application/config';
 import { DEFAULT_TABLES } from '../../../src/application/config';
 import type { DrizzleDialect } from '../../../src/infrastructure/storage/drizzle';
 import { createSispTablesSql } from '../../../src/infrastructure/storage/drizzle';
+import {
+  DEFAULT_STRING_LENGTH,
+  SISP_TABLE_SPECS,
+} from '../../../src/infrastructure/storage/drizzle/schema/spec';
 import { DIALECTS, introspect, TABLE_KEYS } from './schema-introspection';
 
 const MAX_IDENTIFIER_LENGTH = 64;
+const MAX_MYSQL_KEY_BYTES = 3072;
 
 function splitTopLevel(body: string): string[] {
   const parts: string[] = [];
@@ -119,11 +124,32 @@ describe('drizzle migrations', () => {
   });
 
   it('keeps the knex index name on Postgres and sqlite even past the MySQL limit', () => {
-    const knexName = 'sisp_transactions_merchant_ref_merchant_session_status_message_type_index';
+    const transactions = `sisp_${'long_'.repeat(10)}transactions`;
+    const tables: SispTables = { ...DEFAULT_TABLES, transactions };
+    const knexName = `${transactions}_merchant_ref_merchant_session_index`;
+    const sqlFor = (dialect: DrizzleDialect): string =>
+      [...createSispTablesSql(tables, dialect)].join('\n');
 
-    expect(declaredIndexes('postgresql', DEFAULT_TABLES.transactions)).toContain(knexName);
-    expect(declaredIndexes('sqlite', DEFAULT_TABLES.transactions)).toContain(knexName);
-    expect(declaredIndexes('mysql', DEFAULT_TABLES.transactions)).not.toContain(knexName);
+    expect(sqlFor('postgresql')).toContain(knexName);
+    expect(sqlFor('sqlite')).toContain(knexName);
+    expect(sqlFor('mysql')).not.toContain(knexName);
+  });
+
+  it('keeps every MySQL index inside the 3072 byte key limit', () => {
+    for (const spec of SISP_TABLE_SPECS) {
+      const width = new Map(
+        spec.columns.map((column) => [
+          column.name,
+          column.type.kind === 'string' ? (column.type.length ?? DEFAULT_STRING_LENGTH) * 4 : 8,
+        ]),
+      );
+
+      for (const columns of [...spec.indexes, ...spec.uniques]) {
+        const bytes = columns.reduce((total, column) => total + (width.get(column) ?? 0), 0);
+
+        expect(bytes).toBeLessThanOrEqual(MAX_MYSQL_KEY_BYTES);
+      }
+    }
   });
 
   it('declares MySQL foreign keys as table constraints over unsigned columns', () => {

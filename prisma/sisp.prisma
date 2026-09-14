@@ -36,7 +36,7 @@ model SispTransaction {
   updatedAt           DateTime? @map("updated_at")
 
   @@unique([merchantRef])
-  @@index([merchantRef, merchantSession, status, messageType])
+  @@index([merchantRef, merchantSession])
   @@index([transactionId])
   @@index([customerEmail])
   @@index([posId])
