@@ -152,7 +152,12 @@ export { type HttpRequestInfo, headerValue } from './infrastructure/http/request
 export type { HttpResult } from './infrastructure/http/results';
 export type { StatelessHttpHandlers } from './infrastructure/http/stateless-handlers';
 export { StatelessSispHttpHandlers } from './infrastructure/http/stateless-handlers';
-export type { StatelessPaymentResponseData } from './infrastructure/http/stateless-result-url';
+export type {
+  CarriedPaymentError,
+  SignedStatelessResultData,
+  StatelessPaymentResponseData,
+  StatelessResultEnvelope,
+} from './infrastructure/http/stateless-result-url';
 export {
   readStatelessResult,
   signStatelessResult,

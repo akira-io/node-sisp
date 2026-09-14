@@ -55,6 +55,8 @@
 
 `fromCents`, `toCents`, `toThousandths`, `computeToken`, `generatePaymentFingerprint`, `generateCallbackFingerprint`, `generateRefundFingerprint`, `validateCallbackFingerprint`, `callbackPayloadFrom`, `callbackPayloadToFormFields`, `paymentRequestToFormFields`, `paymentRequestDataFrom`, `validatePaymentInput`, `allCountries`, `findCountryByNumeric`, `getCountryName`, `getCountryFlag`, `getCountryNumericCode`, `mapTransactionStatus`, `MessageType`, `SUCCESS_MESSAGE_TYPES`, `isSuccessMessageType`, `isErrorMessageType`, `booleanSetting`, `structuredErrorFrom`, `callbackErrorFrom`, `resolveStatelessConfig`, `readStatelessResult`, `signStatelessResult`, `statelessResultData`, `isCallbackRejectionReason`.
 
+`readStatelessResult` returns `SignedStatelessResultData`, not `StatelessPaymentResponseData`: its `error` is a `CarriedPaymentError` with `code` and `customerMessage` only, because the signed URL does not carry the gateway diagnostics. See [Stateless mode](13-stateless-mode.md#what-survives-the-signed-result-url).
+
 `runMigrations`, `createKnexInstance`, `PayloadCipher`, and `runWithLogSource` moved to `@akira-io/sisp/knex` (see below) so the main entry stays knex-free at the type level.
 
 ### Errors
