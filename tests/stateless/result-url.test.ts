@@ -70,6 +70,42 @@ describe('stateless result url', () => {
     expect(restored?.error?.customerMessage).toBe('Saldo do cartão insuficiente');
   });
 
+  it('carries only the customer-facing half of a verified decline through the signed url', () => {
+    const data = statelessResultData(declinedWithDistinctFields(), TransactionStatus.Failed, null);
+    const restored = readStatelessResult(
+      signer,
+      PATH,
+      queryOf(signStatelessResult(signer, PATH, data)),
+    );
+
+    expect(restored?.error).toEqual({
+      code: 'C',
+      customerMessage: 'Saldo do cartao insuficiente',
+    });
+  });
+
+  it('keeps the customer message apart from the description it travels beside', () => {
+    const data = statelessResultData(declinedWithDistinctFields(), TransactionStatus.Failed, null);
+    const restored = readStatelessResult(
+      signer,
+      PATH,
+      queryOf(signStatelessResult(signer, PATH, data)),
+    );
+
+    expect(restored?.error?.customerMessage).toBe('Saldo do cartao insuficiente');
+  });
+
+  it('hands the unsigned response every field the gateway sent', () => {
+    const data = statelessResultData(declinedWithDistinctFields(), TransactionStatus.Failed, null);
+
+    expect(data.error).toEqual({
+      code: 'C',
+      description: 'Insufficient funds on the issuing account',
+      detail: 'ISO 8583 response code 51 from the issuer',
+      customerMessage: 'Saldo do cartao insuficiente',
+    });
+  });
+
   it('withholds the error fields of a callback that did not verify', () => {
     const data = statelessResultData(
       callbackPayloadFrom({
@@ -166,4 +202,15 @@ function queryOf(url: string): Record<string, string> {
   const params = new URLSearchParams(url.split('?')[1] ?? '');
 
   return Object.fromEntries(params.entries());
+}
+
+function declinedWithDistinctFields() {
+  return callbackPayloadFrom({
+    merchantRespMerchantRef: 'REF123',
+    messageType: '6',
+    merchantRespErrorCode: 'C',
+    merchantRespErrorDescription: 'Insufficient funds on the issuing account',
+    merchantRespErrorDetail: 'ISO 8583 response code 51 from the issuer',
+    merchantRespAdditionalErrorMessage: 'Saldo do cartao insuficiente',
+  });
 }

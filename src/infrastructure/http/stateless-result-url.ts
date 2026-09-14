@@ -9,12 +9,24 @@ import { type PaymentErrorData, structuredErrorFrom } from './payment-response';
 
 const RESULT_URL_TTL_MINUTES = 5;
 
-export interface StatelessPaymentResponseData {
+export interface StatelessResultEnvelope {
   merchant_ref: string;
   verified: boolean;
   status: TransactionStatus | null;
   reason: CallbackRejectionReason | null;
+}
+
+export interface CarriedPaymentError {
+  code: string;
+  customerMessage: string;
+}
+
+export interface StatelessPaymentResponseData extends StatelessResultEnvelope {
   error: PaymentErrorData | null;
+}
+
+export interface SignedStatelessResultData extends StatelessResultEnvelope {
+  error: CarriedPaymentError | null;
 }
 
 export function statelessResultData(
@@ -59,7 +71,7 @@ export function readStatelessResult(
   signer: UrlSigner,
   path: string,
   query: Record<string, unknown>,
-): StatelessPaymentResponseData | null {
+): SignedStatelessResultData | null {
   if (!signer.validate(path, query)) {
     return null;
   }
@@ -83,11 +95,9 @@ export function readStatelessResult(
   };
 }
 
-function carriedError(query: Record<string, unknown>): PaymentErrorData {
+function carriedError(query: Record<string, unknown>): CarriedPaymentError {
   return {
     code: typeof query.errorCode === 'string' ? query.errorCode : '',
-    description: '',
-    detail: '',
     customerMessage: typeof query.errorMessage === 'string' ? query.errorMessage : '',
   };
 }

@@ -58,13 +58,24 @@ app.use('/sisp', statelessSispRoutes(sisp));
 
 ### What survives the signed result URL
 
-That shape is what `handleCallback` returns and what the `callback:verified` event carries. When `appKey` is configured, the HTTP handler instead redirects to a signed result URL, and `GET` on it carries only the customer-facing half of the error - `code` and `customerMessage`. `description` and `detail` come back empty:
+That shape is what `handleCallback` returns and what the `callback:verified` event carries. When `appKey` is configured, the HTTP handler instead redirects to a signed result URL. `GET` on it answers with the same envelope, but the error inside it carries only the customer-facing half - `code` and `customerMessage`:
 
 ```
-{ code: 'F', description: '', detail: '', customerMessage: 'FALHA NA AUTENTICACAO CLIENTE' }
+{ merchant_ref: 'R123', verified: true, status: 'failed', reason: null, error: { code: 'F', customerMessage: 'FALHA NA AUTENTICACAO CLIENTE' } }
 ```
 
 `description` and `detail` are gateway diagnostics; `customerMessage` is `merchantRespAdditionalErrorMessage`, which the specification defines as the message to show the end customer. Keeping the diagnostics out of the URL keeps them out of access logs, `Referer` headers and browser history. Read them from the event payload if you need them. Stateful mode does not lose them, because it reads the stored callback back from the attempt.
+
+The two shapes have two types, so the narrower one cannot be mistaken for the other. `statelessResultData` and the unsigned `POST /callback` response are `StatelessPaymentResponseData`, whose `error` is the full `PaymentErrorData`. `readStatelessResult` and the signed `GET` are `SignedStatelessResultData`, whose `error` is `CarriedPaymentError`:
+
+```ts
+export interface CarriedPaymentError {
+  code: string;
+  customerMessage: string;
+}
+```
+
+The signed result used to answer with all four keys and two of them permanently empty, which read as a gateway that had sent nothing rather than as a field the URL does not carry. `error.description` and `error.detail` are now absent from that response and from its type; a consumer that reads them gets a compiler error instead of an empty string.
 
 A callback that did not verify carries no error fields at all. Its `errorCode` and `additionalErrorMessage` are attacker-controlled text on an unauthenticated POST, so they never reach the signed URL; you get `reason` instead.
 
@@ -100,7 +111,7 @@ sisp.on('callback:verified', (event) => {
 });
 ```
 
-`GET /callback`, the signed stateless result, and `StatelessPaymentResponseData` all carry the same `status` field, derived from `mapTransactionStatus` whenever the callback verified and `null` whenever it did not. This applies equally to stateful `Sisp`: `outcome.transaction.status` already exposed the gateway verdict there, and `outcome.status` mirrors it on the return value of `handleCallback` and on the `callback:*` events too, so the same check works unchanged after [growing into stateful](#growing-into-stateful). A replayed stateful callback is a rejected outcome, so its `outcome.status` is `null` too; the verdict of the callback that was already processed is on `outcome.transaction.status`.
+`GET /callback`, the signed stateless result, and both `StatelessPaymentResponseData` and `SignedStatelessResultData` carry the same `status` field, derived from `mapTransactionStatus` whenever the callback verified and `null` whenever it did not. This applies equally to stateful `Sisp`: `outcome.transaction.status` already exposed the gateway verdict there, and `outcome.status` mirrors it on the return value of `handleCallback` and on the `callback:*` events too, so the same check works unchanged after [growing into stateful](#growing-into-stateful). A replayed stateful callback is a rejected outcome, so its `outcome.status` is `null` too; the verdict of the callback that was already processed is on `outcome.transaction.status`.
 
 Cancellation is the one rejected outcome that still carries a status. `TransactionStatus.Cancelled` there comes from the package noticing `UserCancelled`, not from anything the payload claimed.
 
