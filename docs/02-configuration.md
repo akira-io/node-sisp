@@ -31,6 +31,7 @@ value.
 |-----|---------|-------------|
 | `database` | required | `{ client, connection, autoMigrate }` passed to knex. `connection` is typed loosely (`string \| object \| (() => object \| Promise<object>)`) on the main entry so consumers do not need `knex` installed to typecheck; import `SispKnexDatabaseConfig` from `@akira-io/sisp/knex` for the fully-typed knex connection shapes, including knex's connection-provider function form for rotating credentials |
 | `appKey` | `null` | Key for payload encryption (AES-256-GCM) and signed URLs. Required by `createSisp` to persist payloads; at least 32 characters outside sandbox mode |
+| `previousAppKeys` | `[]` | Keys that used to be `appKey`, kept only so rows they encrypted stay readable during a rotation. Cannot be combined with a caller-provided `storage`; see below |
 | `baseUrl` | `''` | Absolute origin used when building route URLs |
 | `basePath` | `'/sisp'` | Mount path of the HTTP routes. Normalized to a leading slash and no trailing slash, so `pay`, `/pay` and `/pay/` all resolve to `/pay` |
 | `urlMerchantResponse` | callback route | Where SISP posts the payment result |
@@ -43,6 +44,27 @@ value.
 | `idempotency.excludeFromHash` | `_token`, `_csrf`, `_method`, `csrf_token`, `authenticity_token` | Body fields left out of the idempotency request hash, on top of `idempotency.requestKeys` |
 | `allowRetry` | `true` | Enables the retry flow for failed payments |
 | `tables` | `sisp_*` | Override any of the package table names |
+
+### `previousAppKeys` with your own storage
+
+`createSisp` throws when `previousAppKeys` is set together with a caller-provided `storage`, because the adapter you built already owns its cipher and the package cannot reach into it:
+
+```
+`previousAppKeys` cannot be honoured with a caller-provided `storage`: pass { current, previous } as the app key to createDrizzleStorage, createPrismaStorage or KnexStorage.create instead.
+```
+
+On Prisma, Drizzle or an injected knex storage, leave `previousAppKeys` out of the `createSisp` config and pass the keys to the adapter factory:
+
+```ts
+const storage = createPrismaStorage(
+  prisma,
+  DEFAULT_TABLES,
+  { current: process.env.APP_KEY, previous: [process.env.APP_KEY_PREVIOUS] },
+  { provider: 'postgresql' },
+);
+```
+
+The rotation procedure in [Security](07-security.md#rotating-appkey) is otherwise the same.
 
 ## Guards
 
@@ -57,6 +79,7 @@ rateLimiting: {
 security: {
   collectMetadata: true,
   clientIp: (request) => headerValue(request, 'x-real-ip'),
+  metadataRetentionDays: null,
 },
 ```
 
@@ -67,6 +90,8 @@ security: {
 `perIpStatus` covers `GET /transactions/:ref`, which a checkout page polls while it waits for the gateway. It keys on the same resolved client IP as `perIp` but counts into its own bucket, so polling never exhausts the payment budget: at the default of 3600 per hour, one request per second stays inside it, and behind a NAT address every client on it no longer spends from the payment allowance. Lower the limit when the checkout polls slowly, raise `windowSeconds` to spread the same budget over longer sessions, or set `perIpStatus.enabled` to `false` to leave status lookups unlimited.
 
 `security.collectMetadata` set to `false` drops `CaptureRequestMetadata` from the payment pipeline and stops the callback handler from writing to `sisp_request_metadata`, so no IP, user agent, header, or device-fingerprint row is created. Leave it `true` unless a data-protection requirement says otherwise; the reconciliation and audit trails do not depend on it.
+
+`security.metadataRetentionDays` defaults to `null`, meaning nothing purges `sisp_request_metadata` automatically. Set it to the number of days to keep, then run it with the `sisp prune-metadata` command or `sisp.pruneRequestMetadata()`. See [Security](07-security.md#request-metadata-retention).
 
 `security.clientIp` resolves the address used for per-IP rate limits, the IP blacklist, and request metadata. Without it the package uses the adapter's `req.ip`, which behind a reverse proxy is the proxy's address unless the framework is told to trust it (`app.set('trust proxy', ...)` in Express, `trustProxy` in Fastify). When the resolver returns `null` or an empty string the package falls back to the adapter's `req.ip`; per-IP limits and blacklist checks are skipped only when that is empty too, instead of sharing one bucket.
 

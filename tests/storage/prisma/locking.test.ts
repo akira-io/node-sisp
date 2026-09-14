@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { lockRowForUpdate } from '../../../src/infrastructure/storage/prisma/locking';
+import {
+  lockRowForUpdate,
+  selectForUpdate,
+} from '../../../src/infrastructure/storage/prisma/locking';
 
 describe('lockRowForUpdate', () => {
   it('is a no-op for sqlite', async () => {
@@ -112,5 +115,72 @@ describe('lockRowForUpdate', () => {
     ]);
 
     expect(exec).not.toHaveBeenCalled();
+  });
+});
+
+describe('selectForUpdate', () => {
+  it('emits SELECT * with FOR UPDATE for postgresql and returns the rows', async () => {
+    const exec = vi.fn().mockResolvedValue([{ id: 1, hits: 3 }]);
+
+    const rows = await selectForUpdate(exec, 'postgresql', 'sisp_rate_limits', [
+      { column: 'identifier', value: '1.2.3.4' },
+      { column: 'limit_type', value: 'payment' },
+    ]);
+
+    const [sql, ...values] = exec.mock.calls[0] as [string, ...unknown[]];
+
+    expect(sql).toContain('SELECT * FROM "sisp_rate_limits"');
+    expect(sql).toContain('"identifier" = $1');
+    expect(sql).toContain('"limit_type" = $2');
+    expect(sql).toContain('FOR UPDATE');
+    expect(values).toEqual(['1.2.3.4', 'payment']);
+    expect(rows).toEqual([{ id: 1, hits: 3 }]);
+  });
+
+  it('uses backtick quoting and ? placeholders for mysql', async () => {
+    const exec = vi.fn().mockResolvedValue([]);
+
+    await selectForUpdate(exec, 'mysql', 'sisp_rate_limits', [
+      { column: 'identifier', value: '1.2.3.4' },
+    ]);
+
+    const [sql] = exec.mock.calls[0] as [string];
+
+    expect(sql).toContain('SELECT * FROM `sisp_rate_limits`');
+    expect(sql).toContain('`identifier` = ?');
+    expect(sql).toContain('FOR UPDATE');
+  });
+
+  it('omits FOR UPDATE for sqlite but still returns the rows', async () => {
+    const exec = vi.fn().mockResolvedValue([{ id: 9 }]);
+
+    const rows = await selectForUpdate(exec, 'sqlite', 'sisp_rate_limits', [
+      { column: 'id', value: 9 },
+    ]);
+
+    const [sql] = exec.mock.calls[0] as [string];
+
+    expect(sql).not.toContain('FOR UPDATE');
+    expect(sql).toContain('SELECT * FROM "sisp_rate_limits"');
+    expect(rows).toEqual([{ id: 9 }]);
+  });
+
+  it('returns an empty array when the driver returns a non-array', async () => {
+    const exec = vi.fn().mockResolvedValue(undefined);
+
+    const rows = await selectForUpdate(exec, 'sqlite', 'sisp_rate_limits', [
+      { column: 'id', value: 1 },
+    ]);
+
+    expect(rows).toEqual([]);
+  });
+
+  it('returns an empty array when no columns are given', async () => {
+    const exec = vi.fn();
+
+    const rows = await selectForUpdate(exec, 'postgresql', 'sisp_rate_limits', []);
+
+    expect(exec).not.toHaveBeenCalled();
+    expect(rows).toEqual([]);
   });
 });

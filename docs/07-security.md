@@ -12,7 +12,63 @@ All three algorithms are verified byte for byte against golden vectors generated
 
 ## Payload encryption
 
-With an `appKey` configured, the transaction `payload` column is encrypted at rest with AES-256-GCM (random IV, authenticated), and so is the `payload` entry inside `sisp_transaction_logs.old_values`/`new_values` whenever a change to it is logged. Reads are transparent: models and the log repository return the decrypted object, and plaintext rows written before the key existed keep working. A tampered or foreign ciphertext throws `Unable to decrypt SISP payload`, so rotating `appKey` requires re-encrypting existing rows.
+With an `appKey` configured, the transaction `payload` column is encrypted at rest with AES-256-GCM (random IV, authenticated), and so is the `payload` entry inside `sisp_transaction_logs.old_values`/`new_values` whenever a change to it is logged. Reads are transparent: models and the log repository return the decrypted object, and plaintext rows written before the key existed keep working. A tampered or foreign ciphertext throws `Unable to decrypt SISP payload`.
+
+The stored format is `sisp.v2:<kid>:<iv>:<tag>:<ciphertext>`, where `kid` identifies which `appKey` encrypted the row. Values stored as `sisp.v1:<iv>:<tag>:<ciphertext>` by an earlier release are still read; there is no forced migration off `v1`.
+
+### Rotating `appKey`
+
+Rotating the key does not happen by editing configuration and redeploying. Follow this order:
+
+1. Put the new key in `appKey` and the key it replaces in `previousAppKeys`. On Prisma, Drizzle or an injected knex storage, `previousAppKeys` is refused next to a caller-provided `storage`: pass `{ current, previous }` to the adapter factory instead, as [Configuration](02-configuration.md#previousappkeys-with-your-own-storage) shows.
+2. Deploy.
+3. Run `sisp rotate-key`.
+4. Only after the command finishes, remove the old key from `previousAppKeys`.
+
+**Running `sisp rotate-key` makes the deploy irreversible.** Rows rewritten under the new key carry the `sisp.v2:<kid>:` prefix. A release older than this one reads that prefix as plaintext, hands the caller the literal envelope string instead of the payload, and re-encrypts it on the next write, producing a row that neither release can decrypt. Once step 3 has started, rolling back to a release older than this one corrupts data. Roll forward instead: keep both keys configured and re-run the command.
+
+Removing the old key before the rotation completes makes every row still encrypted under it unreadable. The error names the missing `kid`: `Unable to decrypt SISP payload: no configured key matches the key id <kid>. Add the key that wrote it to previousAppKeys.`
+
+```bash
+sisp rotate-key --batch 200
+```
+
+`--batch` is optional, defaults to 200 rows per page, and cannot exceed 999. The rotation pages by `id > afterId LIMIT n` and then locks one row at a time, so it never binds a page-sized parameter list; the bound is the same one the purge needs, kept here so a single number describes every batched command. The command reports one outcome per row visited, and every outcome line says whether it counts rows or stored values:
+
+- `Rewrote <n> of <total> rows onto the current appKey.` Rows where at least one value was rewritten.
+- `<n> rows were already encrypted under the current appKey.` Rows whose every encrypted value already carried the current key id. Only these rows are safe evidence that the old key is no longer needed.
+- `<n> rows were never encrypted and left unchanged.` Rows that hold no ciphertext at all, written before the installation had an `appKey`.
+- `<n> rows were unreadable with the configured keys and left unchanged.` Rows where every value failed to decrypt. These rows are still on some other key.
+- `<n> rows were deleted while the rotation ran.` Rows that disappeared between the id scan and the row lock.
+- `<n> encrypted values could not be read:` followed by one `<table>#<id> (<column>): <reason>` line per value, at most 50 of them, then `... and <n> more not listed.` when there were more. The `<n>` in the heading counts values, not rows, because one row can carry more than one encrypted column.
+- `Stopped early: no value was readable in <table>, so the configured keys cannot be the right ones for that table.` The rotation gave up after 500 unreadable values in that table without reading a single one there, rather than walking the rest of it to say the same thing. Rows already rewritten in earlier tables stay rewritten; the claim is scoped to the named table, not to the whole run. The usual cause is a missing `previousAppKeys` entry.
+
+A value written before the installation had an `appKey` is plaintext, not a failure. The rotation leaves it as it is, counts its row under the plaintext line, and still exits `0`: encrypting rows that were never encrypted is a separate decision, not part of a key rotation. Such a row is never reported as already on the current key, so a run that prints only plaintext rows is not evidence that the old key can be removed.
+
+Exit codes: `0` when no value was left unreadable, `2` when at least one value could not be re-encrypted, and `1` for a usage or configuration error such as a bad flag or a missing config file. Only `2` means the rotation is incomplete, so a scheduled wrapper can tell "keep the old key" apart from "the command was called wrong".
+
+To wire the rotation into your own scheduler instead of the CLI, call the method directly:
+
+```ts
+const {
+  processed,
+  rewritten,
+  current,
+  plaintext,
+  unreadable,
+  vanished,
+  unreadableValues,
+  unreadableValueCount,
+  stoppedEarly,
+  stoppedAtTable,
+} = await sisp.rotateEncryptionKey({ batch: 200 });
+```
+
+`processed` counts the rows visited and equals `rewritten` plus `current` plus `plaintext` plus `unreadable` plus `vanished`. Every row falls in exactly one of those five buckets, and a row is counted in `rewritten` as soon as one of its values was rewritten, in `unreadable` when nothing was rewritten and at least one value failed, in `plaintext` when nothing was rewritten, nothing failed and at least one value carried no ciphertext, and in `current` only when every encrypted value was already on the current key. `unreadable` counts rows and `unreadableValueCount` counts stored values, because one row can carry more than one encrypted column, so the value counter can be higher than the row counter. `unreadableValues` is a sample of at most 50 of those values, so that a wholly misconfigured installation cannot exhaust memory listing every row it owns; `stoppedEarly` is `true` when the rotation gave up after 500 unreadable values in one table without reading one there, and `stoppedAtTable` names that table, or is `null` when `stoppedEarly` is `false`. `batch` must be an integer between 1 and 999; a fractional, zero or larger value throws instead of rotating part of the table.
+
+`sisp rotate-key` is idempotent and safe to interrupt and re-run. The command keeps no progress file: re-running it after an interruption re-scans the tables from the start and rewrites nothing that is already on the current key.
+
+A consumer reading the column directly with SQL, without going through `PayloadCipher`, sees the `sisp.v2` prefix once a row has been rewritten or newly written under this version.
 
 ## Signed URLs
 
@@ -45,7 +101,41 @@ The blacklist and the per-IP scope key on the client IP. Behind a load balancer,
 
 ## Metadata redaction
 
-Captured request metadata stores a copy of the query, body, and headers with sensitive keys redacted (authorization, cookie, password, token, card, cvv, pin, email, phone, address, postal code, customer name, pan, and friends), plus a SHA-256 device fingerprint. The `custom_metadata` column is encrypted at rest with the same `appKey` cipher as the payload. There is no built-in retention for `sisp_request_metadata`; prune it on your own schedule. Setting `security.collectMetadata` to `false` stops the capture entirely, for both the payment pipeline and the callback handler.
+Captured request metadata stores the client IP, user agent, referer, a SHA-256 device fingerprint, and a copy of the query, body, and headers with sensitive keys redacted (authorization, cookie, password, token, card, cvv, pin, email, phone, address, postal code, customer name, pan, and friends). One row is written per payment, into `sisp_request_metadata`. The `custom_metadata` column is encrypted at rest with the same `appKey` cipher as the payload, but encryption is not retention: nothing deletes a row on its own, encrypted or not, and the table grows one row per payment forever unless something prunes it. Setting `security.collectMetadata` to `false` stops the capture entirely, for both the payment pipeline and the callback handler.
+
+## Request metadata retention
+
+Nothing purges `sisp_request_metadata` automatically. The purge runs outside the payment and callback paths, to avoid the locks a range delete can take on MySQL. Without a scheduled job of your own, the table grows without bound.
+
+`security.metadataRetentionDays` sets the default retention window in days. It defaults to `null`, meaning no window: calling the prune command or method without an explicit window then throws instead of guessing one for you.
+
+```ts
+security: {
+  metadataRetentionDays: 90,
+},
+```
+
+Run the bundled CLI command on a schedule:
+
+```bash
+sisp prune-metadata --older-than-days 90 --batch 500
+```
+
+A crontab entry to run it nightly:
+
+```cron
+0 3 * * * cd /path/to/app && npx sisp prune-metadata --older-than-days 90 >> /var/log/sisp-prune.log 2>&1
+```
+
+`--dry-run` resolves the retention window exactly as a real run does, and fails the same way with the same message when no window is configured, but only counts the rows past the cutoff instead of deleting them. `--batch` defaults to 500 when omitted and cannot exceed 999: every adapter deletes the page by `id IN (...)`, and 999 is the tightest bound-parameter limit across the supported dialects.
+
+To wire the purge into your own scheduler instead of cron, call the method directly:
+
+```ts
+const { deleted } = await sisp.pruneRequestMetadata({ olderThanDays: 90 });
+```
+
+`olderThanDays` and `batch` are both optional; when omitted, `olderThanDays` falls back to `security.metadataRetentionDays` and `batch` falls back to 500, the same default the CLI command uses. `olderThanDays` must be a non-negative integer, wherever it comes from: a negative or fractional window throws rather than moving the cutoff into the future and deleting rows written seconds ago, and `0` means purge everything up to now. `batch` must be an integer between 1 and 999. Both the command and `pruneRequestMetadata` delete in batches rather than in one statement, and each batch is its own delete: an interrupted run has already committed every batch before it, and running it again picks up wherever the cutoff leaves rows behind. A row whose `created_at` equals the cutoff exactly is kept, not deleted.
 
 ## Multi-merchant isolation
 

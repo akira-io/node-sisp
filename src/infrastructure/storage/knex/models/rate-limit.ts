@@ -80,7 +80,15 @@ export class RateLimit {
       .onConflict(['identifier', 'limit_type', 'context'])
       .ignore();
 
-    return (await trx(this.tables.rateLimits).where(filter).first()) as RateLimitRow;
+    const created = await trx(this.tables.rateLimits).where(filter).forUpdate().first();
+
+    if (created === undefined) {
+      throw new Error(
+        `Rate limit row for ${params.limitType}:${params.identifier} could not be read or created.`,
+      );
+    }
+
+    return created as RateLimitRow;
   }
 
   private async resetIfExpired(

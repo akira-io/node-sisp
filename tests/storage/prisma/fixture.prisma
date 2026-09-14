@@ -37,7 +37,7 @@ model SispTransaction {
   updatedAt          DateTime? @map("updated_at")
 
   @@unique([merchantRef])
-  @@index([merchantRef, merchantSession, status, messageType])
+  @@index([merchantRef, merchantSession])
   @@index([transactionId])
   @@index([customerEmail])
   @@index([posId])
@@ -209,6 +209,7 @@ model SispRequestMetadata {
   updatedAt         DateTime? @map("updated_at")
 
   @@index([ipAddress, createdAt])
+  @@index([createdAt])
   @@index([countryCode])
   @@index([deviceFingerprint])
   @@index([riskScore])

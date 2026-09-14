@@ -40,7 +40,7 @@ const transactions: TableSpec = {
   ],
   uniques: [['merchant_ref']],
   indexes: [
-    ['merchant_ref', 'merchant_session', 'status', 'message_type'],
+    ['merchant_ref', 'merchant_session'],
     ['transaction_id'],
     ['customer_email'],
     ['pos_id'],
@@ -248,6 +248,7 @@ const requestMetadata: TableSpec = {
   uniques: [],
   indexes: [
     ['ip_address', 'created_at'],
+    ['created_at'],
     ['country_code'],
     ['device_fingerprint'],
     ['risk_score'],

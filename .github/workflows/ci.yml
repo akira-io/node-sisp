@@ -26,8 +26,21 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: sisp
+          MYSQL_DATABASE: sisp_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -psisp"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     env:
       SISP_TEST_POSTGRES_URL: postgresql://sisp:sisp@localhost:5432/sisp_test
+      SISP_TEST_MYSQL_URL: mysql://root:sisp@127.0.0.1:3306/sisp_test
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v5.0.1
 

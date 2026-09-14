@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import type { SispTables } from '../../../../application/config';
 import type { NewRequestMetadata } from '../../../../domain/storage-types';
+import { knexColumnCodec } from '../column-codecs';
 import type { PayloadCipher } from '../encryption';
 import {
   type ListByTransactionOptions,
@@ -8,9 +9,11 @@ import {
   normalizeListOffset,
   normalizeListOrder,
 } from '../list-options';
-import { nowIso, type RequestMetadataRecord } from '../records';
+import { nowIso, type RequestMetadataRecord, timestampValue } from '../records';
 
 export type { NewRequestMetadata } from '../../../../domain/storage-types';
+
+const CODEC = knexColumnCodec('requestMetadata', 'custom_metadata');
 
 export class RequestMetadata {
   constructor(
@@ -28,7 +31,7 @@ export class RequestMetadata {
 
     await this.db(this.tables.requestMetadata).insert({
       ...data,
-      custom_metadata: encodeJsonColumn(this.cipher.store(data.custom_metadata ?? null)),
+      custom_metadata: CODEC.encode(this.cipher.store(data.custom_metadata ?? null)),
       created_at: timestamp,
       updated_at: timestamp,
     });
@@ -49,23 +52,30 @@ export class RequestMetadata {
       is_vpn: Boolean(row.is_vpn),
       is_proxy: Boolean(row.is_proxy),
       is_mobile: Boolean(row.is_mobile),
-      custom_metadata: this.cipher.read(decodeJsonColumn(row.custom_metadata)),
+      custom_metadata: this.cipher.read(CODEC.decode(row.custom_metadata)),
     }));
   }
-}
 
-function encodeJsonColumn(value: string | null): string | null {
-  return value === null ? null : JSON.stringify(value);
-}
+  async purgeOlderThan(cutoffIso: string, limit: number): Promise<number> {
+    const stale = await this.db(this.tables.requestMetadata)
+      .select('id')
+      .where('created_at', '<', timestampValue(this.db, cutoffIso))
+      .orderBy('id', 'asc')
+      .limit(limit);
+    const ids = stale.map((row: Record<string, unknown>) => Number(row.id));
 
-function decodeJsonColumn(value: unknown): unknown {
-  if (typeof value !== 'string') {
-    return value;
+    if (ids.length === 0) {
+      return 0;
+    }
+
+    return this.db(this.tables.requestMetadata).whereIn('id', ids).delete();
   }
 
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
+  async countOlderThan(cutoffIso: string): Promise<number> {
+    const [row] = await this.db(this.tables.requestMetadata)
+      .where('created_at', '<', timestampValue(this.db, cutoffIso))
+      .count<{ count: string | number }[]>({ count: '*' });
+
+    return Number(row?.count ?? 0);
   }
 }

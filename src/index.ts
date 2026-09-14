@@ -1,4 +1,9 @@
 export { mapTransactionStatus } from './application/actions/map-transaction-status';
+export type {
+  RotateEncryptionKeyFailure,
+  RotateEncryptionKeyOptions,
+  RotateEncryptionKeyResult,
+} from './application/actions/rotate-encryption-key';
 export { PaymentBuilder } from './application/builders/payment-builder';
 export type {
   IdempotencyConfig,
@@ -44,7 +49,14 @@ export {
   type SispSideEffect,
   SispSideEffects,
 } from './application/side-effects';
-export { Sisp, type SispModels } from './application/sisp';
+export {
+  type PruneRequestMetadataOptions,
+  type PruneRequestMetadataResult,
+  type ReconcilePendingOptions,
+  type ReconcilePendingResult,
+  Sisp,
+  type SispModels,
+} from './application/sisp';
 export type {
   ResolvedStatelessConfig,
   StatelessPipelineCustomizers,
@@ -59,6 +71,15 @@ export type {
 } from './core/contracts/callback-verifier';
 export type { CredentialsResolver } from './core/contracts/credentials-resolver';
 export { StaticCredentialsResolver } from './core/contracts/credentials-resolver';
+export type {
+  EncryptedColumn,
+  EncryptedTableKey,
+  MaintenanceRepository,
+  ReencryptFailure,
+  ReencryptResult,
+  ReencryptSpec,
+} from './core/contracts/maintenance';
+export { ENCRYPTED_COLUMNS } from './core/contracts/maintenance';
 export type {
   CorrelationClaim,
   ExpectedPayment,
@@ -102,6 +123,9 @@ export {
   PaymentIntentAlreadyProcessingError,
   PaymentRetryLimitExceededError,
   RateLimitExceededError,
+  RetentionWindowError,
+  RetentionWindowInvalidError,
+  RetentionWindowRequiredError,
   SispError,
   TransactionNotFoundError,
   TransactionStateError,
@@ -118,6 +142,16 @@ export type {
   TransactionLogRecord,
   TransactionRecord,
 } from './domain/records';
+export type {
+  BlacklistEntry,
+  ListByTransactionOptions,
+  ListTransactionsOptions,
+  NewRequestMetadata,
+  NewTransaction,
+  RateLimitHit,
+  TransactionAttemptChanges,
+  TransactionChanges,
+} from './domain/storage-types';
 export {
   type CallbackPayload,
   callbackPayloadFrom,
@@ -132,6 +166,7 @@ export {
   paymentRequestDataFrom,
 } from './domain/value-objects/payment-request-data';
 export { type SispCredentials, sispCredentials } from './domain/value-objects/sisp-credentials';
+export type { TransactionItemData } from './domain/value-objects/transaction-item-data';
 export { SispManager } from './infrastructure/drivers/sisp-manager';
 export {
   generateCallbackFingerprint,

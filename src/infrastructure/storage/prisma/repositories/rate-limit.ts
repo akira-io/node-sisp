@@ -12,19 +12,10 @@ import {
   rawExec,
   runInTransaction,
 } from '../client';
-import { lockRowForUpdate } from '../locking';
+import { type LockColumn, selectForUpdate } from '../locking';
 import type { PrismaRow } from '../mapping';
 import type { PrismaSqlProvider } from '../prisma-storage';
-
-interface RateLimitRow {
-  id: bigint | number;
-  hits: number;
-  limit: number;
-  windowSeconds: number;
-  resetAt: Date | string;
-  isBlocked: boolean | number;
-  blockedUntil: Date | string | null;
-}
+import { mapRateLimitRow, type RateLimitRow } from '../rate-limit-row';
 
 function futureIso(seconds: number): string {
   return new Date(Date.now() + seconds * 1000).toISOString();
@@ -53,6 +44,28 @@ function isCurrentlyBlocked(row: RateLimitRow): boolean {
       : Date.parse(String(row.blockedUntil));
 
   return until > Date.now();
+}
+
+interface RateLimitKeyPart {
+  camelCase: string;
+  snakeCase: string;
+  value: unknown;
+}
+
+function rateLimitKey(params: RateLimitHit): RateLimitKeyPart[] {
+  return [
+    { camelCase: 'identifier', snakeCase: 'identifier', value: params.identifier },
+    { camelCase: 'limitType', snakeCase: 'limit_type', value: params.limitType },
+    { camelCase: 'context', snakeCase: 'context', value: params.context ?? '' },
+  ];
+}
+
+function keyFilter(key: RateLimitKeyPart[]): Record<string, unknown> {
+  return Object.fromEntries(key.map((part) => [part.camelCase, part.value]));
+}
+
+function keyLockColumns(key: RateLimitKeyPart[]): LockColumn[] {
+  return key.map((part) => ({ column: part.snakeCase, value: part.value }));
 }
 
 async function insertIgnoringConflicts(
@@ -87,13 +100,10 @@ export function makeRateLimitRepository(
         client,
         async (txc) => {
           const model = () => delegate(txc, DELEGATE_NAMES.rateLimits);
-          const filter: Record<string, unknown> = {
-            identifier: params.identifier,
-            limitType: params.limitType,
-            context: params.context ?? '',
-          };
+          const key = rateLimitKey(params);
+          const filter = keyFilter(key);
 
-          let existing = await model().findFirst({ where: filter });
+          const existing = await model().findFirst({ where: filter });
 
           if (!existing) {
             const timestamp = nowIso();
@@ -108,25 +118,24 @@ export function makeRateLimitRepository(
               createdAt: new Date(timestamp),
               updatedAt: new Date(timestamp),
             });
-
-            existing = await model().findFirst({ where: filter });
           }
 
-          if (!existing) {
+          const lockColumns = keyLockColumns(key);
+
+          const [lockedRow] = await selectForUpdate(
+            rawExec(txc),
+            provider,
+            tables.rateLimits,
+            lockColumns,
+          );
+
+          if (lockedRow === undefined) {
             throw new Error(
               `Rate limit row for ${params.limitType}:${params.identifier} could not be read or created.`,
             );
           }
 
-          await lockRowForUpdate(rawExec(txc), provider, tables.rateLimits, 'id', existing.id);
-
-          const locked = await model().findFirst({ where: { id: existing.id } });
-
-          if (!locked) {
-            return false;
-          }
-
-          let row = locked as unknown as RateLimitRow;
+          let row = mapRateLimitRow(lockedRow);
 
           if (parseResetAt(row.resetAt) <= Date.now()) {
             const reset: PrismaRow = {

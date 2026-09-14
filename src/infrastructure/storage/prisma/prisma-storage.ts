@@ -1,6 +1,6 @@
 import { DEFAULT_TABLES, type SispTables } from '../../../application/config';
 import type { SispStorage, SispStorageTx } from '../../../core/contracts/storage';
-import { PayloadCipher } from '../knex/encryption';
+import { PayloadCipher, type PayloadCipherKeys } from '../knex/encryption';
 import {
   DEFAULT_TRANSACTION_OPTIONS,
   type PrismaClientLike,
@@ -9,6 +9,7 @@ import {
 } from './client';
 import { makeBlacklistRepository } from './repositories/blacklist';
 import { makeInvoiceRepository } from './repositories/invoice';
+import { makeMaintenanceRepository } from './repositories/maintenance';
 import { makePaymentIntentRepository } from './repositories/payment-intent';
 import { makeRateLimitRepository } from './repositories/rate-limit';
 import { makeRequestMetadataRepository } from './repositories/request-metadata';
@@ -29,6 +30,7 @@ class PrismaStorage implements SispStorage {
   readonly blacklist: ReturnType<typeof makeBlacklistRepository>;
   readonly rateLimits: ReturnType<typeof makeRateLimitRepository>;
   readonly requestMetadata: ReturnType<typeof makeRequestMetadataRepository>;
+  readonly maintenance: ReturnType<typeof makeMaintenanceRepository>;
 
   constructor(
     private readonly prisma: PrismaClientLike,
@@ -46,6 +48,7 @@ class PrismaStorage implements SispStorage {
     this.blacklist = makeBlacklistRepository(prisma, tables);
     this.rateLimits = makeRateLimitRepository(prisma, tables, provider, txOptions);
     this.requestMetadata = makeRequestMetadataRepository(prisma, tables, cipher);
+    this.maintenance = makeMaintenanceRepository(prisma, tables, cipher, provider, txOptions);
   }
 
   async transaction<T>(work: (tx: SispStorageTx) => Promise<T>): Promise<T> {
@@ -78,6 +81,13 @@ class PrismaStorage implements SispStorage {
       blacklist: makeBlacklistRepository(txc, this.tables),
       rateLimits: makeRateLimitRepository(txc, this.tables, this.provider, this.txOptions),
       requestMetadata: makeRequestMetadataRepository(txc, this.tables, this.cipher),
+      maintenance: makeMaintenanceRepository(
+        txc,
+        this.tables,
+        this.cipher,
+        this.provider,
+        this.txOptions,
+      ),
     };
   }
 }
@@ -93,7 +103,7 @@ function withTransactionDefaults(
 export function createPrismaStorage(
   prisma: PrismaClientLike,
   tables: SispTables | undefined,
-  appKey: string | null,
+  appKey: string | null | PayloadCipherKeys,
   options: {
     provider: PrismaSqlProvider;
     transactionOptions?: PrismaTransactionOptions;

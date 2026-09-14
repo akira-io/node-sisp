@@ -22,9 +22,15 @@ import type { BuildRequestPayloadAction } from './actions/build-request-payload'
 import type { CancelTransactionAction } from './actions/cancel-transaction';
 import type { ReconcileTransactionStatusAction } from './actions/reconcile-transaction-status';
 import type { RefundTransactionAction } from './actions/refund-transaction';
+import {
+  RotateEncryptionKeyAction,
+  type RotateEncryptionKeyOptions,
+  type RotateEncryptionKeyResult,
+} from './actions/rotate-encryption-key';
 import { RefundBuilder } from './builders/refund-builder';
 import type { ResolvedSispConfig } from './config';
 import type { SispEventEmitter } from './events';
+import { resolveBatch, resolveRetentionDays } from './options';
 import type { BuildSandboxPayloadAction } from './sandbox';
 import { ScopedSisp } from './scoped-sisp';
 import { StatelessSisp } from './stateless-sisp';
@@ -52,6 +58,17 @@ export interface ReconcilePendingResult {
   checked: number;
   reconciled: number;
 }
+
+export interface PruneRequestMetadataOptions {
+  olderThanDays?: number;
+  batch?: number;
+}
+
+export interface PruneRequestMetadataResult {
+  deleted: number;
+}
+
+const DEFAULT_PRUNE_BATCH = 500;
 
 export class Sisp extends StatelessSisp {
   private readonly statefulVerifier: CallbackVerifier<StoredCallbackOutcome>;
@@ -146,6 +163,45 @@ export class Sisp extends StatelessSisp {
     }
 
     return { skipped: false, checked: pending.length, reconciled };
+  }
+
+  async pruneRequestMetadata(
+    options: PruneRequestMetadataOptions = {},
+  ): Promise<PruneRequestMetadataResult> {
+    const cutoff = this.resolveRetentionCutoff(options.olderThanDays);
+    const batch = resolveBatch(options.batch, DEFAULT_PRUNE_BATCH, 'pruneRequestMetadata');
+
+    let deleted = 0;
+
+    for (;;) {
+      const removed = await this._storage.requestMetadata.purgeOlderThan(cutoff, batch);
+
+      deleted += removed;
+
+      if (removed < batch) {
+        return { deleted };
+      }
+    }
+  }
+
+  async countPrunableRequestMetadata(
+    options: Pick<PruneRequestMetadataOptions, 'olderThanDays'> = {},
+  ): Promise<number> {
+    const cutoff = this.resolveRetentionCutoff(options.olderThanDays);
+
+    return this._storage.requestMetadata.countOlderThan(cutoff);
+  }
+
+  async rotateEncryptionKey(
+    options: RotateEncryptionKeyOptions = {},
+  ): Promise<RotateEncryptionKeyResult> {
+    return new RotateEncryptionKeyAction(this._storage).handle(options);
+  }
+
+  private resolveRetentionCutoff(olderThanDays?: number): string {
+    const days = resolveRetentionDays(olderThanDays ?? this.config.security.metadataRetentionDays);
+
+    return new Date(Date.now() - days * 86_400_000).toISOString();
   }
 
   refund(transaction: TransactionRecord): RefundBuilder {

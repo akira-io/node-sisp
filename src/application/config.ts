@@ -21,6 +21,12 @@ import {
   resolveRateLimiting,
 } from './rate-limiting';
 import type { SideEffectErrorHandler } from './side-effects';
+import {
+  DEFAULT_TRANSACTION_STATUS,
+  type TransactionStatusConfig,
+} from './transaction-status-config';
+
+export { DEFAULT_TRANSACTION_STATUS, type TransactionStatusConfig };
 
 export interface SispPipelineCustomizers {
   payment?: (defaults: PaymentPipe[]) => PaymentPipe[];
@@ -63,18 +69,7 @@ export interface IdempotencyConfig {
 export interface SecuritySettings {
   collectMetadata: boolean;
   clientIp: ((request: HttpRequestInfo) => string | null) | null;
-}
-
-export interface TransactionStatusConfig {
-  url: string;
-  portalId: string;
-  portalPassword: string;
-  timeoutSeconds: number;
-  retryAttempts: number;
-  retryDelayMs: number;
-  reconciliationEnabled: boolean;
-  reconcileAfterMinutes: number;
-  reconcileLimit: number;
+  metadataRetentionDays: number | null;
 }
 
 export type SispDatabaseConnection = string | object | (() => object | Promise<object>);
@@ -103,6 +98,7 @@ export interface SispConfig {
   redirectUrl?: string;
   frontendResultUrl?: string;
   appKey?: string;
+  previousAppKeys?: string[];
   baseUrl?: string;
   basePath?: string;
   allowRetry?: boolean;
@@ -135,6 +131,7 @@ export interface ResolvedSharedConfig {
   redirectUrl: string;
   frontendResultUrl: string | null;
   appKey: string | null;
+  previousAppKeys: readonly string[];
   baseUrl: string;
   basePath: string;
   generators: SispGenerators;
@@ -167,17 +164,6 @@ export const DEFAULT_TABLES: SispTables = {
   blacklist: 'sisp_blacklist',
   transactionLogs: 'sisp_transaction_logs',
 };
-export const DEFAULT_TRANSACTION_STATUS: TransactionStatusConfig = {
-  url: 'https://comerciante.vinti4.cv/pos/transaction-status',
-  portalId: '',
-  portalPassword: '',
-  timeoutSeconds: 10,
-  retryAttempts: 2,
-  retryDelayMs: 100,
-  reconciliationEnabled: false,
-  reconcileAfterMinutes: 5,
-  reconcileLimit: 50,
-};
 const DEFAULT_IDENTIFIER_GENERATION: IdentifierGenerationConfig = {
   maxAttempts: 5,
   collisionRetrySleepMs: 1000,
@@ -201,6 +187,12 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
 
   if (!hasStorage && !hasDatabase) {
     throw new Error('Either `storage` or `database` must be provided.');
+  }
+
+  if (hasStorage && (config.previousAppKeys?.length ?? 0) > 0) {
+    throw new Error(
+      '`previousAppKeys` cannot be honoured with a caller-provided `storage`: pass { current, previous } as the app key to createDrizzleStorage, createPrismaStorage or KnexStorage.create instead.',
+    );
   }
 
   const sandbox = booleanSetting(config.sandbox, false);
@@ -238,6 +230,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     redirectUrl: config.redirectUrl ?? '/',
     frontendResultUrl: config.frontendResultUrl ?? null,
     appKey,
+    previousAppKeys: config.previousAppKeys ?? [],
     baseUrl: config.baseUrl ?? '',
     basePath: normalizeBasePath(config.basePath ?? '/sisp'),
     allowRetry: booleanSetting(config.allowRetry, true),
@@ -246,6 +239,7 @@ export function resolveConfig(config: SispConfig): ResolvedSispConfig {
     security: {
       collectMetadata: booleanSetting(config.security?.collectMetadata, true),
       clientIp: config.security?.clientIp ?? null,
+      metadataRetentionDays: config.security?.metadataRetentionDays ?? null,
     },
     generators: {
       merchantReference:

@@ -29,9 +29,10 @@ src/
     fingerprints/        token, payment, callback, refund algorithms
     http/                pure handlers, idempotency resolver, validation, results, auto-submit forms
     storage/
+      column-codec.ts    how each adapter reads and writes an encrypted column
+      rekey.ts           the per-row rekey decision shared by the three adapters
+      reencrypt-batch.ts the page walk and the counters behind reencryptBatch
       knex/              KnexStorage, the default built from the database config
-      prisma/            PrismaStorage, at the ./prisma subpath
-      drizzle/           DrizzleStorage, at the ./drizzle subpath
         models/          repository implementations (Transaction, TransactionAttempt, PaymentIntent, ...)
         migrations/      bundled schema, mirror of the Laravel migrations
         create-knex.ts   knex instance factory
@@ -40,8 +41,10 @@ src/
         locking.ts       row-level lock helper for supported drivers
         log-context.ts   AsyncLocalStorage log source
         records.ts       raw DB record types
+      prisma/            PrismaStorage, at the ./prisma subpath
+      drizzle/           DrizzleStorage, at the ./drizzle subpath
   presentation/
-    cli/                 sisp binary (migrate, reconcile-pending)
+    cli/                 sisp binary (migrate, reconcile-pending, prisma, prune-metadata, rotate-key)
     express/             thin Express adapter
     fastify/             thin Fastify adapter
     nest/                thin NestJS adapter
@@ -60,15 +63,15 @@ src/
 
 ## Storage adapters
 
-The persistence layer sits behind an ORM-neutral port, `SispStorage`, defined in `src/core/contracts/storage.ts`: nine entity repositories plus a `transaction()` unit-of-work, an optional `migrate?()`, and `destroy()`. The port leaks no engine types.
+The persistence layer sits behind an ORM-neutral port, `SispStorage`, defined in `src/core/contracts/storage.ts`: ten repositories plus a `transaction()` unit-of-work, an optional `migrate?()`, and `destroy()`. The port leaks no engine types.
 
-Two adapters ship with the package:
+Three adapters ship with the package:
 
 - `KnexStorage` (`src/infrastructure/storage/knex/`) - the default, built from the `database` config. Handles migrations automatically. The main entry loads it through a dynamic import taken only when no `storage` is injected, so a consumer that brings its own adapter never evaluates the adapter or the `knex` package. In the ESM build the adapter is a separate chunk the entry never imports statically; the CJS build ships it inline in `dist/index.cjs`, still behind the same lazy branch. Import `knexOf` from `@akira-io/sisp/knex` for the typed instance and raw queries.
 - `PrismaStorage` (`src/infrastructure/storage/prisma/`) - available at the `@akira-io/sisp/prisma` subpath. Injected via `createSisp({ storage: createPrismaStorage(prisma, tables, appKey, { provider }) })`. The core bundle never imports `@prisma/client`.
 - `DrizzleStorage` (`src/infrastructure/storage/drizzle/`) - available at the `@akira-io/sisp/drizzle` subpath. Injected via `createSisp({ storage: createDrizzleStorage(db, tables, appKey, { dialect }) })`. The core bundle never imports `drizzle-orm`. Its schema definitions, its DDL and its repositories all read one canonical table specification, so the three dialects cannot drift apart.
 
-Both adapters are validated by the shared contract suite `tests/storage/contract.ts`, which guarantees behavioral parity. See [Storage Adapters](12-storage-adapters.md) for the Prisma quick start and instructions for implementing custom adapters.
+All three adapters are validated by the shared contract suite `tests/storage/contract.ts`, which guarantees behavioral parity. See [Storage Adapters](12-storage-adapters.md) for the Prisma quick start and instructions for implementing custom adapters.
 
 The application layer runs every database transaction through `storage.transaction(tx => ...)` with locked reads via the repository `...ForUpdate` methods, so atomicity and locking are adapter-decided.
 

@@ -6,6 +6,7 @@ import { afterAll, describe } from 'vitest';
 import { DEFAULT_TABLES } from '../../src/application/config';
 import { KnexStorage } from '../../src/infrastructure/storage/knex/knex-storage';
 import { runStorageContract } from './contract';
+import { CONTRACT_APP_KEY } from './contract/types';
 import { sqliteStoredJsonType } from './json-type';
 
 const dir = mkdtempSync(join(tmpdir(), 'sisp-knex-contract-'));
@@ -17,19 +18,28 @@ describe('KnexStorage', () => {
 
   runStorageContract(async () => {
     const filename = join(dir, `${process.hrtime.bigint()}.db`);
-    const storage = await KnexStorage.create(
-      {
-        client: 'better-sqlite3',
-        connection: { filename },
-        autoMigrate: true,
-      },
-      DEFAULT_TABLES,
-      'app-key',
-    );
+    const database = {
+      client: 'better-sqlite3' as const,
+      connection: { filename },
+      autoMigrate: true,
+    };
+    const storage = await KnexStorage.create(database, DEFAULT_TABLES, CONTRACT_APP_KEY);
     await storage.migrate();
 
     return {
       storage,
+      async withKeys(keys) {
+        return KnexStorage.create(database, DEFAULT_TABLES, keys);
+      },
+      async overwrite(table, column, id, value) {
+        const writer = new Database(filename);
+
+        try {
+          writer.prepare(`update ${table} set ${column} = ? where id = ?`).run(value, id);
+        } finally {
+          writer.close();
+        }
+      },
       async storedJsonType(table, column, id) {
         const probe = new Database(filename, { readonly: true });
 

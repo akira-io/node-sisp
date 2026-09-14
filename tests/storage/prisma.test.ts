@@ -8,12 +8,12 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import { DEFAULT_TABLES } from '../../src/application/config';
 import { createPrismaStorage } from '../../src/infrastructure/storage/prisma';
 import { runStorageContract } from './contract';
+import { CONTRACT_APP_KEY } from './contract/types';
 import { sqliteStoredJsonType } from './json-type';
 import { resolvePrismaCli } from './prisma/cli';
 
 const schemaPath = new URL('./prisma/fixture.prisma', import.meta.url).pathname;
 const sqlPath = new URL('./prisma/create-tables.sql', import.meta.url).pathname;
-const dbPath = join(tmpdir(), `sisp-contract-${process.pid}.db`);
 const prismaCli = resolvePrismaCli(import.meta.url);
 
 const unverified =
@@ -29,39 +29,65 @@ if (prismaCli === null) {
   });
 } else {
   let clientDir = '';
+  let dbDir = '';
 
   describe('PrismaStorage (sqlite)', () => {
     beforeAll(() => {
       clientDir = mkdtempSync(join(tmpdir(), 'sisp-prisma-client-'));
+      dbDir = mkdtempSync(join(tmpdir(), 'sisp-prisma-contract-'));
 
-      process.env.PRISMA_TEST_DATABASE_URL = `file:${dbPath}`;
+      process.env.PRISMA_TEST_DATABASE_URL = `file:${join(dbDir, 'generate-placeholder.db')}`;
       process.env.PRISMA_TEST_CLIENT_OUTPUT = clientDir;
 
       execFileSync(process.execPath, [prismaCli, 'generate', '--schema', schemaPath], {
         stdio: 'pipe',
         env: { ...process.env },
       });
+    }, 60_000);
 
+    afterAll(() => {
+      rmSync(clientDir, { recursive: true, force: true });
+      rmSync(dbDir, { recursive: true, force: true });
+    });
+
+    runStorageContract(async () => {
+      const dbPath = join(dbDir, `${process.hrtime.bigint()}.db`);
       const sql = readFileSync(sqlPath, 'utf8');
       const db = new Database(dbPath);
 
       db.exec(sql);
       db.close();
-    }, 60_000);
 
-    afterAll(() => {
-      rmSync(clientDir, { recursive: true, force: true });
-      rmSync(dbPath, { force: true });
-    });
+      process.env.PRISMA_TEST_DATABASE_URL = `file:${dbPath}`;
 
-    runStorageContract(async () => {
       const { PrismaClient } = await import(pathToFileURL(join(clientDir, 'index.js')).href);
       const prisma = new PrismaClient();
 
       await prisma.$connect();
 
       return {
-        storage: createPrismaStorage(prisma, DEFAULT_TABLES, 'app-key', { provider: 'sqlite' }),
+        storage: createPrismaStorage(prisma, DEFAULT_TABLES, CONTRACT_APP_KEY, {
+          provider: 'sqlite',
+        }),
+        async withKeys(keys) {
+          const { PrismaClient: Client } = await import(
+            pathToFileURL(join(clientDir, 'index.js')).href
+          );
+          const client = new Client();
+
+          await client.$connect();
+
+          return createPrismaStorage(client, DEFAULT_TABLES, keys, { provider: 'sqlite' });
+        },
+        async overwrite(table, column, id, value) {
+          const writer = new Database(dbPath);
+
+          try {
+            writer.prepare(`update ${table} set ${column} = ? where id = ?`).run(value, id);
+          } finally {
+            writer.close();
+          }
+        },
         async storedJsonType(table, column, id) {
           const probe = new Database(dbPath, { readonly: true });
 

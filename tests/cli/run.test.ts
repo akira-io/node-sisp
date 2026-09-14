@@ -46,6 +46,7 @@ describe('sisp migrate', () => {
       'Migrated: 0005_add_rate_limit_unique_index',
       'Migrated: 0006_add_payment_intent_request_hash',
       'Migrated: 0007_add_transaction_pos_id',
+      'Migrated: 0008_add_request_metadata_created_at_index',
     ]);
   });
 

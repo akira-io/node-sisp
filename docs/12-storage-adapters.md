@@ -1,8 +1,8 @@
 # Storage Adapters
 
-The persistence layer sits behind `SispStorage`, an ORM-neutral port defined in `src/core/contracts/storage.ts`. It describes nine entity repositories plus a `transaction()` unit-of-work, an optional `migrate?()`, and `destroy()`. No engine types leak through the port.
+The persistence layer sits behind `SispStorage`, an ORM-neutral port defined in `src/core/contracts/storage.ts`. It describes ten repositories plus a `transaction()` unit-of-work, an optional `migrate?()`, and `destroy()`. No engine types leak through the port.
 
-This port is for consumers who want the package's own tables (`sisp_transactions` and friends). If you already own transaction tables and want none of these nine repositories, see [Stateless Mode](13-stateless-mode.md) instead.
+This port is for consumers who want the package's own tables (`sisp_transactions` and friends). If you already own transaction tables and want none of these repositories, see [Stateless Mode](13-stateless-mode.md) instead.
 
 ## Default adapter: knex
 
@@ -229,7 +229,9 @@ That serialization has no ceiling. A unit of work whose callback never settles, 
 
 The shared contract suite runs the Drizzle adapter on **sqlite and Postgres**. The Postgres run needs `SISP_TEST_POSTGRES_URL`; it executes the generated DDL, asserts the foreign keys the canonical schema declares, and then runs the same suite the sqlite and Prisma adapters run. CI sets that variable, so a green build means both dialects were executed.
 
-**MySQL is not executed anywhere.** Its schema, its DDL and its three divergent code paths (insert without `RETURNING`, `ON DUPLICATE KEY UPDATE`, `longtext` payload columns) are covered by parity tests and by a fake driver, not by a real server. Treat MySQL as unverified until [#107](https://github.com/akira-io/node-sisp/issues/107) closes for it. On MySQL the adapter also inherits [#137](https://github.com/akira-io/node-sisp/issues/137): the first rate limit hit can still be lost under `REPEATABLE READ`.
+MySQL runs three targeted suites against a real `mysql:8` service rather than the whole contract suite. They need `SISP_TEST_MYSQL_URL`, which CI sets: the rekey pass over every encrypted column on the Drizzle adapter, the rate limit hit under `REPEATABLE READ`, and the request metadata retention cutoff on the knex adapter. Everything else on that dialect, including the three divergent code paths (insert without `RETURNING`, `ON DUPLICATE KEY UPDATE`, `longtext` payload columns), is covered by parity tests and by a fake driver. Treat the rest as unverified until [#107](https://github.com/akira-io/node-sisp/issues/107) closes for it.
+
+The knex adapter cannot insert on MySQL at all: it binds ISO-8601 timestamps with a `Z` suffix that strict mode rejects, and its insert-ignore deadlocks without a retry ([#147](https://github.com/akira-io/node-sisp/issues/147)). Use the Drizzle adapter on that dialect.
 
 ## Upgrading the schema
 
@@ -238,21 +240,49 @@ Release 1.0.0-beta.6 adds `sisp_payment_intents.request_hash` (knex migration `0
 - knex: `npx @akira-io/sisp migrate` (or `autoMigrate: true`).
 - Prisma: `npx @akira-io/sisp prisma --force`, `prisma migrate dev`, `prisma generate`. The unique constraints fail the migration if existing rows duplicate a `merchant_ref` or `merchant_session`; resolve those first.
 
-`appKey` cannot be rotated in place: rows encrypted with the previous key stop decrypting. Keep the key stable, or set `allowWeakAppKey: true` while a short key is still in use.
+A later migration adds a `created_at` index to `sisp_request_metadata`, the table the retention purge scans. On PostgreSQL the knex migration runner wraps the whole run in one transaction, so that `CREATE INDEX` takes a SHARE lock and blocks every insert into that table until the run commits. `CREATE INDEX CONCURRENTLY` cannot run inside a transaction, so the migration cannot do this itself. On an installation where `sisp_request_metadata` is already large, and especially with `autoMigrate: true` where the run happens on application start, create the index by hand first:
+
+```sql
+CREATE INDEX CONCURRENTLY sisp_request_metadata_created_at_index ON sisp_request_metadata (created_at);
+```
+
+The migration detects an index that already exists and moves on, so a database prepared this way upgrades without taking the lock. The name has to be exactly `sisp_request_metadata_created_at_index`, the name knex generates: under any other name the migration does not recognise it and builds a second, duplicate index. MySQL 8 adds the index in place and sqlite databases are small, so neither needs this step.
+
+`appKey` can be rotated without losing rows: set the new key in `appKey`, keep the old one in `previousAppKeys`, and run `sisp rotate-key`. See [Security](07-security.md#rotating-appkey) for the procedure, the order the steps have to run in, and why the deploy cannot be rolled back afterwards. A key shorter than 32 characters is refused outside sandbox mode, so an installation still holding a short key needs `allowWeakAppKey: true` until the rotation onto a full-length key has finished.
+
+## Request metadata retention
+
+`RequestMetadataRepository.purgeOlderThan(cutoffIso, limit)` deletes one batch of `sisp_request_metadata` rows whose `created_at` is strictly before `cutoffIso`, ordered by `id`, and returns how many it deleted. A row whose `created_at` equals the cutoff is kept. All three adapters (knex, Prisma, Drizzle) implement it the same way: select up to `limit` stale ids ordered by `id` ascending, then delete that batch. Nothing calls it on its own; see [Security](07-security.md#request-metadata-retention) for the `security.metadataRetentionDays` setting, the `sisp prune-metadata` command, and why the deletion runs outside the payment and callback transactions.
+
+## Maintenance and key rotation
+
+`MaintenanceRepository.reencryptBatch(spec)` walks one page of a table in id order, decrypting each encrypted column under whatever key wrote it and re-encrypting it under the current key, one row at a time inside a row lock. All three adapters (knex, Prisma, Drizzle) implement it against the same tables and columns: `sisp_transactions.payload`, `sisp_transaction_attempts.payload` and `callback_payload`, `sisp_request_metadata.custom_metadata`, and the `payload` property nested inside `sisp_transaction_logs.old_values`/`new_values`.
+
+`sisp_transaction_logs` is the one table where the encrypted value is not a column on its own: `old_values` and `new_values` are JSON documents, and the payload is a property inside that document. `reencryptBatch` parses the document, rekeys the nested `payload` property, and writes the document back, leaving the rest of it untouched.
+
+Each row visited lands in exactly one of five counters, and `processed` is their sum. A row is counted in `rewritten` when at least one of its values was rewritten. When nothing was rewritten, the row is counted in `unreadable` if at least one value failed to decrypt, otherwise in `plaintext` if at least one value carried no ciphertext at all, otherwise in `current`. A row that disappeared between the id scan and the row lock is counted in `vanished`.
+
+`current` therefore means one thing only: every encrypted value of that row already carries the current key id. A row that produced no rewrite because it could not be read, or because it was never encrypted, is not counted there. A value that was never encrypted, written before the installation had an `appKey`, is left as it is: re-encrypting it is not the rotation's business, and it is not a failure.
+
+The `unreadableValues` list of one `reencryptBatch` call holds every value that batch could not rewrite: ciphertext that no configured key decrypts, a JSON container that does not parse, and anything else that threw while the value was being rekeyed. Each entry carries the id, the column and the reason. The `unreadableValues` of `rotateEncryptionKey` is not that list: it is a sample of at most the first 50 values across every batch and every table, and `unreadableValueCount` carries the true total. `unreadable` counts rows and `unreadableValues` counts values, so its length can exceed `unreadable`: a row whose other column was rewritten is counted in `rewritten` while its failed value still appears in the list. The batch keeps going rather than raising. This is what lets `sisp rotate-key` walk past a bad row instead of stopping the whole rotation on it; see [Security](07-security.md#rotating-appkey) for the operator-facing command and its exit codes.
 
 ## Contract suite
 
-The shared suite `tests/storage/contract.ts` runs against `KnexStorage`, `PrismaStorage` and `DrizzleStorage`, guaranteeing behavioral parity. If a future adapter passes the contract suite, it is safe to use in production. The suite runs on sqlite only ([#107](https://github.com/akira-io/node-sisp/issues/107)), so a green run is not by itself proof of parity on Postgres or MySQL.
+The shared suite `tests/storage/contract.ts` runs against `KnexStorage`, `PrismaStorage` and `DrizzleStorage`, guaranteeing behavioral parity. If a future adapter passes the contract suite, it is safe to use in production. It runs on sqlite for all three adapters and on Postgres for `DrizzleStorage`; `KnexStorage` and `PrismaStorage` run on sqlite only ([#107](https://github.com/akira-io/node-sisp/issues/107)), so a green run is not by itself proof of parity for those two on Postgres or MySQL.
+
+The rekey pass takes a real row lock only on a server that has one. `tests/storage/postgres/reencrypt-lock.test.ts` holds `SELECT ... FOR UPDATE` on a row from another connection and asserts that the knex and Drizzle rotations wait for it. The Prisma adapter has no equivalent run against a real server: its suite is generated against a sqlite datasource, where `FOR UPDATE` is a no-op.
 
 ## Custom adapters
 
-Any ORM or persistence library can satisfy the `SispStorage` port. Implement the nine repository interfaces and the `transaction()`, `destroy()`, and optional `migrate?()` methods, then inject the result:
+Any ORM or persistence library can satisfy the `SispStorage` port. Implement the ten repository interfaces and the `transaction()`, `destroy()`, and optional `migrate?()` methods, then inject the result.
+
+Every interface a custom adapter has to satisfy is exported from the package entry, along with the argument and return types its methods take: `MaintenanceRepository` with `ReencryptSpec`, `ReencryptResult` and `EncryptedColumn`, and `NewTransaction`, `TransactionChanges`, `TransactionAttemptChanges`, `NewRequestMetadata`, `RateLimitHit`, `BlacklistEntry`, `TransactionItemData`, `ListTransactionsOptions` and `ListByTransactionOptions`. `tests/storage/custom-adapter.test-d.ts` implements the whole port from those exports alone, so the claim is checked rather than asserted:
 
 ```ts
-import type { SispStorage } from '@akira-io/sisp';
+import type { MaintenanceRepository, SispStorage } from '@akira-io/sisp';
 
 class SequelizeStorage implements SispStorage {
-  // ...implement all nine repositories
+  // ...implement all ten repositories
 }
 
 const sisp = await createSisp({

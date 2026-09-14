@@ -33,11 +33,10 @@ import { customizePipes, wireCredentialScopedServices } from './wiring';
 async function createDefaultStorage(resolved: ResolvedSispConfig): Promise<SispStorage> {
   const { KnexStorage } = await import('../infrastructure/storage/knex/knex-storage');
 
-  return KnexStorage.create(
-    resolved.database as Required<SispDatabaseConfig>,
-    resolved.tables,
-    resolved.appKey,
-  );
+  return KnexStorage.create(resolved.database as Required<SispDatabaseConfig>, resolved.tables, {
+    current: resolved.appKey,
+    previous: resolved.previousAppKeys,
+  });
 }
 
 export async function createSisp(config: SispConfig): Promise<Sisp> {

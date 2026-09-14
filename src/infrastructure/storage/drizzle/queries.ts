@@ -1,5 +1,5 @@
 import type { SQL } from 'drizzle-orm';
-import { asc, desc } from 'drizzle-orm';
+import { asc, count, desc } from 'drizzle-orm';
 import type { DrizzleConnection, DrizzleRow, DrizzleSelectBuilder } from './client';
 import { serialize } from './client';
 import type { SispTableKey } from './schema/spec';
@@ -65,6 +65,14 @@ export class TableGateway {
     );
 
     return rows.map((row) => Number(row.id));
+  }
+
+  async count(condition: SQL | undefined): Promise<number> {
+    const [row] = await serialize(this.connection, () =>
+      this.runSelect(condition, {}, { total: count() }),
+    );
+
+    return Number(row?.total ?? 0);
   }
 
   async valuesOf(
@@ -226,11 +234,19 @@ function header(result: unknown): Record<string, unknown> {
   return (result ?? {}) as Record<string, unknown>;
 }
 
-function rowsAffected(result: unknown): number {
-  const head = header(result);
-  const count = head.changes ?? head.rowCount ?? head.affectedRows ?? 0;
+export function rowsAffected(result: unknown): number {
+  if (Array.isArray(result)) {
+    const reported = (result as unknown as Record<string, unknown>).count;
 
-  return Number(count);
+    if (typeof reported === 'number') {
+      return reported;
+    }
+  }
+
+  const head = header(result);
+  const affected = head.changes ?? head.rowCount ?? head.affectedRows ?? 0;
+
+  return Number(affected);
 }
 
 function insertedId(result: unknown): number {

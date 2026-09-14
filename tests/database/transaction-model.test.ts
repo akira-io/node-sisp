@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_TABLES } from '../../src/application/config';
 import { runMigrations } from '../../src/infrastructure/storage/knex/auto-migrate';
 import { createKnexInstance } from '../../src/infrastructure/storage/knex/create-knex';
-import { isEncrypted, PayloadCipher } from '../../src/infrastructure/storage/knex/encryption';
+import { looksLikeEnvelope, PayloadCipher } from '../../src/infrastructure/storage/knex/encryption';
 import { runWithLogSource } from '../../src/infrastructure/storage/knex/log-context';
 import { Transaction } from '../../src/infrastructure/storage/knex/models/transaction';
 import { TransactionLog } from '../../src/infrastructure/storage/knex/models/transaction-log';
@@ -47,7 +47,7 @@ describe('Transaction', () => {
 
     const raw = await db(DEFAULT_TABLES.transactions).where('id', transaction.id).first();
 
-    expect(isEncrypted(raw.payload)).toBe(true);
+    expect(looksLikeEnvelope(raw.payload)).toBe(true);
     expect(raw.amount).toBeUndefined();
   });
 
@@ -167,7 +167,7 @@ describe('Transaction', () => {
     const rows = await db(DEFAULT_TABLES.transactionLogs).where('transaction_id', transaction.id);
     const stored = JSON.parse(String(rows[0]?.new_values)) as { payload: string };
 
-    expect(isEncrypted(stored.payload)).toBe(true);
+    expect(looksLikeEnvelope(stored.payload)).toBe(true);
     expect(String(rows[0]?.new_values)).not.toContain('refunds');
 
     const entries = await logs.listByTransaction(transaction.id);

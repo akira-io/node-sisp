@@ -250,3 +250,29 @@ describe('transaction log retention', () => {
     expect(oldest[0]?.new_values).toMatchObject({ merchant_response: 'response-5' });
   });
 });
+
+describe('rate limits', () => {
+  it('counts the first hit on a row it had to create', async () => {
+    const blocked = await storage.rateLimits.hit({
+      identifier: '198.51.100.7',
+      limitType: 'ip',
+      limit: 3,
+      windowSeconds: 60,
+    });
+
+    expect(blocked).toBe(false);
+  });
+
+  it('blocks once the hits pass the limit', async () => {
+    const params = {
+      identifier: '198.51.100.8',
+      limitType: 'ip',
+      limit: 2,
+      windowSeconds: 60,
+    };
+
+    expect(await storage.rateLimits.hit(params)).toBe(false);
+    expect(await storage.rateLimits.hit(params)).toBe(false);
+    expect(await storage.rateLimits.hit(params)).toBe(true);
+  });
+});

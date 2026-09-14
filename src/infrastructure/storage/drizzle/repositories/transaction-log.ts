@@ -7,21 +7,16 @@ import {
   normalizeListOffset,
   normalizeListOrder,
 } from '../../knex/list-options';
-import { readLogValues } from '../../knex/models/transaction-log';
+import { decodeLogValues, readLogValues } from '../../knex/models/transaction-log';
+import { drizzleColumnCodec } from '../column-codecs';
 import { normalizeRow } from '../mapping';
 import type { RepositoryContext } from './context';
 import { gateway } from './context';
 
-function asJson<T>(value: unknown, fallback: T): T {
-  if (typeof value !== 'string') {
-    return (value as T) ?? fallback;
-  }
+function changedAttributes(value: unknown): string[] {
+  const decoded = drizzleColumnCodec('transactionLogs', 'changed_attributes').decode(value);
 
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
+  return Array.isArray(decoded) ? (decoded as string[]) : [];
 }
 
 export function makeTransactionLogRepository(context: RepositoryContext): TransactionLogRepository {
@@ -44,13 +39,19 @@ export function makeTransactionLogRepository(context: RepositoryContext): Transa
 
         return {
           ...(normalized as unknown as TransactionLogRecord),
-          changed_attributes: asJson<string[]>(normalized.changed_attributes, []),
+          changed_attributes: changedAttributes(normalized.changed_attributes),
           old_values: readLogValues(
-            asJson<Record<string, unknown> | null>(normalized.old_values, null),
+            decodeLogValues(
+              drizzleColumnCodec('transactionLogs', 'old_values'),
+              normalized.old_values,
+            ),
             context.cipher,
           ),
           new_values: readLogValues(
-            asJson<Record<string, unknown> | null>(normalized.new_values, null),
+            decodeLogValues(
+              drizzleColumnCodec('transactionLogs', 'new_values'),
+              normalized.new_values,
+            ),
             context.cipher,
           ),
         };

@@ -1,3 +1,5 @@
+import type { Knex } from 'knex';
+
 export type {
   BlacklistRecord,
   InvoiceRecord,
@@ -9,8 +11,14 @@ export type {
   TransactionRecord,
 } from '../../../domain/records';
 
+const SQLITE_CLIENTS = ['better-sqlite3', 'sqlite3'];
+
 export function nowIso(): string {
   return new Date().toISOString();
+}
+
+export function timestampValue(db: Knex, iso: string): string | Date {
+  return SQLITE_CLIENTS.includes(String(db.client.config.client)) ? iso : new Date(iso);
 }
 
 export function transactionPayloadRecord(

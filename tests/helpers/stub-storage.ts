@@ -19,6 +19,7 @@ export function stubStorage(): SispStorage {
     blacklist: repository<SispStorage['blacklist']>(),
     rateLimits: repository<SispStorage['rateLimits']>(),
     requestMetadata: repository<SispStorage['requestMetadata']>(),
+    maintenance: repository<SispStorage['maintenance']>(),
   };
 
   return {

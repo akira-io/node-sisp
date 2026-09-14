@@ -140,7 +140,7 @@ export interface PaymentCorrelationStore {
 }
 ```
 
-Three methods against the 45 of the full `SispStorage` port.
+Three methods against the 41 of the full `SispStorage` port.
 
 `claim` must be atomic: it reserves the row and reports its prior state in one indivisible step. A read-then-write pair does not satisfy the contract, because two concurrent deliveries of the same callback would both pass the replay check, and gateways do reissue callbacks on timeout. In SQL it is a single statement:
 

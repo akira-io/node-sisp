@@ -21,6 +21,7 @@ import type {
 } from '../../domain/storage-types';
 import type { PaymentRequest } from '../../domain/value-objects/payment-request';
 import type { TransactionItemData } from '../../domain/value-objects/transaction-item-data';
+import type { MaintenanceRepository } from './maintenance';
 
 export interface TransactionRepository {
   create(data: NewTransaction): Promise<TransactionRecord>;
@@ -110,6 +111,8 @@ export interface RequestMetadataRepository {
     transactionId: number,
     options?: ListByTransactionOptions,
   ): Promise<RequestMetadataRecord[]>;
+  purgeOlderThan(cutoffIso: string, limit: number): Promise<number>;
+  countOlderThan(cutoffIso: string): Promise<number>;
 }
 
 export interface SispStorageRepositories {
@@ -122,6 +125,7 @@ export interface SispStorageRepositories {
   blacklist: BlacklistRepository;
   rateLimits: RateLimitRepository;
   requestMetadata: RequestMetadataRepository;
+  maintenance: MaintenanceRepository;
 }
 
 export interface SispStorageTx extends SispStorageRepositories {}

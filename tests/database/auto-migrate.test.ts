@@ -29,6 +29,7 @@ describe('runMigrations', () => {
       '0005_add_rate_limit_unique_index',
       '0006_add_payment_intent_request_hash',
       '0007_add_transaction_pos_id',
+      '0008_add_request_metadata_created_at_index',
     ]);
 
     for (const table of Object.values(DEFAULT_TABLES)) {
@@ -46,7 +47,7 @@ describe('runMigrations', () => {
 
     const rows = await db(MIGRATIONS_TABLE).select('name');
 
-    expect(rows).toHaveLength(7);
+    expect(rows).toHaveLength(8);
   });
 
   it('serializes concurrent migration runs', async () => {
@@ -64,8 +65,9 @@ describe('runMigrations', () => {
       '0005_add_rate_limit_unique_index',
       '0006_add_payment_intent_request_hash',
       '0007_add_transaction_pos_id',
+      '0008_add_request_metadata_created_at_index',
     ]);
-    expect(await db(MIGRATIONS_TABLE).select('name')).toHaveLength(7);
+    expect(await db(MIGRATIONS_TABLE).select('name')).toHaveLength(8);
   });
 
   it('survives a lost control table when the schema already exists', async () => {
@@ -82,6 +84,7 @@ describe('runMigrations', () => {
       '0005_add_rate_limit_unique_index',
       '0006_add_payment_intent_request_hash',
       '0007_add_transaction_pos_id',
+      '0008_add_request_metadata_created_at_index',
     ]);
     expect(await db.schema.hasTable(DEFAULT_TABLES.transactions)).toBe(true);
   });
@@ -98,6 +101,23 @@ describe('runMigrations', () => {
     expect(await db.schema.hasTable('custom_transactions')).toBe(true);
     expect(await db.schema.hasTable('custom_logs')).toBe(true);
     expect(await db.schema.hasTable(DEFAULT_TABLES.transactions)).toBe(false);
+  });
+
+  it('indexes request metadata on created_at alone so the purge can seek', async () => {
+    await runMigrations(db, DEFAULT_TABLES);
+
+    const indexes = (await db.raw(`pragma index_list(${DEFAULT_TABLES.requestMetadata})`)) as {
+      name: string;
+    }[];
+    const columnsPerIndex = await Promise.all(
+      indexes.map(async (index) =>
+        ((await db.raw(`pragma index_info(${index.name})`)) as { name: string }[]).map(
+          (column) => column.name,
+        ),
+      ),
+    );
+
+    expect(columnsPerIndex).toContainEqual(['created_at']);
   });
 
   it('creates the transactions schema expected by the Laravel package', async () => {

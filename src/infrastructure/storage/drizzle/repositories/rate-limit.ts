@@ -43,7 +43,7 @@ export function makeRateLimitRepository(context: RepositoryContext): RateLimitRe
         const table = gateway(scopedContext(context, connection), 'rateLimits');
         const where = filter(table, params);
 
-        let existing = await table.first(where);
+        const existing = await table.first(where);
 
         if (existing === null) {
           const timestamp = nowIso();
@@ -60,20 +60,14 @@ export function makeRateLimitRepository(context: RepositoryContext): RateLimitRe
             created_at: timestamp,
             updated_at: timestamp,
           });
-
-          existing = await table.first(where);
         }
 
-        if (existing === null) {
+        const locked = await table.firstForUpdate(where);
+
+        if (locked === null) {
           throw new Error(
             `Rate limit row for ${params.limitType}:${params.identifier} could not be read or created.`,
           );
-        }
-
-        const locked = await table.firstForUpdate(eq(table.column('id'), existing.id));
-
-        if (locked === null) {
-          return false;
         }
 
         let row = locked;

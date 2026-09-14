@@ -3,9 +3,10 @@ import type { SispDatabaseConfig, SispTables } from '../../../application/config
 import type { SispStorage, SispStorageTx } from '../../../core/contracts/storage';
 import { runMigrations } from './auto-migrate';
 import { createKnexInstance } from './create-knex';
-import { PayloadCipher } from './encryption';
+import { PayloadCipher, type PayloadCipherKeys } from './encryption';
 import { Blacklist } from './models/blacklist';
 import { Invoice } from './models/invoice';
+import { Maintenance } from './models/maintenance';
 import { PaymentIntent } from './models/payment-intent';
 import { RateLimit } from './models/rate-limit';
 import { RequestMetadata } from './models/request-metadata';
@@ -24,6 +25,7 @@ export class KnexStorage implements SispStorage {
   readonly blacklist: Blacklist;
   readonly rateLimits: RateLimit;
   readonly requestMetadata: RequestMetadata;
+  readonly maintenance: Maintenance;
 
   private constructor(
     private readonly db: Knex,
@@ -40,12 +42,13 @@ export class KnexStorage implements SispStorage {
     this.blacklist = new Blacklist(db, tables);
     this.rateLimits = new RateLimit(db, tables);
     this.requestMetadata = new RequestMetadata(db, tables, cipher);
+    this.maintenance = new Maintenance(db, tables, cipher);
   }
 
   static async create(
     database: Required<SispDatabaseConfig>,
     tables: SispTables,
-    appKey: string | null,
+    appKey: string | null | PayloadCipherKeys,
   ): Promise<KnexStorage> {
     const db = await createKnexInstance(database);
     const cipher = new PayloadCipher(appKey);
@@ -84,6 +87,7 @@ export class KnexStorage implements SispStorage {
       blacklist: this.blacklist.withConnection(trx),
       rateLimits: this.rateLimits.withConnection(trx),
       requestMetadata: this.requestMetadata.withConnection(trx),
+      maintenance: this.maintenance.withConnection(trx),
     };
   }
 }

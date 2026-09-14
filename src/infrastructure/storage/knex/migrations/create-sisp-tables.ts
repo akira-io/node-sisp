@@ -40,7 +40,7 @@ async function createTransactionsTable(db: Knex, tables: SispTables): Promise<vo
     table.timestamp('cancelled_at').nullable();
     table.timestamp('refunded_at').nullable();
     table.timestamps();
-    table.index(['merchant_ref', 'merchant_session', 'status', 'message_type']);
+    table.index(['merchant_ref', 'merchant_session'], `${tables.transactions}_merchant_lookup_idx`);
     table.index(['transaction_id']);
     table.index(['customer_email']);
   });
